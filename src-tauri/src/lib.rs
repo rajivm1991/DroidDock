@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 use tauri_plugin_shell::ShellExt;
 use std::path::PathBuf;
 use std::sync::Mutex;
+use image::ImageReader;
+use base64::{Engine as _, engine::general_purpose};
 
 // Global state to store custom ADB path
 static ADB_PATH: Mutex<Option<String>> = Mutex::new(None);
@@ -19,6 +21,7 @@ pub struct FileEntry {
     pub size: String,
     pub date: String,
     pub is_directory: bool,
+    pub extension: Option<String>,
 }
 
 // Try to find ADB in common locations
@@ -71,6 +74,148 @@ fn get_adb_command() -> String {
 
     // Fall back to just "adb" (hope it's in PATH)
     "adb".to_string()
+}
+
+// Helper function to check if a file extension is an image
+fn is_image_extension(ext: &str) -> bool {
+    matches!(ext, "jpg" | "jpeg" | "png" | "gif" | "webp" | "bmp")
+}
+
+// Helper function to check if a file extension is a video
+fn is_video_extension(ext: &str) -> bool {
+    matches!(ext, "mp4" | "avi" | "mov" | "mkv" | "webm" | "3gp" | "m4v")
+}
+
+// Get thumbnail for an image or video file
+#[tauri::command]
+async fn get_thumbnail(
+    app: tauri::AppHandle,
+    device_id: String,
+    file_path: String,
+    extension: String,
+    file_size: String,
+) -> Result<String, String> {
+    let shell = app.shell();
+    let adb_cmd = get_adb_command();
+
+    // Skip thumbnails for files larger than 50MB to avoid long transfers
+    if let Ok(size) = file_size.parse::<u64>() {
+        if size > 50_000_000 {
+            return Ok("size-too-large".to_string());
+        }
+    }
+
+    // Create temp directory for thumbnails
+    let temp_dir = std::env::temp_dir().join("droiddock_thumbnails");
+    std::fs::create_dir_all(&temp_dir)
+        .map_err(|e| format!("Failed to create temp directory: {}", e))?;
+
+    // Generate cache key from file path and device ID
+    let cache_key = format!("{:x}", md5::compute(format!("{}:{}", device_id, file_path)));
+    let cached_thumb_path = temp_dir.join(format!("thumb_{}.png", cache_key));
+
+    // Check if thumbnail already exists in cache
+    if cached_thumb_path.exists() {
+        let thumb_bytes = std::fs::read(&cached_thumb_path)
+            .map_err(|e| format!("Failed to read cached thumbnail: {}", e))?;
+        let base64_string = general_purpose::STANDARD.encode(&thumb_bytes);
+        return Ok(format!("data:image/png;base64,{}", base64_string));
+    }
+
+    // Generate unique filename for temporary file
+    let safe_filename = format!("{}_{}", cache_key, file_path.split('/').last().unwrap_or("file"));
+    let temp_file = temp_dir.join(&safe_filename);
+
+    // Pull file from Android device to temp location
+    let escaped_path = file_path.replace("'", "'\\''");
+    let output = shell
+        .command(&adb_cmd)
+        .args(["-s", &device_id, "pull", &escaped_path, temp_file.to_str().unwrap()])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to pull file from device: {}", e))?;
+
+    if !output.status.success() {
+        return Err(format!("ADB pull failed: {}", String::from_utf8_lossy(&output.stderr)));
+    }
+
+    let ext_lower = extension.to_lowercase();
+
+    // Generate thumbnail based on file type
+    if is_image_extension(&ext_lower) {
+        // Generate image thumbnail
+        let img = ImageReader::open(&temp_file)
+            .map_err(|e| format!("Failed to open image: {}", e))?
+            .decode()
+            .map_err(|e| format!("Failed to decode image: {}", e))?;
+
+        // Resize to thumbnail size (100x100 maintaining aspect ratio)
+        let thumbnail = img.thumbnail(100, 100);
+
+        // Save thumbnail to cache
+        thumbnail.save(&cached_thumb_path)
+            .map_err(|e| format!("Failed to save thumbnail: {}", e))?;
+
+        // Convert to base64 for easy transfer to frontend
+        let thumb_bytes = std::fs::read(&cached_thumb_path)
+            .map_err(|e| format!("Failed to read thumbnail: {}", e))?;
+        let base64_string = general_purpose::STANDARD.encode(&thumb_bytes);
+
+        // Clean up original file
+        let _ = std::fs::remove_file(&temp_file);
+
+        // Return data URL
+        Ok(format!("data:image/png;base64,{}", base64_string))
+
+    } else if is_video_extension(&ext_lower) {
+        // For videos, try to extract a frame using ffmpeg if available
+        // First check if ffmpeg is installed
+        let ffmpeg_check = shell
+            .command("ffmpeg")
+            .args(["-version"])
+            .output()
+            .await;
+
+        if ffmpeg_check.is_err() {
+            // Clean up and return placeholder
+            let _ = std::fs::remove_file(&temp_file);
+            return Ok("video-placeholder".to_string());
+        }
+
+        // Extract first frame at 1 second
+        let ffmpeg_output = shell
+            .command("ffmpeg")
+            .args([
+                "-i", temp_file.to_str().unwrap(),
+                "-ss", "00:00:01",
+                "-vframes", "1",
+                "-vf", "scale=100:100:force_original_aspect_ratio=decrease",
+                "-y",
+                cached_thumb_path.to_str().unwrap()
+            ])
+            .output()
+            .await;
+
+        // Clean up original video file
+        let _ = std::fs::remove_file(&temp_file);
+
+        if let Ok(output) = ffmpeg_output {
+            if output.status.success() && cached_thumb_path.exists() {
+                let thumb_bytes = std::fs::read(&cached_thumb_path)
+                    .map_err(|e| format!("Failed to read thumbnail: {}", e))?;
+                let base64_string = general_purpose::STANDARD.encode(&thumb_bytes);
+                return Ok(format!("data:image/png;base64,{}", base64_string));
+            }
+        }
+
+        // If ffmpeg fails, return placeholder
+        Ok("video-placeholder".to_string())
+
+    } else {
+        // Unsupported file type
+        let _ = std::fs::remove_file(&temp_file);
+        Err("Unsupported file type".to_string())
+    }
 }
 
 // Get list of connected ADB devices
@@ -187,12 +332,22 @@ fn parse_ls_line(line: &str) -> Option<FileEntry> {
         "0".to_string()
     };
 
+    // Extract file extension
+    let extension = if !is_directory {
+        name.rsplit('.').next()
+            .filter(|ext| ext.len() <= 10 && ext.len() > 0 && ext != &name)
+            .map(|ext| ext.to_lowercase())
+    } else {
+        None
+    };
+
     Some(FileEntry {
         name,
         permissions,
         size,
         date,
         is_directory,
+        extension,
     })
 }
 
@@ -332,7 +487,8 @@ pub fn run() {
             detect_storage_path,
             check_adb,
             set_adb_path,
-            get_current_adb_path
+            get_current_adb_path,
+            get_thumbnail
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

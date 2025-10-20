@@ -313,6 +313,16 @@ td {
   font-size: 16px;
 }
 
+.thumbnail {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-right: 8px;
+  vertical-align: middle;
+  border: 1px solid #e0e0e0;
+}
+
 .permissions {
   font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
   font-size: 12px;
@@ -383,6 +393,10 @@ td {
 
   .permissions {
     color: #999;
+  }
+
+  .thumbnail {
+    border-color: #3a3a3a;
   }
 
   .up-btn {
