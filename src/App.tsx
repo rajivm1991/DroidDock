@@ -39,6 +39,13 @@ function App() {
     }
   }, [adbAvailable]);
 
+  // Detect storage path when device is selected
+  useEffect(() => {
+    if (selectedDevice) {
+      detectStoragePath();
+    }
+  }, [selectedDevice]);
+
   // Load files when device or path changes
   useEffect(() => {
     if (selectedDevice && currentPath) {
@@ -68,6 +75,21 @@ function App() {
       await checkAdb();
     } catch (err) {
       setError(`Failed to set ADB path: ${err}`);
+    }
+  }
+
+  async function detectStoragePath() {
+    if (!selectedDevice) return;
+
+    try {
+      const detectedPath = await invoke<string>("detect_storage_path", {
+        deviceId: selectedDevice,
+      });
+      setCurrentPath(detectedPath);
+    } catch (err) {
+      console.error(`Failed to detect storage path: ${err}`);
+      // Fall back to default path on error
+      setCurrentPath("/storage/emulated/0");
     }
   }
 
@@ -127,10 +149,19 @@ function App() {
   }
 
   function getVisibleFiles() {
-    if (showHiddenFiles) {
-      return files;
-    }
-    return files.filter(file => !file.name.startsWith('.'));
+    const visibleFiles = showHiddenFiles
+      ? files
+      : files.filter(file => !file.name.startsWith('.'));
+
+    // Sort: directories first, then files, both alphabetically (case-insensitive)
+    return visibleFiles.sort((a, b) => {
+      // Directories before files
+      if (a.is_directory && !b.is_directory) return -1;
+      if (!a.is_directory && b.is_directory) return 1;
+
+      // Alphabetical, case-insensitive
+      return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+    });
   }
 
   if (adbAvailable === false) {

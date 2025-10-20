@@ -196,6 +196,93 @@ fn parse_ls_line(line: &str) -> Option<FileEntry> {
     })
 }
 
+// Detect the primary storage path for an Android device
+#[tauri::command]
+async fn detect_storage_path(app: tauri::AppHandle, device_id: String) -> Result<String, String> {
+    let shell = app.shell();
+    let adb_cmd = get_adb_command();
+
+    // Try 1: Get EXTERNAL_STORAGE environment variable
+    let output = shell
+        .command(&adb_cmd)
+        .args(["-s", &device_id, "shell", "echo $EXTERNAL_STORAGE"])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to execute adb command: {}", e))?;
+
+    if output.status.success() {
+        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !path.is_empty() && path != "$EXTERNAL_STORAGE" {
+            // Verify the path exists
+            let verify_output = shell
+                .command(&adb_cmd)
+                .args(["-s", &device_id, "shell", &format!("test -d '{}' && echo exists", path)])
+                .output()
+                .await
+                .ok();
+
+            if let Some(verify) = verify_output {
+                if String::from_utf8_lossy(&verify.stdout).contains("exists") {
+                    // Resolve symlink to get actual path
+                    let resolve_output = shell
+                        .command(&adb_cmd)
+                        .args(["-s", &device_id, "shell", &format!("readlink -f '{}'", path)])
+                        .output()
+                        .await
+                        .ok();
+
+                    if let Some(resolved) = resolve_output {
+                        let resolved_path = String::from_utf8_lossy(&resolved.stdout).trim().to_string();
+                        if !resolved_path.is_empty() {
+                            return Ok(resolved_path);
+                        }
+                    }
+
+                    // If readlink fails, use path as-is
+                    return Ok(path);
+                }
+            }
+        }
+    }
+
+    // Try 2: Check common symlinks (/sdcard usually points to the right place)
+    let sdcard_paths = vec!["/sdcard", "/mnt/sdcard", "/storage/self/primary"];
+
+    for sdcard_path in sdcard_paths {
+        let output = shell
+            .command(&adb_cmd)
+            .args(["-s", &device_id, "shell", &format!("test -d '{}' && echo exists", sdcard_path)])
+            .output()
+            .await
+            .ok();
+
+        if let Some(verify) = output {
+            if String::from_utf8_lossy(&verify.stdout).contains("exists") {
+                // Resolve symlink to get actual path
+                let resolve_output = shell
+                    .command(&adb_cmd)
+                    .args(["-s", &device_id, "shell", &format!("readlink -f '{}'", sdcard_path)])
+                    .output()
+                    .await
+                    .ok();
+
+                if let Some(resolved) = resolve_output {
+                    let resolved_path = String::from_utf8_lossy(&resolved.stdout).trim().to_string();
+                    if !resolved_path.is_empty() {
+                        return Ok(resolved_path);
+                    }
+                }
+
+                // If readlink fails, just use the path as-is
+                return Ok(sdcard_path.to_string());
+            }
+        }
+    }
+
+    // Try 3: Default to /storage/emulated/0 (most common path)
+    Ok("/storage/emulated/0".to_string())
+}
+
 // Check if ADB is available
 #[tauri::command]
 async fn check_adb(app: tauri::AppHandle) -> Result<bool, String> {
@@ -242,6 +329,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_devices,
             list_files,
+            detect_storage_path,
             check_adb,
             set_adb_path,
             get_current_adb_path
