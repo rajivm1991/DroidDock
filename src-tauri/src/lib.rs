@@ -117,9 +117,13 @@ async fn list_files(app: tauri::AppHandle, device_id: String, path: String) -> R
     let shell = app.shell();
     let adb_cmd = get_adb_command();
 
+    // Escape single quotes in path and wrap in quotes to handle spaces
+    let escaped_path = path.replace("'", "'\\''");
+    let shell_command = format!("ls -la '{}'", escaped_path);
+
     let output = shell
         .command(&adb_cmd)
-        .args(["-s", &device_id, "shell", "ls", "-la", &path])
+        .args(["-s", &device_id, "shell", &shell_command])
         .output()
         .await
         .map_err(|e| format!("Failed to execute adb command: {}", e))?;
