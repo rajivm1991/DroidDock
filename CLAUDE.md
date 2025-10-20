@@ -19,6 +19,12 @@ cd src-tauri && cargo test # Run Rust tests
 
 **Branch naming:** `fix/`, `feature/`, `hotfix/`, `refactor/` prefix with descriptive name
 
+**Issue creation:** Always add labels when creating issues:
+- `bug` - Something isn't working
+- `enhancement` - New features
+- `good first issue` - For simple/beginner-friendly tasks
+- Use: `gh issue create --label "enhancement" ...`
+
 **Standard workflow:**
 1. Create branch from main: `git checkout -b fix/issue-description`
 2. Test: `cd src-tauri && cargo build && cargo test` and/or `npm run build`
