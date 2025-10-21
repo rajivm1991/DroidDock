@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
@@ -13,6 +13,75 @@ interface FileEntry {
   size: string;
   date: string;
   is_directory: boolean;
+  extension: string | null;
+}
+
+interface FileRowProps {
+  file: FileEntry;
+  currentPath: string;
+  thumbnailsEnabled: boolean;
+  thumbnailCache: Map<string, string>;
+  loadThumbnail: (file: FileEntry) => Promise<void>;
+  needsThumbnail: (file: FileEntry) => boolean;
+  onNavigate: () => void;
+}
+
+function FileRow({ file, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate }: FileRowProps) {
+  const rowRef = useRef<HTMLTableRowElement>(null);
+  const [hasLoadedThumbnail, setHasLoadedThumbnail] = useState(false);
+
+  useEffect(() => {
+    if (!thumbnailsEnabled || !needsThumbnail(file) || hasLoadedThumbnail) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasLoadedThumbnail) {
+            console.log(`📸 Row entered viewport: ${file.name} - triggering thumbnail load`);
+            loadThumbnail(file);
+            setHasLoadedThumbnail(true);
+          }
+        });
+      },
+      { rootMargin: "50px" } // Start loading 50px before element is visible
+    );
+
+    const currentRow = rowRef.current;
+    if (currentRow) {
+      observer.observe(currentRow);
+    }
+
+    return () => {
+      if (currentRow) {
+        observer.unobserve(currentRow);
+      }
+    };
+  }, [thumbnailsEnabled, file, hasLoadedThumbnail, loadThumbnail, needsThumbnail]);
+
+  const filePath = currentPath === "/" ? `/${file.name}` : `${currentPath}/${file.name}`;
+  const thumbnailUrl = thumbnailCache.get(filePath);
+
+  return (
+    <tr
+      ref={rowRef}
+      onDoubleClick={onNavigate}
+      className={file.is_directory ? "directory" : "file"}
+    >
+      <td>
+        {thumbnailsEnabled && thumbnailUrl ? (
+          <img src={thumbnailUrl} alt={file.name} className="thumbnail" />
+        ) : (
+          <span className="icon">{file.is_directory ? "📁" : "📄"}</span>
+        )}
+        {file.name}
+      </td>
+      <td>{file.is_directory ? "-" : file.size}</td>
+      <td>{file.date}</td>
+      <td className="permissions">{file.permissions}</td>
+    </tr>
+  );
 }
 
 function App() {
@@ -26,6 +95,9 @@ function App() {
   const [showHiddenFiles, setShowHiddenFiles] = useState<boolean>(false);
   const [adbPath, setAdbPath] = useState<string>("");
   const [customAdbPath, setCustomAdbPath] = useState<string>("");
+  const [thumbnailsEnabled, setThumbnailsEnabled] = useState<boolean>(true);
+  const [thumbnailCache, setThumbnailCache] = useState<Map<string, string>>(new Map());
+  const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
 
   // Check if ADB is available on startup
   useEffect(() => {
@@ -52,6 +124,21 @@ function App() {
       loadFiles();
     }
   }, [selectedDevice, currentPath]);
+
+  // Close settings dropdown when clicking outside
+  useEffect(() => {
+    if (!settingsOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.settings-dropdown')) {
+        setSettingsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [settingsOpen]);
 
   async function checkAdb() {
     try {
@@ -164,6 +251,58 @@ function App() {
     });
   }
 
+  function isImageFile(extension: string | null): boolean {
+    if (!extension) return false;
+    const ext = extension.toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext);
+  }
+
+  function isVideoFile(extension: string | null): boolean {
+    if (!extension) return false;
+    const ext = extension.toLowerCase();
+    return ['mp4', 'avi', 'mov', 'mkv', 'webm', '3gp', 'm4v'].includes(ext);
+  }
+
+  function needsThumbnail(file: FileEntry): boolean {
+    return !file.is_directory && (isImageFile(file.extension) || isVideoFile(file.extension));
+  }
+
+  async function loadThumbnail(file: FileEntry) {
+    if (!thumbnailsEnabled || !selectedDevice) return;
+
+    const filePath = currentPath === "/"
+      ? `/${file.name}`
+      : `${currentPath}/${file.name}`;
+
+    // Check cache first
+    if (thumbnailCache.has(filePath)) {
+      return;
+    }
+
+    console.log(`Loading thumbnail for: ${filePath}, extension: ${file.extension}, size: ${file.size}`);
+
+    try {
+      const thumbnailData = await invoke<string>("get_thumbnail", {
+        deviceId: selectedDevice,
+        filePath: filePath,
+        extension: file.extension || "",
+        fileSize: file.size,
+      });
+
+      console.log(`Thumbnail result for ${file.name}:`, thumbnailData.substring(0, 50));
+
+      if (thumbnailData && !thumbnailData.includes("placeholder") && !thumbnailData.includes("size-too-large")) {
+        setThumbnailCache(prev => new Map(prev).set(filePath, thumbnailData));
+        console.log(`✓ Thumbnail cached for ${file.name}`);
+      } else {
+        console.warn(`✗ Thumbnail skipped for ${file.name}: ${thumbnailData}`);
+      }
+    } catch (err) {
+      console.error(`✗ Failed to load thumbnail for ${file.name}:`, err);
+      setError(`Thumbnail error for ${file.name}: ${err}`);
+    }
+  }
+
   if (adbAvailable === false) {
     return (
       <div className="container">
@@ -216,12 +355,42 @@ function App() {
             ))}
           </select>
           <button onClick={loadDevices}>Refresh</button>
-          <button
-            onClick={() => setShowHiddenFiles(!showHiddenFiles)}
-            className={showHiddenFiles ? "toggle-active" : ""}
-          >
-            {showHiddenFiles ? "Hide" : "Show"} Hidden
-          </button>
+          <div className="settings-dropdown">
+            <button
+              onClick={() => setSettingsOpen(!settingsOpen)}
+              title="Settings"
+            >
+              ⋯
+            </button>
+            {settingsOpen && (
+              <div className="settings-menu">
+                <div className="settings-item">
+                  <label className="toggle-label">
+                    <span>Show Hidden Files</span>
+                    <input
+                      type="checkbox"
+                      checked={showHiddenFiles}
+                      onChange={(e) => setShowHiddenFiles(e.target.checked)}
+                      className="toggle-checkbox"
+                    />
+                    <span className="toggle-switch"></span>
+                  </label>
+                </div>
+                <div className="settings-item">
+                  <label className="toggle-label">
+                    <span>Show Thumbnails</span>
+                    <input
+                      type="checkbox"
+                      checked={thumbnailsEnabled}
+                      onChange={(e) => setThumbnailsEnabled(e.target.checked)}
+                      className="toggle-checkbox"
+                    />
+                    <span className="toggle-switch"></span>
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -266,19 +435,16 @@ function App() {
                 </thead>
                 <tbody>
                   {getVisibleFiles().map((file, index) => (
-                    <tr
+                    <FileRow
                       key={index}
-                      onDoubleClick={() => file.is_directory && navigateToDirectory(file.name)}
-                      className={file.is_directory ? "directory" : "file"}
-                    >
-                      <td>
-                        <span className="icon">{file.is_directory ? "📁" : "📄"}</span>
-                        {file.name}
-                      </td>
-                      <td>{file.is_directory ? "-" : file.size}</td>
-                      <td>{file.date}</td>
-                      <td className="permissions">{file.permissions}</td>
-                    </tr>
+                      file={file}
+                      currentPath={currentPath}
+                      thumbnailsEnabled={thumbnailsEnabled}
+                      thumbnailCache={thumbnailCache}
+                      loadThumbnail={loadThumbnail}
+                      needsThumbnail={needsThumbnail}
+                      onNavigate={() => file.is_directory && navigateToDirectory(file.name)}
+                    />
                   ))}
                   {getVisibleFiles().length === 0 && !loading && (
                     <tr>

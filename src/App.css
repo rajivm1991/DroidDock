@@ -79,6 +79,89 @@ header h1 {
   background-color: #5568d3;
 }
 
+.settings-dropdown {
+  position: relative;
+}
+
+.settings-dropdown button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #333;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.settings-dropdown button:hover {
+  background-color: rgba(255, 255, 255, 1);
+}
+
+.settings-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  min-width: 200px;
+  z-index: 1000;
+}
+
+.settings-item {
+  padding: 8px;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-label span:first-child {
+  font-size: 14px;
+  color: #333;
+}
+
+.toggle-checkbox {
+  display: none;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  background-color: #ccc;
+  border-radius: 12px;
+  transition: background-color 0.3s;
+  flex-shrink: 0;
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.3s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-checkbox:checked + .toggle-switch {
+  background-color: #667eea;
+}
+
+.toggle-checkbox:checked + .toggle-switch::after {
+  transform: translateX(20px);
+}
+
 .error {
   margin: 16px 20px;
   padding: 12px;
@@ -313,6 +396,26 @@ td {
   font-size: 16px;
 }
 
+.thumbnail {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+  margin-right: 8px;
+  vertical-align: middle;
+  border: 1px solid #e0e0e0;
+}
+
+.thumbnail-counter {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #666;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+
 .permissions {
   font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
   font-size: 12px;
@@ -360,6 +463,28 @@ td {
     background-color: #5568d3;
   }
 
+  .settings-dropdown button {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
+
+  .settings-dropdown button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .settings-menu {
+    background-color: #2a2a2a;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  }
+
+  .toggle-label span:first-child {
+    color: #e0e0e0;
+  }
+
+  .toggle-switch {
+    background-color: #555;
+  }
+
   thead {
     background-color: #2a2a2a;
   }
@@ -382,6 +507,15 @@ td {
   }
 
   .permissions {
+    color: #999;
+  }
+
+  .thumbnail {
+    border-color: #3a3a3a;
+  }
+
+  .thumbnail-counter {
+    background-color: #2a2a2a;
     color: #999;
   }
 
