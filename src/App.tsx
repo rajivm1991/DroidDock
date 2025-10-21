@@ -39,6 +39,7 @@ function FileRow({ file, currentPath, thumbnailsEnabled, thumbnailCache, loadThu
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting && !hasLoadedThumbnail) {
+            console.log(`📸 Row entered viewport: ${file.name} - triggering thumbnail load`);
             loadThumbnail(file);
             setHasLoadedThumbnail(true);
           }
@@ -47,13 +48,14 @@ function FileRow({ file, currentPath, thumbnailsEnabled, thumbnailCache, loadThu
       { rootMargin: "50px" } // Start loading 50px before element is visible
     );
 
-    if (rowRef.current) {
-      observer.observe(rowRef.current);
+    const currentRow = rowRef.current;
+    if (currentRow) {
+      observer.observe(currentRow);
     }
 
     return () => {
-      if (rowRef.current) {
-        observer.unobserve(rowRef.current);
+      if (currentRow) {
+        observer.unobserve(currentRow);
       }
     };
   }, [thumbnailsEnabled, file, hasLoadedThumbnail, loadThumbnail, needsThumbnail]);
@@ -95,6 +97,7 @@ function App() {
   const [customAdbPath, setCustomAdbPath] = useState<string>("");
   const [thumbnailsEnabled, setThumbnailsEnabled] = useState<boolean>(true);
   const [thumbnailCache, setThumbnailCache] = useState<Map<string, string>>(new Map());
+  const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
 
   // Check if ADB is available on startup
   useEffect(() => {
@@ -121,6 +124,21 @@ function App() {
       loadFiles();
     }
   }, [selectedDevice, currentPath]);
+
+  // Close settings dropdown when clicking outside
+  useEffect(() => {
+    if (!settingsOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.settings-dropdown')) {
+        setSettingsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [settingsOpen]);
 
   async function checkAdb() {
     try {
@@ -261,6 +279,8 @@ function App() {
       return;
     }
 
+    console.log(`Loading thumbnail for: ${filePath}, extension: ${file.extension}, size: ${file.size}`);
+
     try {
       const thumbnailData = await invoke<string>("get_thumbnail", {
         deviceId: selectedDevice,
@@ -269,11 +289,17 @@ function App() {
         fileSize: file.size,
       });
 
+      console.log(`Thumbnail result for ${file.name}:`, thumbnailData.substring(0, 50));
+
       if (thumbnailData && !thumbnailData.includes("placeholder") && !thumbnailData.includes("size-too-large")) {
         setThumbnailCache(prev => new Map(prev).set(filePath, thumbnailData));
+        console.log(`✓ Thumbnail cached for ${file.name}`);
+      } else {
+        console.warn(`✗ Thumbnail skipped for ${file.name}: ${thumbnailData}`);
       }
     } catch (err) {
-      console.error(`Failed to load thumbnail for ${file.name}:`, err);
+      console.error(`✗ Failed to load thumbnail for ${file.name}:`, err);
+      setError(`Thumbnail error for ${file.name}: ${err}`);
     }
   }
 
@@ -329,18 +355,42 @@ function App() {
             ))}
           </select>
           <button onClick={loadDevices}>Refresh</button>
-          <button
-            onClick={() => setShowHiddenFiles(!showHiddenFiles)}
-            className={showHiddenFiles ? "toggle-active" : ""}
-          >
-            {showHiddenFiles ? "Hide" : "Show"} Hidden
-          </button>
-          <button
-            onClick={() => setThumbnailsEnabled(!thumbnailsEnabled)}
-            className={thumbnailsEnabled ? "toggle-active" : ""}
-          >
-            {thumbnailsEnabled ? "Hide" : "Show"} Thumbnails
-          </button>
+          <div className="settings-dropdown">
+            <button
+              onClick={() => setSettingsOpen(!settingsOpen)}
+              title="Settings"
+            >
+              ⋯
+            </button>
+            {settingsOpen && (
+              <div className="settings-menu">
+                <div className="settings-item">
+                  <label className="toggle-label">
+                    <span>Show Hidden Files</span>
+                    <input
+                      type="checkbox"
+                      checked={showHiddenFiles}
+                      onChange={(e) => setShowHiddenFiles(e.target.checked)}
+                      className="toggle-checkbox"
+                    />
+                    <span className="toggle-switch"></span>
+                  </label>
+                </div>
+                <div className="settings-item">
+                  <label className="toggle-label">
+                    <span>Show Thumbnails</span>
+                    <input
+                      type="checkbox"
+                      checked={thumbnailsEnabled}
+                      onChange={(e) => setThumbnailsEnabled(e.target.checked)}
+                      className="toggle-checkbox"
+                    />
+                    <span className="toggle-switch"></span>
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 

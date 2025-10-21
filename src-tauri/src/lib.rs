@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use tauri_plugin_shell::ShellExt;
 use std::path::PathBuf;
 use std::sync::Mutex;
+use std::io::Read;
 use image::ImageReader;
 use base64::{Engine as _, engine::general_purpose};
 
@@ -139,15 +140,58 @@ async fn get_thumbnail(
         return Err(format!("ADB pull failed: {}", String::from_utf8_lossy(&output.stderr)));
     }
 
+    // Validate that the file was actually pulled and has content
+    if !temp_file.exists() {
+        return Err("File was not pulled from device".to_string());
+    }
+
+    let file_metadata = std::fs::metadata(&temp_file)
+        .map_err(|e| format!("Failed to read pulled file metadata: {}", e))?;
+
+    if file_metadata.len() == 0 {
+        let _ = std::fs::remove_file(&temp_file);
+        return Err("Pulled file is empty (0 bytes)".to_string());
+    }
+
+    // For small files (< 100 bytes), might be corrupted
+    if file_metadata.len() < 100 {
+        let _ = std::fs::remove_file(&temp_file);
+        return Err(format!("Pulled file too small ({} bytes), possibly corrupted", file_metadata.len()));
+    }
+
     let ext_lower = extension.to_lowercase();
 
     // Generate thumbnail based on file type
     if is_image_extension(&ext_lower) {
+        // Verify file magic bytes for JPEG/PNG
+        if ext_lower == "jpg" || ext_lower == "jpeg" {
+            let mut file = std::fs::File::open(&temp_file)
+                .map_err(|e| format!("Failed to open file for validation: {}", e))?;
+            let mut magic_bytes = [0u8; 2];
+            if file.read_exact(&mut magic_bytes).is_ok() {
+                // JPEG should start with 0xFF 0xD8
+                if magic_bytes[0] != 0xFF || magic_bytes[1] != 0xD8 {
+                    let _ = std::fs::remove_file(&temp_file);
+                    return Err(format!(
+                        "Invalid JPEG file: starts with [{:#04x}, {:#04x}] instead of [0xFF, 0xD8]. File may be corrupted.",
+                        magic_bytes[0], magic_bytes[1]
+                    ));
+                }
+            }
+        }
+
         // Generate image thumbnail
         let img = ImageReader::open(&temp_file)
-            .map_err(|e| format!("Failed to open image: {}", e))?
+            .map_err(|e| {
+                let _ = std::fs::remove_file(&temp_file);
+                format!("Failed to open image (pulled {} bytes): {}", file_metadata.len(), e)
+            })?
             .decode()
-            .map_err(|e| format!("Failed to decode image: {}", e))?;
+            .map_err(|e| {
+                let _ = std::fs::remove_file(&temp_file);
+                format!("Failed to decode image (pulled {} bytes, expected size {}): {}. File may be corrupted or incomplete.",
+                    file_metadata.len(), file_size, e)
+            })?;
 
         // Resize to thumbnail size (100x100 maintaining aspect ratio)
         let thumbnail = img.thumbnail(100, 100);
