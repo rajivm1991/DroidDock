@@ -18,17 +18,33 @@ interface FileEntry {
 
 interface FileRowProps {
   file: FileEntry;
+  fileIndex: number;
   currentPath: string;
   thumbnailsEnabled: boolean;
   thumbnailCache: Map<string, string>;
-  loadThumbnail: (file: FileEntry) => Promise<void>;
+  loadThumbnail: (file: FileEntry, filePath: string) => Promise<void>;
   needsThumbnail: (file: FileEntry) => boolean;
   onNavigate: () => void;
+  isSelected: boolean;
+  onSelect: (index: number, e: React.MouseEvent) => void;
 }
 
-function FileRow({ file, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate }: FileRowProps) {
+function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate, isSelected, onSelect }: FileRowProps) {
   const rowRef = useRef<HTMLTableRowElement>(null);
   const [hasLoadedThumbnail, setHasLoadedThumbnail] = useState(false);
+
+  // Compute file path once and freeze it using useRef to prevent recalculation on re-renders
+  // This prevents race conditions when navigating quickly
+  const filePathRef = useRef<string | null>(null);
+  if (filePathRef.current === null) {
+    // If file.name starts with /, it's already a full path (from search results)
+    filePathRef.current = file.name.startsWith("/")
+      ? file.name
+      : currentPath === "/"
+      ? `/${file.name}`
+      : `${currentPath}/${file.name}`;
+  }
+  const filePath = filePathRef.current;
 
   useEffect(() => {
     if (!thumbnailsEnabled || !needsThumbnail(file) || hasLoadedThumbnail) {
@@ -40,7 +56,8 @@ function FileRow({ file, currentPath, thumbnailsEnabled, thumbnailCache, loadThu
         entries.forEach((entry) => {
           if (entry.isIntersecting && !hasLoadedThumbnail) {
             console.log(`📸 Row entered viewport: ${file.name} - triggering thumbnail load`);
-            loadThumbnail(file);
+            // Pass the computed filePath to avoid race conditions with currentPath changes
+            loadThumbnail(file, filePath);
             setHasLoadedThumbnail(true);
           }
         });
@@ -58,24 +75,49 @@ function FileRow({ file, currentPath, thumbnailsEnabled, thumbnailCache, loadThu
         observer.unobserve(currentRow);
       }
     };
-  }, [thumbnailsEnabled, file, hasLoadedThumbnail, loadThumbnail, needsThumbnail]);
+  }, [thumbnailsEnabled, file, hasLoadedThumbnail, loadThumbnail, needsThumbnail, filePath]);
 
-  const filePath = currentPath === "/" ? `/${file.name}` : `${currentPath}/${file.name}`;
+  // Reset the thumbnail loading state if the file changes (different file with same component)
+  useEffect(() => {
+    setHasLoadedThumbnail(false);
+    filePathRef.current = null;
+  }, [file.name]);
+
   const thumbnailUrl = thumbnailCache.get(filePath);
 
   return (
     <tr
       ref={rowRef}
-      onDoubleClick={onNavigate}
-      className={file.is_directory ? "directory" : "file"}
+      onClick={(e) => onSelect(fileIndex, e)}
+      className={`${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""}`}
     >
       <td>
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => {}}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(fileIndex, e);
+          }}
+          className="file-checkbox"
+        />
         {thumbnailsEnabled && thumbnailUrl ? (
           <img src={thumbnailUrl} alt={file.name} className="thumbnail" />
         ) : (
           <span className="icon">{file.is_directory ? "📁" : "📄"}</span>
         )}
-        {file.name}
+        <span
+          className={file.is_directory ? "file-name clickable" : "file-name"}
+          onClick={(e) => {
+            if (file.is_directory) {
+              e.stopPropagation();
+              onNavigate();
+            }
+          }}
+        >
+          {file.name}
+        </span>
       </td>
       <td>{file.is_directory ? "-" : file.size}</td>
       <td>{file.date}</td>
@@ -98,6 +140,20 @@ function App() {
   const [thumbnailsEnabled, setThumbnailsEnabled] = useState<boolean>(true);
   const [thumbnailCache, setThumbnailCache] = useState<Map<string, string>>(new Map());
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
+
+  // File selection and deletion state
+  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
+  const [deleting, setDeleting] = useState<boolean>(false);
+  const [lastSelectedIndex, setLastSelectedIndex] = useState<number>(-1);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchMode, setSearchMode] = useState<boolean>(false);
+  const [searchRecursive, setSearchRecursive] = useState<boolean>(false);
+  const [searchResults, setSearchResults] = useState<FileEntry[]>([]);
+  const [searching, setSearching] = useState<boolean>(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Check if ADB is available on startup
   useEffect(() => {
@@ -122,6 +178,9 @@ function App() {
   useEffect(() => {
     if (selectedDevice && currentPath) {
       loadFiles();
+      // Clear selection when path changes
+      setSelectedFiles(new Set());
+      setLastSelectedIndex(-1);
     }
   }, [selectedDevice, currentPath]);
 
@@ -139,6 +198,41 @@ function App() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [settingsOpen]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + F: Focus search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+      // Ctrl/Cmd + A: Select all
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'a' && !searchMode) {
+        e.preventDefault();
+        selectAll();
+      }
+      // Delete or Backspace: Delete selected files
+      else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedFiles.size > 0) {
+        // Only if not typing in an input
+        if (document.activeElement?.tagName !== 'INPUT') {
+          e.preventDefault();
+          setShowDeleteConfirm(true);
+        }
+      }
+      // Escape: Clear selection or exit search
+      else if (e.key === 'Escape') {
+        if (searchMode) {
+          exitSearchMode();
+        } else if (selectedFiles.size > 0) {
+          clearSelection();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedFiles, searchMode]);
 
   async function checkAdb() {
     try {
@@ -213,10 +307,17 @@ function App() {
   }
 
   function navigateToDirectory(dirName: string) {
-    const newPath = currentPath === "/"
+    // If dirName starts with /, it's already a full path (from search results)
+    const newPath = dirName.startsWith("/")
+      ? dirName
+      : currentPath === "/"
       ? `/${dirName}`
       : `${currentPath}/${dirName}`;
     setCurrentPath(newPath);
+    // Exit search mode when navigating to a directory
+    if (searchMode) {
+      exitSearchMode();
+    }
   }
 
   function navigateUp() {
@@ -233,6 +334,63 @@ function App() {
     const segments = getPathSegments();
     const newPath = "/" + segments.slice(0, index + 1).join("/");
     setCurrentPath(newPath);
+  }
+
+  // Storage detection helpers
+  function isInternalStorage(path: string): boolean {
+    return path.startsWith("/storage/emulated/0") || path === "/storage/emulated/0";
+  }
+
+  function isExternalSD(path: string): boolean {
+    // External SD cards typically have paths like /storage/XXXX-XXXX
+    const match = path.match(/^\/storage\/[0-9A-F]{4}-[0-9A-F]{4}/i);
+    return match !== null;
+  }
+
+  function getDisplaySegments(): { label: string; isStorage: boolean; actualIndex: number }[] {
+    const segments = getPathSegments();
+    const result: { label: string; isStorage: boolean; actualIndex: number }[] = [];
+
+    // Check if we're in internal storage
+    if (isInternalStorage(currentPath)) {
+      // Add internal storage label
+      result.push({ label: "Internal storage", isStorage: true, actualIndex: -1 });
+
+      // Add segments after /storage/emulated/0
+      const internalPrefix = ["storage", "emulated", "0"];
+      segments.forEach((seg, idx) => {
+        if (!internalPrefix.includes(seg)) {
+          result.push({ label: seg, isStorage: false, actualIndex: idx });
+        }
+      });
+    } else if (isExternalSD(currentPath)) {
+      // Add SD card label
+      result.push({ label: "SD Card", isStorage: true, actualIndex: -1 });
+
+      // Add segments after /storage/XXXX-XXXX
+      let foundSD = false;
+      segments.forEach((seg, idx) => {
+        if (foundSD) {
+          result.push({ label: seg, isStorage: false, actualIndex: idx });
+        } else if (seg.match(/^[0-9A-F]{4}-[0-9A-F]{4}$/i)) {
+          foundSD = true;
+        }
+      });
+    } else {
+      // Regular path display
+      segments.forEach((seg, idx) => {
+        result.push({ label: seg, isStorage: false, actualIndex: idx });
+      });
+    }
+
+    return result;
+  }
+
+  function navigateToHome() {
+    // Navigate to the detected storage path (or fall back to /storage/emulated/0)
+    setCurrentPath(currentPath.startsWith("/storage/emulated/0")
+      ? "/storage/emulated/0"
+      : "/storage/emulated/0");
   }
 
   function getVisibleFiles() {
@@ -267,19 +425,18 @@ function App() {
     return !file.is_directory && (isImageFile(file.extension) || isVideoFile(file.extension));
   }
 
-  async function loadThumbnail(file: FileEntry) {
+  async function loadThumbnail(file: FileEntry, filePath: string) {
     if (!thumbnailsEnabled || !selectedDevice) return;
-
-    const filePath = currentPath === "/"
-      ? `/${file.name}`
-      : `${currentPath}/${file.name}`;
 
     // Check cache first
     if (thumbnailCache.has(filePath)) {
       return;
     }
 
-    console.log(`Loading thumbnail for: ${filePath}, extension: ${file.extension}, size: ${file.size}`);
+    // Capture the current device ID to check if it changes during loading
+    const deviceAtStart = selectedDevice;
+
+    console.log(`Loading thumbnail - filePath: ${filePath}, extension: ${file.extension}, size: ${file.size}`);
 
     try {
       const thumbnailData = await invoke<string>("get_thumbnail", {
@@ -288,6 +445,12 @@ function App() {
         extension: file.extension || "",
         fileSize: file.size,
       });
+
+      // Only update cache if we're still on the same device (user hasn't navigated away)
+      if (selectedDevice !== deviceAtStart) {
+        console.log(`⊘ Thumbnail load aborted for ${file.name}: device changed during load`);
+        return;
+      }
 
       console.log(`Thumbnail result for ${file.name}:`, thumbnailData.substring(0, 50));
 
@@ -298,9 +461,152 @@ function App() {
         console.warn(`✗ Thumbnail skipped for ${file.name}: ${thumbnailData}`);
       }
     } catch (err) {
-      console.error(`✗ Failed to load thumbnail for ${file.name}:`, err);
-      setError(`Thumbnail error for ${file.name}: ${err}`);
+      // Only show error if we're still on the same device
+      if (selectedDevice === deviceAtStart) {
+        console.error(`✗ Failed to load thumbnail for ${file.name}:`, err);
+        setError(`Thumbnail error for ${file.name}: ${err}`);
+      } else {
+        console.log(`⊘ Thumbnail error suppressed for ${file.name}: user navigated away`);
+      }
     }
+  }
+
+  function handleFileSelect(fileName: string, index: number, event: React.MouseEvent) {
+    if (event.shiftKey && lastSelectedIndex !== -1) {
+      // Range select with Shift
+      const visibleFiles = getDisplayFiles();
+      const start = Math.min(lastSelectedIndex, index);
+      const end = Math.max(lastSelectedIndex, index);
+      const rangeFiles = visibleFiles.slice(start, end + 1).map(f => f.name);
+
+      setSelectedFiles(prev => {
+        const newSet = new Set(prev);
+        rangeFiles.forEach(name => newSet.add(name));
+        return newSet;
+      });
+    } else if (event.ctrlKey || event.metaKey) {
+      // Multi-select with Ctrl/Cmd
+      setSelectedFiles(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(fileName)) {
+          newSet.delete(fileName);
+        } else {
+          newSet.add(fileName);
+        }
+        return newSet;
+      });
+      setLastSelectedIndex(index);
+    } else {
+      // Single select
+      setSelectedFiles(new Set([fileName]));
+      setLastSelectedIndex(index);
+    }
+  }
+
+  function selectAll() {
+    const visibleFiles = getVisibleFiles();
+    setSelectedFiles(new Set(visibleFiles.map(f => f.name)));
+  }
+
+  function clearSelection() {
+    setSelectedFiles(new Set());
+    setLastSelectedIndex(-1);
+  }
+
+  async function performDelete() {
+    if (!selectedDevice || selectedFiles.size === 0) return;
+
+    setDeleting(true);
+    setError("");
+
+    const filesToDelete = Array.from(selectedFiles);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const fileName of filesToDelete) {
+      // Find file in both files and searchResults
+      const file = files.find(f => f.name === fileName) || searchResults.find(f => f.name === fileName);
+      if (!file) continue;
+
+      // If fileName starts with /, it's already a full path (from search results)
+      const filePath = fileName.startsWith("/")
+        ? fileName
+        : currentPath === "/"
+        ? `/${fileName}`
+        : `${currentPath}/${fileName}`;
+
+      try {
+        await invoke("delete_file", {
+          deviceId: selectedDevice,
+          filePath: filePath,
+          isDirectory: file.is_directory,
+        });
+        successCount++;
+      } catch (err) {
+        errorCount++;
+        setError(`Failed to delete ${fileName}: ${err}`);
+        console.error(`Delete error for ${fileName}:`, err);
+      }
+    }
+
+    setDeleting(false);
+    setShowDeleteConfirm(false);
+    setSelectedFiles(new Set());
+
+    const deleteMessage = errorCount > 0
+      ? `Deleted ${successCount} file(s), ${errorCount} failed`
+      : "";
+
+    if (successCount > 0) {
+      if (searchMode) {
+        // Re-run the search to update results
+        await performSearch();
+      } else {
+        // Refresh file list
+        await loadFiles();
+      }
+    }
+
+    if (deleteMessage) {
+      setError(deleteMessage);
+    }
+  }
+
+  async function performSearch() {
+    if (!selectedDevice || !searchQuery.trim()) return;
+
+    setSearching(true);
+    setError("");
+
+    try {
+      const results = await invoke<FileEntry[]>("search_files", {
+        deviceId: selectedDevice,
+        searchPath: currentPath,
+        pattern: searchQuery,
+        recursive: searchRecursive,
+      });
+      setSearchResults(results);
+      setSearchMode(true);
+    } catch (err) {
+      setError(`Search failed: ${err}`);
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function exitSearchMode() {
+    setSearchMode(false);
+    setSearchQuery("");
+    setSearchResults([]);
+    setSelectedFiles(new Set());
+  }
+
+  function getDisplayFiles(): FileEntry[] {
+    if (searchMode) {
+      return searchResults;
+    }
+    return getVisibleFiles();
   }
 
   if (adbAvailable === false) {
@@ -399,26 +705,90 @@ function App() {
       {selectedDevice && (
         <>
           <div className="breadcrumb">
-            <button onClick={() => setCurrentPath("/")} className="breadcrumb-btn">
-              /
-            </button>
-            {getPathSegments().map((segment, index) => (
+            {getDisplaySegments().map((segment, index) => (
               <span key={index}>
-                <span className="separator">/</span>
+                {index > 0 && <span className="separator">→</span>}
                 <button
-                  onClick={() => navigateToSegment(index)}
+                  onClick={() => {
+                    if (segment.isStorage) {
+                      navigateToHome();
+                    } else {
+                      navigateToSegment(segment.actualIndex);
+                    }
+                  }}
                   className="breadcrumb-btn"
                 >
-                  {segment}
+                  {segment.label}
                 </button>
               </span>
             ))}
-            {currentPath !== "/" && (
+            {currentPath !== "/" && currentPath !== "/storage/emulated/0" && (
               <button onClick={navigateUp} className="up-btn">
                 ↑ Up
               </button>
             )}
           </div>
+
+          <div className="toolbar">
+            <div className="search-bar">
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search files..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && performSearch()}
+                className="search-input"
+              />
+              <label className="search-option">
+                <input
+                  type="checkbox"
+                  checked={searchRecursive}
+                  onChange={(e) => setSearchRecursive(e.target.checked)}
+                />
+                All subdirectories
+              </label>
+              <button
+                onClick={performSearch}
+                disabled={!searchQuery.trim() || searching}
+                className="search-btn"
+              >
+                {searching ? "Searching..." : "Search"}
+              </button>
+              {searchMode && (
+                <button onClick={exitSearchMode} className="clear-search-btn">
+                  Clear
+                </button>
+              )}
+            </div>
+
+            <div className="file-actions">
+              {selectedFiles.size > 0 && (
+                <>
+                  <span className="selection-count">
+                    {selectedFiles.size} selected
+                  </span>
+                  <button onClick={clearSelection} className="clear-selection-btn">
+                    Clear
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={deleting}
+                    className="delete-btn"
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {searchMode && (
+            <div className="search-info">
+              Showing {searchResults.length} result(s) for "{searchQuery}"
+              {searchRecursive ? ` (including subdirectories of ${currentPath})` : ` (in ${currentPath} only)`}
+            </div>
+          )}
 
           <div className="file-list">
             {loading ? (
@@ -434,22 +804,29 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {getVisibleFiles().map((file, index) => (
+                  {getDisplayFiles().map((file, index) => (
                     <FileRow
                       key={index}
                       file={file}
+                      fileIndex={index}
                       currentPath={currentPath}
                       thumbnailsEnabled={thumbnailsEnabled}
                       thumbnailCache={thumbnailCache}
                       loadThumbnail={loadThumbnail}
                       needsThumbnail={needsThumbnail}
                       onNavigate={() => file.is_directory && navigateToDirectory(file.name)}
+                      isSelected={selectedFiles.has(file.name)}
+                      onSelect={(idx, e) => handleFileSelect(file.name, idx, e)}
                     />
                   ))}
-                  {getVisibleFiles().length === 0 && !loading && (
+                  {getDisplayFiles().length === 0 && !loading && (
                     <tr>
                       <td colSpan={4} className="empty">
-                        {showHiddenFiles ? "No files in this directory" : "No visible files (hidden files are filtered)"}
+                        {searchMode
+                          ? "No files found"
+                          : showHiddenFiles
+                          ? "No files in this directory"
+                          : "No visible files (hidden files are filtered)"}
                       </td>
                     </tr>
                   )}
@@ -458,6 +835,36 @@ function App() {
             )}
           </div>
         </>
+      )}
+
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <h3>Confirm Deletion</h3>
+            <p>
+              Are you sure you want to delete {selectedFiles.size} item(s)?
+            </p>
+            <p className="warning-text">
+              This action cannot be undone.
+            </p>
+            <div className="modal-actions">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="cancel-btn"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={performDelete}
+                disabled={deleting}
+                className="confirm-delete-btn"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

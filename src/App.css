@@ -379,16 +379,31 @@ td {
 }
 
 .directory {
-  cursor: pointer;
   font-weight: 500;
 }
 
 .directory:hover td {
-  color: #667eea;
+  background-color: inherit;
 }
 
 .file {
   cursor: default;
+}
+
+.file-name {
+  display: inline;
+}
+
+.file-name.clickable {
+  cursor: pointer;
+  color: #667eea;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.file-name.clickable:hover {
+  color: #5568d3;
+  text-decoration: underline;
 }
 
 .icon {
@@ -427,6 +442,241 @@ td {
   color: #999;
   padding: 40px !important;
   font-style: italic;
+}
+
+/* Toolbar */
+.toolbar {
+  padding: 12px 20px;
+  background-color: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* Search bar */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 300px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.search-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #666;
+  cursor: pointer;
+  user-select: none;
+}
+
+.search-option input[type="checkbox"] {
+  cursor: pointer;
+}
+
+.search-btn,
+.clear-search-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.search-btn {
+  background-color: #667eea;
+  color: white;
+}
+
+.search-btn:hover:not(:disabled) {
+  background-color: #5568d3;
+}
+
+.search-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.clear-search-btn {
+  background-color: #f0f0f0;
+  color: #666;
+}
+
+.clear-search-btn:hover {
+  background-color: #e0e0e0;
+}
+
+/* File actions */
+.file-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.selection-count {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}
+
+.clear-selection-btn,
+.delete-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.clear-selection-btn {
+  background-color: #f0f0f0;
+  color: #666;
+}
+
+.clear-selection-btn:hover {
+  background-color: #e0e0e0;
+}
+
+.delete-btn {
+  background-color: #f44336;
+  color: white;
+}
+
+.delete-btn:hover:not(:disabled) {
+  background-color: #d32f2f;
+}
+
+.delete-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Search info */
+.search-info {
+  padding: 8px 20px;
+  background-color: #e8f0fe;
+  border-bottom: 1px solid #d2e3fc;
+  color: #1967d2;
+  font-size: 14px;
+}
+
+/* File selection */
+.file-checkbox {
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+tbody tr.selected {
+  background-color: #e8f0fe !important;
+}
+
+tbody tr.selected td {
+  color: #1967d2;
+}
+
+tbody tr {
+  cursor: pointer;
+}
+
+/* Modal dialog */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-dialog {
+  background-color: white;
+  border-radius: 8px;
+  padding: 24px;
+  min-width: 400px;
+  max-width: 500px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.modal-dialog h3 {
+  margin: 0 0 16px 0;
+  font-size: 20px;
+  color: #333;
+}
+
+.modal-dialog p {
+  margin: 0 0 12px 0;
+  color: #666;
+  line-height: 1.5;
+}
+
+.warning-text {
+  color: #f44336 !important;
+  font-weight: 500;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.cancel-btn,
+.confirm-delete-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.cancel-btn {
+  background-color: #f0f0f0;
+  color: #666;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background-color: #e0e0e0;
+}
+
+.confirm-delete-btn {
+  background-color: #f44336;
+  color: white;
+}
+
+.confirm-delete-btn:hover:not(:disabled) {
+  background-color: #d32f2f;
+}
+
+.cancel-btn:disabled,
+.confirm-delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -538,5 +788,86 @@ td {
     background-color: #3a1a1a;
     border-left-color: #f66;
     color: #f99;
+  }
+
+  .toolbar {
+    background-color: #1a1a1a;
+    border-bottom-color: #3a3a3a;
+  }
+
+  .search-input {
+    background-color: #2a2a2a;
+    border-color: #3a3a3a;
+    color: #e0e0e0;
+  }
+
+  .search-input:focus {
+    border-color: #667eea;
+  }
+
+  .search-option {
+    color: #999;
+  }
+
+  .clear-search-btn,
+  .clear-selection-btn {
+    background-color: #2a2a2a;
+    color: #ccc;
+  }
+
+  .clear-search-btn:hover,
+  .clear-selection-btn:hover {
+    background-color: #3a3a3a;
+  }
+
+  .selection-count {
+    color: #999;
+  }
+
+  .search-info {
+    background-color: #2a3a4a;
+    border-bottom-color: #3a4a5a;
+    color: #6ba4e7;
+  }
+
+  tbody tr.selected {
+    background-color: #2a3a4a !important;
+  }
+
+  tbody tr.selected td {
+    color: #6ba4e7;
+  }
+
+  .modal-overlay {
+    background-color: rgba(0, 0, 0, 0.7);
+  }
+
+  .modal-dialog {
+    background-color: #2a2a2a;
+  }
+
+  .modal-dialog h3 {
+    color: #e0e0e0;
+  }
+
+  .modal-dialog p {
+    color: #999;
+  }
+
+  .cancel-btn {
+    background-color: #3a3a3a;
+    color: #ccc;
+  }
+
+  .cancel-btn:hover:not(:disabled) {
+    background-color: #4a4a4a;
+  }
+
+  .file-name.clickable {
+    color: #8a9ff5;
+  }
+
+  .file-name.clickable:hover {
+    color: #a0b3f7;
   }
 }
