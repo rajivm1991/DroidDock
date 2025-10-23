@@ -2,8 +2,6 @@ use serde::{Deserialize, Serialize};
 use tauri_plugin_shell::ShellExt;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use std::io::Read;
-use image::ImageReader;
 use base64::{Engine as _, engine::general_purpose};
 
 // Global state to store custom ADB path
@@ -128,10 +126,10 @@ async fn get_thumbnail(
     let temp_file = temp_dir.join(&safe_filename);
 
     // Pull file from Android device to temp location
-    let escaped_path = file_path.replace("'", "'\\''");
+    // Note: Don't escape quotes when using .args() - arguments are passed directly without shell interpretation
     let output = shell
         .command(&adb_cmd)
-        .args(["-s", &device_id, "pull", &escaped_path, temp_file.to_str().unwrap()])
+        .args(["-s", &device_id, "pull", &file_path, temp_file.to_str().unwrap()])
         .output()
         .await
         .map_err(|e| format!("Failed to pull file from device: {}", e))?;
@@ -163,28 +161,17 @@ async fn get_thumbnail(
 
     // Generate thumbnail based on file type
     if is_image_extension(&ext_lower) {
-        // Verify file magic bytes for JPEG/PNG
-        if ext_lower == "jpg" || ext_lower == "jpeg" {
-            let mut file = std::fs::File::open(&temp_file)
-                .map_err(|e| format!("Failed to open file for validation: {}", e))?;
-            let mut magic_bytes = [0u8; 2];
-            if file.read_exact(&mut magic_bytes).is_ok() {
-                // JPEG should start with 0xFF 0xD8
-                if magic_bytes[0] != 0xFF || magic_bytes[1] != 0xD8 {
-                    let _ = std::fs::remove_file(&temp_file);
-                    return Err(format!(
-                        "Invalid JPEG file: starts with [{:#04x}, {:#04x}] instead of [0xFF, 0xD8]. File may be corrupted.",
-                        magic_bytes[0], magic_bytes[1]
-                    ));
-                }
-            }
-        }
-
-        // Generate image thumbnail
-        let img = ImageReader::open(&temp_file)
+        // Use with_guessed_format() to detect the actual format from file content
+        // This handles files with mismatched extensions (e.g., .jpg files that are actually PNG)
+        let img = image::ImageReader::open(&temp_file)
             .map_err(|e| {
                 let _ = std::fs::remove_file(&temp_file);
                 format!("Failed to open image (pulled {} bytes): {}", file_metadata.len(), e)
+            })?
+            .with_guessed_format()
+            .map_err(|e| {
+                let _ = std::fs::remove_file(&temp_file);
+                format!("Failed to guess image format: {}", e)
             })?
             .decode()
             .map_err(|e| {
@@ -520,6 +507,117 @@ fn get_current_adb_path() -> String {
     get_adb_command()
 }
 
+// Delete a file or directory on the Android device
+#[tauri::command]
+async fn delete_file(
+    app: tauri::AppHandle,
+    device_id: String,
+    file_path: String,
+    is_directory: bool,
+) -> Result<(), String> {
+    // Safety check: prevent deletion of critical system directories
+    let critical_paths = vec![
+        "/",
+        "/system",
+        "/data",
+        "/vendor",
+        "/boot",
+        "/proc",
+        "/sys",
+        "/dev",
+    ];
+
+    if critical_paths.contains(&file_path.as_str()) {
+        return Err(format!("Cannot delete critical system path: {}", file_path));
+    }
+
+    let shell = app.shell();
+    let adb_cmd = get_adb_command();
+
+    // Escape single quotes in path
+    let escaped_path = file_path.replace("'", "'\\''");
+
+    // Use rm -r for directories, rm for files
+    let rm_command = if is_directory {
+        format!("rm -r '{}'", escaped_path)
+    } else {
+        format!("rm '{}'", escaped_path)
+    };
+
+    let output = shell
+        .command(&adb_cmd)
+        .args(["-s", &device_id, "shell", &rm_command])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to execute delete command: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if stderr.contains("Permission denied") {
+            return Err(format!("Permission denied: Cannot delete {}", file_path));
+        } else if stderr.contains("Directory not empty") {
+            return Err(format!("Directory not empty: {}", file_path));
+        } else if stderr.contains("No such file") {
+            return Err(format!("File not found: {}", file_path));
+        } else {
+            return Err(format!("Delete failed: {}", stderr));
+        }
+    }
+
+    Ok(())
+}
+
+// Search for files on the Android device
+#[tauri::command]
+async fn search_files(
+    app: tauri::AppHandle,
+    device_id: String,
+    search_path: String,
+    pattern: String,
+    recursive: bool,
+) -> Result<Vec<FileEntry>, String> {
+    let shell = app.shell();
+    let adb_cmd = get_adb_command();
+
+    // Escape single quotes in path and pattern
+    let escaped_path = search_path.replace("'", "'\\''");
+    let escaped_pattern = pattern.replace("'", "'\\''");
+
+    // Build find command
+    // Use -iname for case-insensitive search
+    // Exclude Android/data and Android/obb but keep Android/media
+    // Redirect stderr to /dev/null to suppress permission denied errors
+    let max_depth_arg = if recursive { "" } else { "-maxdepth 1" };
+    let exclusions = if recursive {
+        // Only add exclusions for recursive searches
+        r#"\( -path '*/Android/data' -o -path '*/Android/obb' \) -prune -o"#
+    } else {
+        ""
+    };
+    let find_command = format!(
+        "find '{}' {} {} -iname '*{}*' -exec ls -ld {{}} \\; 2>/dev/null",
+        escaped_path, max_depth_arg, exclusions, escaped_pattern
+    );
+
+    let output = shell
+        .command(&adb_cmd)
+        .args(["-s", &device_id, "shell", &find_command])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to execute search command: {}", e))?;
+
+    // Don't check exit status - find returns non-zero if it encounters permission errors
+    // but we've redirected stderr to /dev/null and want to process whatever results we got
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let files: Vec<FileEntry> = stdout
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .filter_map(|line| parse_ls_line(line))
+        .collect();
+
+    Ok(files)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -532,7 +630,9 @@ pub fn run() {
             check_adb,
             set_adb_path,
             get_current_adb_path,
-            get_thumbnail
+            get_thumbnail,
+            delete_file,
+            search_files
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

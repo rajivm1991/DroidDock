@@ -6,16 +6,23 @@ A sleek macOS desktop application for browsing Android device files via ADB (And
 
 - **📱 Device Detection**: Automatically detects connected Android devices
 - **📂 File Browsing**: Navigate through your Android device's file system with an intuitive interface
-- **🔍 Hidden Files Toggle**: Show or hide dot files with a single click
-- **🔄 Breadcrumb Navigation**: Easily navigate back to parent directories
+- **🔍 File Search**: Search for files by name with case-insensitive matching and recursive search
+- **🗑️ File Deletion**: Delete files and folders with confirmation dialogs and safety checks
+- **✅ Multi-Select**: Select multiple files with checkboxes, Ctrl/Cmd+click, and Shift+click range selection
+- **🖼️ Thumbnails**: Automatic thumbnail generation for images and videos with lazy loading
+- **🏠 Smart Breadcrumbs**: Clean navigation with "Internal storage" labels and arrow separators
+- **👁️ Hidden Files Toggle**: Show or hide dot files with a single click
 - **📊 File Information**: View file permissions, sizes, and modification dates
+- **⌨️ Keyboard Shortcuts**: Delete (delete files), Ctrl+F (search), Ctrl+A (select all), Escape (clear)
 - **🎨 Dark Mode Support**: Automatically adapts to your system theme
 - **🛠️ Smart ADB Detection**: Automatically finds ADB in common installation locations
 - **⚙️ Custom ADB Path**: Set a custom ADB path if it's not automatically detected
 
 ## Screenshots
 
-> Add screenshots here
+![DroidDock Screenshot](screenshots/DroidDock-2025-10-23.png)
+
+*DroidDock showing file search functionality with results displayed in a clean, intuitive interface*
 
 ## Prerequisites
 
@@ -102,12 +109,31 @@ You should see your device listed.
 - Select it from the dropdown menu
 - Browse files starting from `/storage/emulated/0` (main storage)
 
-### 4. Navigate Files
+### 4. Navigate & Manage Files
 
-- **Double-click** folders to open them
+- **Single-click** folder names to open them
 - Use **breadcrumb navigation** or the **↑ Up** button to go back
-- Toggle **Show Hidden** button to view dot files
+- Toggle **Show Hidden Files** in settings to view dot files
+- Toggle **Show Thumbnails** in settings to enable/disable image and video previews
 - Click **Refresh** to reload the device list
+
+### 5. Search for Files
+
+- Type in the **search bar** to find files by name (case-insensitive)
+- Check **All subdirectories** to search recursively through all folders
+- Click **Search** or press Enter to execute the search
+- Search results show full file paths
+- Click **Clear** to exit search mode
+
+### 6. Select & Delete Files
+
+- **Click checkbox** or **click row** to select files
+- **Ctrl/Cmd + Click**: Toggle individual files for multi-select
+- **Shift + Click**: Select a range of files between two clicks
+- **Ctrl/Cmd + A**: Select all visible files
+- Press **Delete** or **Backspace** key to delete selected files
+- Confirm deletion in the dialog that appears
+- The app prevents deletion of critical system directories
 
 ## Tech Stack
 
@@ -139,8 +165,24 @@ The app implements these Tauri commands:
 - `check_adb()` - Verify ADB installation
 - `get_devices()` - List all connected devices
 - `list_files(device_id, path)` - List files in a directory
+- `delete_file(device_id, file_path, is_directory)` - Delete files and folders with safety checks
+- `search_files(device_id, search_path, pattern, recursive)` - Search for files by name
+- `get_thumbnail(device_id, file_path, extension, file_size)` - Generate thumbnails for images and videos
+- `detect_storage_path(device_id)` - Automatically detect the primary storage path
 - `set_adb_path(path)` - Set custom ADB path
 - `get_current_adb_path()` - Get current ADB path
+
+## Keyboard Shortcuts
+
+DroidDock supports these keyboard shortcuts for faster navigation and file management:
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl/Cmd + F` | Focus search bar |
+| `Ctrl/Cmd + A` | Select all visible files |
+| `Delete` or `Backspace` | Delete selected files (shows confirmation dialog) |
+| `Escape` | Clear selection or exit search mode |
+| `Enter` (in search bar) | Execute search |
 
 ## Troubleshooting
 
@@ -172,8 +214,9 @@ If the app can't find ADB:
 
 ### Can't Navigate Into Folders
 
-- Make sure you're **double-clicking** (not single-clicking) on folders
+- **Single-click** on the folder name (the blue text) to open it
 - Wait for the loading indicator to finish
+- Note: Clicking elsewhere on the row selects the folder instead of opening it
 
 ## Development
 
@@ -207,13 +250,12 @@ Potential features for future releases:
 
 - 📥 **File Download** - Pull files from device to Mac
 - 📤 **File Upload** - Push files from Mac to device
-- 🗑️ **File Deletion** - Delete files on device
-- 🔍 **Search** - Search for files by name
-- 📷 **File Preview** - Preview images and text files
-- 🖼️ **Thumbnails** - Show image thumbnails in file list
+- 📷 **File Preview** - Preview images and text files in-app
 - 💾 **Drag & Drop** - Drag files to/from the app
 - 📱 **Multiple Devices** - View multiple devices simultaneously
 - ⏱️ **File Sync** - Sync files between Mac and Android
+- 📊 **Sortable Columns** - Sort files by name, size, date, etc.
+- 📏 **Human-Readable Sizes** - Display file sizes in KB, MB, GB format
 
 ## Contributing
 
