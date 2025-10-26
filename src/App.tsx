@@ -223,6 +223,8 @@ function App() {
   // File transfer state
   const [downloading, setDownloading] = useState<boolean>(false);
   const [uploading, setUploading] = useState<boolean>(false);
+  const [downloadProgress, setDownloadProgress] = useState<string>("");
+  const [successMessage, setSuccessMessage] = useState<string>("");
 
   // Check if ADB is available on startup
   useEffect(() => {
@@ -725,12 +727,15 @@ function App() {
 
       setDownloading(true);
       setError("");
+      setSuccessMessage("");
 
       let successCount = 0;
       let errorCount = 0;
+      const totalFiles = filesToDownload.length;
 
       // Download each file
-      for (const file of filesToDownload) {
+      for (let i = 0; i < filesToDownload.length; i++) {
+        const file = filesToDownload[i];
         if (!file) continue;
 
         // Get the full path on device
@@ -742,6 +747,9 @@ function App() {
 
         // Extract just the filename (not the full path)
         const fileName = file.name.startsWith("/") ? file.name.split('/').pop() || file.name : file.name;
+
+        // Update progress
+        setDownloadProgress(`Downloading ${i + 1} of ${totalFiles}: ${fileName}`);
 
         // Build the local save path with the same name as source
         const localPath = await join(downloadDir, fileName);
@@ -760,13 +768,19 @@ function App() {
       }
 
       setDownloading(false);
+      setDownloadProgress("");
       setSelectedFiles(new Set());
 
       if (errorCount > 0) {
         setError(`Downloaded ${successCount} file(s), ${errorCount} failed`);
+      } else {
+        setSuccessMessage(`Successfully downloaded ${successCount} file(s)`);
+        // Clear success message after 5 seconds
+        setTimeout(() => setSuccessMessage(""), 5000);
       }
     } catch (err) {
       setDownloading(false);
+      setDownloadProgress("");
       setError(`Failed to download files: ${err}`);
       console.error(`Download error:`, err);
     }
@@ -918,6 +932,8 @@ function App() {
       </header>
 
       {error && <div className="error">{error}</div>}
+      {successMessage && <div className="success">{successMessage}</div>}
+      {downloadProgress && <div className="info">{downloadProgress}</div>}
 
       {selectedDevice && (
         <>

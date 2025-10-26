@@ -172,6 +172,24 @@ header h1 {
   border-radius: 4px;
 }
 
+.success {
+  margin: 16px 20px;
+  padding: 12px;
+  background-color: #efe;
+  border-left: 4px solid #4CAF50;
+  color: #2e7d32;
+  border-radius: 4px;
+}
+
+.info {
+  margin: 16px 20px;
+  padding: 12px;
+  background-color: #e3f2fd;
+  border-left: 4px solid #2196F3;
+  color: #1565c0;
+  border-radius: 4px;
+}
+
 .error-screen {
   display: flex;
   flex-direction: column;
