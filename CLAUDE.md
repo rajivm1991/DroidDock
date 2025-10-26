@@ -19,38 +19,14 @@ cd src-tauri && cargo test # Run Rust tests
 
 **Branch naming:** `fix/`, `feature/`, `hotfix/`, `refactor/` prefix with descriptive name
 
-**Issue creation:** Always add labels when creating issues:
-- `bug` - Something isn't working
-- `enhancement` - New features
-- `good first issue` - For simple/beginner-friendly tasks
-- Use: `gh issue create --label "enhancement" ...`
-
 **Standard workflow:**
-1. Create branch from main: `git checkout -b fix/issue-description`
-2. Test: `cd src-tauri && cargo build && cargo test` and/or `npm run build`
+1. Create branch from main: `git checkout -b feature/issue-description`
+2. Make changes and test: `npm run build` and `cargo build`
 3. Commit with issue reference: `Fixes #N`
 4. Create PR: `gh pr create --title "Title" --body "Description" --reviewer rajivm1991`
 5. After merge: delete branch locally and remotely, pull main
 
 ## Architecture
 
-### Tauri IPC Commands
-
-All backend commands are in `src-tauri/src/lib.rs` with `#[tauri::command]`:
-- `check_adb()`, `get_devices()`, `list_files(device_id, path)`, `set_adb_path(path)`, `get_current_adb_path()`
-
-Frontend calls via: `import { invoke } from "@tauri-apps/api/core"`
-
-### ADB Path Resolution
-
-Backend auto-searches common macOS ADB locations (Homebrew, MacPorts, Android Studio). Resolved path cached in global `Mutex<Option<String>>` (`ADB_PATH`). Override via `set_adb_path` command.
-
-### File Listing Parser
-
-`parse_ls_line()` parses `adb shell ls -la` output. **Critical:** Finds time field (contains `:`), name is everything after time (handles spaces), date/size are relative to time position. Filters `.` and `..`.
-
-### State Management
-
-`App.tsx` React effects chain:
-- `adbAvailable` change → loads devices
-- `selectedDevice` or `currentPath` change → loads files
+- **Backend:** Tauri commands in `src-tauri/src/lib.rs` with `#[tauri::command]`
+- **Frontend:** React/TypeScript in `src/App.tsx`, calls backend via `invoke()` from `@tauri-apps/api/core`

@@ -383,6 +383,16 @@ th {
   border-bottom: 2px solid #e0e0e0;
 }
 
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+.sortable-header:hover {
+  background-color: #e8e9ea;
+}
+
 tbody tr {
   border-bottom: 1px solid #f0f0f0;
   transition: background-color 0.2s;

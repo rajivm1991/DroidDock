@@ -181,9 +181,8 @@ function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCac
           {file.name}
         </span>
       </td>
-      <td>{file.is_directory ? "-" : file.size}</td>
+      <td>{file.is_directory ? "-" : formatBytes(parseInt(file.size))}</td>
       <td>{file.date}</td>
-      <td className="permissions">{file.permissions}</td>
     </tr>
   );
 }
@@ -225,6 +224,10 @@ function App() {
   const [uploading, setUploading] = useState<boolean>(false);
   const [downloadProgress, setDownloadProgress] = useState<string>("");
   const [successMessage, setSuccessMessage] = useState<string>("");
+
+  // Sort state
+  const [sortColumn, setSortColumn] = useState<'name' | 'size' | 'date'>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Check if ADB is available on startup
   useEffect(() => {
@@ -491,15 +494,44 @@ function App() {
       ? files
       : files.filter(file => !file.name.startsWith('.'));
 
-    // Sort: directories first, then files, both alphabetically (case-insensitive)
+    // Sort based on selected column and direction
     return visibleFiles.sort((a, b) => {
-      // Directories before files
-      if (a.is_directory && !b.is_directory) return -1;
-      if (!a.is_directory && b.is_directory) return 1;
+      // Always keep directories grouped (at top if asc, bottom if desc for most columns)
+      const dirComparison = sortColumn === 'name' && sortDirection === 'desc'
+        ? (a.is_directory && !b.is_directory ? 1 : !a.is_directory && b.is_directory ? -1 : 0)
+        : (a.is_directory && !b.is_directory ? -1 : !a.is_directory && b.is_directory ? 1 : 0);
 
-      // Alphabetical, case-insensitive
-      return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+      if (dirComparison !== 0) return dirComparison;
+
+      let comparison = 0;
+
+      switch (sortColumn) {
+        case 'name':
+          comparison = a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+          break;
+        case 'size':
+          const sizeA = a.is_directory ? 0 : parseInt(a.size);
+          const sizeB = b.is_directory ? 0 : parseInt(b.size);
+          comparison = sizeA - sizeB;
+          break;
+        case 'date':
+          comparison = a.date.localeCompare(b.date);
+          break;
+      }
+
+      return sortDirection === 'asc' ? comparison : -comparison;
     });
+  }
+
+  function handleSort(column: 'name' | 'size' | 'date') {
+    if (column === sortColumn) {
+      // Toggle direction if clicking same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new column and default to ascending
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
   }
 
   function isImageFile(extension: string | null): boolean {
@@ -1046,10 +1078,15 @@ function App() {
               <table>
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Size</th>
-                    <th>Date</th>
-                    <th>Permissions</th>
+                    <th className="sortable-header" onClick={() => handleSort('name')}>
+                      Name {sortColumn === 'name' && (sortDirection === 'asc' ? '▲' : '▼')}
+                    </th>
+                    <th className="sortable-header" onClick={() => handleSort('size')}>
+                      Size {sortColumn === 'size' && (sortDirection === 'asc' ? '▲' : '▼')}
+                    </th>
+                    <th className="sortable-header" onClick={() => handleSort('date')}>
+                      Date {sortColumn === 'date' && (sortDirection === 'asc' ? '▲' : '▼')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1070,7 +1107,7 @@ function App() {
                   ))}
                   {getDisplayFiles().length === 0 && !loading && (
                     <tr>
-                      <td colSpan={4} className="empty">
+                      <td colSpan={3} className="empty">
                         {searchMode
                           ? "No files found"
                           : showHiddenFiles
