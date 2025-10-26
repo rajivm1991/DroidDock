@@ -3,6 +3,8 @@ use tauri_plugin_shell::ShellExt;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use base64::{Engine as _, engine::general_purpose};
+use std::fs;
+use std::time::{UNIX_EPOCH, Duration};
 
 // Global state to store custom ADB path
 static ADB_PATH: Mutex<Option<String>> = Mutex::new(None);
@@ -21,6 +23,14 @@ pub struct FileEntry {
     pub date: String,
     pub is_directory: bool,
     pub extension: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StorageInfo {
+    pub total_bytes: u64,
+    pub used_bytes: u64,
+    pub free_bytes: u64,
+    pub percentage_used: f64,
 }
 
 // Try to find ADB in common locations
@@ -618,11 +628,181 @@ async fn search_files(
     Ok(files)
 }
 
+// Get storage information from the Android device
+#[tauri::command]
+async fn get_storage_info(
+    app: tauri::AppHandle,
+    device_id: String,
+    path: String,
+) -> Result<StorageInfo, String> {
+    let shell = app.shell();
+    let adb_cmd = get_adb_command();
+
+    // Escape single quotes in path
+    let escaped_path = path.replace("'", "'\\''");
+
+    // Use df command to get storage stats for the given path
+    let df_command = format!("df '{}'", escaped_path);
+
+    let output = shell
+        .command(&adb_cmd)
+        .args(["-s", &device_id, "shell", &df_command])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to get storage info: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("Storage info failed: {}", stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // Parse df output - format varies but typically:
+    // Filesystem     1K-blocks    Used Available Use% Mounted on
+    // /dev/block/... 123456789 45678901 77777888  37% /storage/emulated
+
+    for line in stdout.lines().skip(1) {
+        // Skip header
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 4 {
+            // Try to parse the size fields (in KB typically)
+            if let (Ok(total_kb), Ok(used_kb), Ok(free_kb)) = (
+                parts[1].parse::<u64>(),
+                parts[2].parse::<u64>(),
+                parts[3].parse::<u64>(),
+            ) {
+                let total_bytes = total_kb * 1024;
+                let used_bytes = used_kb * 1024;
+                let free_bytes = free_kb * 1024;
+                let percentage_used = if total_bytes > 0 {
+                    (used_bytes as f64 / total_bytes as f64) * 100.0
+                } else {
+                    0.0
+                };
+
+                return Ok(StorageInfo {
+                    total_bytes,
+                    used_bytes,
+                    free_bytes,
+                    percentage_used,
+                });
+            }
+        }
+    }
+
+    Err("Failed to parse storage information".to_string())
+}
+
+// Download a file from the Android device to the local filesystem
+#[tauri::command]
+async fn download_file(
+    app: tauri::AppHandle,
+    device_id: String,
+    device_path: String,
+    local_path: String,
+) -> Result<(), String> {
+    let shell = app.shell();
+    let adb_cmd = get_adb_command();
+
+    // First, get the file's modification time from the device
+    let escaped_path = device_path.replace("'", "'\\''");
+    let stat_command = format!("stat -c %Y '{}'", escaped_path);
+
+    let stat_output = shell
+        .command(&adb_cmd)
+        .args(["-s", &device_id, "shell", &stat_command])
+        .output()
+        .await
+        .ok();
+
+    let mtime = stat_output
+        .and_then(|output| {
+            String::from_utf8_lossy(&output.stdout)
+                .trim()
+                .parse::<u64>()
+                .ok()
+        });
+
+    // Use adb pull to download the file
+    let output = shell
+        .command(&adb_cmd)
+        .args(["-s", &device_id, "pull", &device_path, &local_path])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to download file: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if stderr.contains("does not exist") {
+            return Err(format!("File not found: {}", device_path));
+        } else if stderr.contains("Permission denied") {
+            return Err(format!("Permission denied: {}", device_path));
+        } else {
+            return Err(format!("Download failed: {}", stderr));
+        }
+    }
+
+    // Set the modification time on the downloaded file to match the source
+    if let Some(timestamp) = mtime {
+        let file_path = std::path::Path::new(&local_path);
+        if file_path.exists() {
+            let mtime_system = UNIX_EPOCH + Duration::from_secs(timestamp);
+            let file = fs::File::open(&file_path)
+                .map_err(|e| format!("Failed to open downloaded file: {}", e))?;
+
+            file.set_modified(mtime_system)
+                .map_err(|e| format!("Failed to set modification time: {}", e))?;
+        }
+    }
+
+    Ok(())
+}
+
+// Upload a file from the local filesystem to the Android device
+#[tauri::command]
+async fn upload_file(
+    app: tauri::AppHandle,
+    device_id: String,
+    local_path: String,
+    device_path: String,
+) -> Result<(), String> {
+    let shell = app.shell();
+    let adb_cmd = get_adb_command();
+
+    // Verify local file exists
+    if !std::path::Path::new(&local_path).exists() {
+        return Err(format!("Local file not found: {}", local_path));
+    }
+
+    // Use adb push to upload the file
+    let output = shell
+        .command(&adb_cmd)
+        .args(["-s", &device_id, "push", &local_path, &device_path])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to upload file: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if stderr.contains("Permission denied") {
+            return Err(format!("Permission denied: {}", device_path));
+        } else if stderr.contains("Read-only file system") {
+            return Err(format!("Read-only file system: {}", device_path));
+        } else {
+            return Err(format!("Upload failed: {}", stderr));
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             get_devices,
             list_files,
@@ -632,7 +812,10 @@ pub fn run() {
             get_current_adb_path,
             get_thumbnail,
             delete_file,
-            search_files
+            search_files,
+            get_storage_info,
+            download_file,
+            upload_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

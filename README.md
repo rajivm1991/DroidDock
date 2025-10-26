@@ -8,11 +8,14 @@ A sleek macOS desktop application for browsing Android device files via ADB (And
 - **📂 File Browsing**: Navigate through your Android device's file system with an intuitive interface
 - **🔍 File Search**: Search for files by name with case-insensitive matching and recursive search
 - **🗑️ File Deletion**: Delete files and folders with confirmation dialogs and safety checks
+- **📥 File Download**: Download files from device to Mac with save dialog
+- **📤 File Upload**: Upload files from Mac to device with file picker
 - **✅ Multi-Select**: Select multiple files with checkboxes, Ctrl/Cmd+click, and Shift+click range selection
 - **🖼️ Thumbnails**: Automatic thumbnail generation for images and videos with lazy loading
 - **🏠 Smart Breadcrumbs**: Clean navigation with "Internal storage" labels and arrow separators
 - **👁️ Hidden Files Toggle**: Show or hide dot files with a single click
 - **📊 File Information**: View file permissions, sizes, and modification dates
+- **💾 Storage Info**: Real-time storage usage display in VSCode-style status bar
 - **⌨️ Keyboard Shortcuts**: Delete (delete files), Ctrl+F (search), Ctrl+A (select all), Escape (clear)
 - **🎨 Dark Mode Support**: Automatically adapts to your system theme
 - **🛠️ Smart ADB Detection**: Automatically finds ADB in common installation locations
@@ -169,6 +172,9 @@ The app implements these Tauri commands:
 - `search_files(device_id, search_path, pattern, recursive)` - Search for files by name
 - `get_thumbnail(device_id, file_path, extension, file_size)` - Generate thumbnails for images and videos
 - `detect_storage_path(device_id)` - Automatically detect the primary storage path
+- `get_storage_info(device_id, path)` - Get storage usage statistics for device
+- `download_file(device_id, device_path, local_path)` - Download file from device to Mac
+- `upload_file(device_id, local_path, device_path)` - Upload file from Mac to device
 - `set_adb_path(path)` - Set custom ADB path
 - `get_current_adb_path()` - Get current ADB path
 
@@ -248,14 +254,13 @@ cd src-tauri && cargo test
 
 Potential features for future releases:
 
-- 📥 **File Download** - Pull files from device to Mac
-- 📤 **File Upload** - Push files from Mac to device
 - 📷 **File Preview** - Preview images and text files in-app
 - 💾 **Drag & Drop** - Drag files to/from the app
 - 📱 **Multiple Devices** - View multiple devices simultaneously
 - ⏱️ **File Sync** - Sync files between Mac and Android
 - 📊 **Sortable Columns** - Sort files by name, size, date, etc.
-- 📏 **Human-Readable Sizes** - Display file sizes in KB, MB, GB format
+- 📈 **Transfer Progress** - Show progress bars for file transfers
+- 📁 **Folder Download/Upload** - Support for transferring entire directories
 
 ## Contributing
 

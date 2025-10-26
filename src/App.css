@@ -19,6 +19,7 @@
   flex-direction: column;
   height: 100vh;
   background-color: #fff;
+  padding-bottom: 28px; /* Make room for status bar */
 }
 
 header {
@@ -168,6 +169,24 @@ header h1 {
   background-color: #fee;
   border-left: 4px solid #f33;
   color: #c33;
+  border-radius: 4px;
+}
+
+.success {
+  margin: 16px 20px;
+  padding: 12px;
+  background-color: #efe;
+  border-left: 4px solid #4CAF50;
+  color: #2e7d32;
+  border-radius: 4px;
+}
+
+.info {
+  margin: 16px 20px;
+  padding: 12px;
+  background-color: #e3f2fd;
+  border-left: 4px solid #2196F3;
+  color: #1565c0;
   border-radius: 4px;
 }
 
@@ -539,6 +558,7 @@ td {
 }
 
 .clear-selection-btn,
+.download-btn,
 .delete-btn {
   padding: 8px 16px;
   border: none;
@@ -555,6 +575,40 @@ td {
 
 .clear-selection-btn:hover {
   background-color: #e0e0e0;
+}
+
+.download-btn {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.download-btn:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.download-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.upload-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  background-color: #2196F3;
+  color: white;
+}
+
+.upload-btn:hover:not(:disabled) {
+  background-color: #1976D2;
+}
+
+.upload-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
 }
 
 .delete-btn {
@@ -677,6 +731,61 @@ tbody tr {
 .confirm-delete-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Status bar */
+.status-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  background-color: #f5f5f5;
+  border-top: 1px solid #ddd;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 24px;
+  font-size: 12px;
+  color: #666;
+  z-index: 100;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-label {
+  font-weight: 500;
+  color: #888;
+}
+
+.storage-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 300px;
+}
+
+.storage-text {
+  white-space: nowrap;
+}
+
+.storage-bar {
+  flex: 1;
+  height: 8px;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  min-width: 100px;
+}
+
+.storage-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease, background-color 0.3s ease;
+  border-radius: 4px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -869,5 +978,22 @@ tbody tr {
 
   .file-name.clickable:hover {
     color: #a0b3f7;
+  }
+
+  .status-bar {
+    background-color: #1e1e1e;
+    border-top: 1px solid #3a3a3a;
+  }
+
+  .status-item {
+    color: #999;
+  }
+
+  .status-label {
+    color: #777;
+  }
+
+  .storage-bar {
+    background-color: #2a2a2a;
   }
 }
