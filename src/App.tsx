@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
+import { join } from "@tauri-apps/api/path";
 import "./App.css";
 
 interface AdbDevice {
@@ -16,6 +18,13 @@ interface FileEntry {
   extension: string | null;
 }
 
+interface StorageInfo {
+  total_bytes: number;
+  used_bytes: number;
+  free_bytes: number;
+  percentage_used: number;
+}
+
 interface FileRowProps {
   file: FileEntry;
   fileIndex: number;
@@ -27,6 +36,59 @@ interface FileRowProps {
   onNavigate: () => void;
   isSelected: boolean;
   onSelect: (index: number, e: React.MouseEvent) => void;
+}
+
+// Helper function to format bytes into human-readable format
+function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+interface StatusBarProps {
+  storageInfo: StorageInfo | null;
+  fileCount: number;
+  selectedCount: number;
+}
+
+function StatusBar({ storageInfo, fileCount, selectedCount }: StatusBarProps) {
+  return (
+    <div className="status-bar">
+      {storageInfo && (
+        <div className="status-item storage-item">
+          <span className="status-label">Storage:</span>
+          <span className="storage-text">
+            {formatBytes(storageInfo.used_bytes)} / {formatBytes(storageInfo.total_bytes)}
+            {' '}({storageInfo.percentage_used.toFixed(1)}% used)
+          </span>
+          <div className="storage-bar">
+            <div
+              className="storage-bar-fill"
+              style={{
+                width: `${Math.min(storageInfo.percentage_used, 100)}%`,
+                backgroundColor:
+                  storageInfo.percentage_used > 90 ? '#ff4444' :
+                  storageInfo.percentage_used > 75 ? '#ffaa00' :
+                  '#4CAF50'
+              }}
+            />
+          </div>
+        </div>
+      )}
+      <div className="status-item">
+        <span className="status-label">Items:</span>
+        <span>{fileCount}</span>
+      </div>
+      {selectedCount > 0 && (
+        <div className="status-item">
+          <span className="status-label">Selected:</span>
+          <span>{selectedCount}</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate, isSelected, onSelect }: FileRowProps) {
@@ -155,6 +217,13 @@ function App() {
   const [searching, setSearching] = useState<boolean>(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Storage info state
+  const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
+
+  // File transfer state
+  const [downloading, setDownloading] = useState<boolean>(false);
+  const [uploading, setUploading] = useState<boolean>(false);
+
   // Check if ADB is available on startup
   useEffect(() => {
     checkAdb();
@@ -181,6 +250,13 @@ function App() {
       // Clear selection when path changes
       setSelectedFiles(new Set());
       setLastSelectedIndex(-1);
+    }
+  }, [selectedDevice, currentPath]);
+
+  // Load storage info when device or path changes
+  useEffect(() => {
+    if (selectedDevice && currentPath) {
+      loadStorageInfo();
     }
   }, [selectedDevice, currentPath]);
 
@@ -303,6 +379,21 @@ function App() {
       setFiles([]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadStorageInfo() {
+    if (!selectedDevice || !currentPath) return;
+
+    try {
+      const info = await invoke<StorageInfo>("get_storage_info", {
+        deviceId: selectedDevice,
+        path: currentPath,
+      });
+      setStorageInfo(info);
+    } catch (err) {
+      console.error(`Failed to get storage info: ${err}`);
+      setStorageInfo(null);
     }
   }
 
@@ -602,6 +693,132 @@ function App() {
     setSelectedFiles(new Set());
   }
 
+  async function handleDownload() {
+    if (!selectedDevice || selectedFiles.size === 0) return;
+
+    const selectedFileNames = Array.from(selectedFiles);
+
+    // Filter out directories
+    const filesToDownload = selectedFileNames
+      .map(fileName => files.find(f => f.name === fileName) || searchResults.find(f => f.name === fileName))
+      .filter(file => file && !file.is_directory);
+
+    if (filesToDownload.length === 0) {
+      setError("Cannot download directories. Please select files only.");
+      return;
+    }
+
+    try {
+      // Show directory picker dialog
+      const selectedDir = await open({
+        directory: true,
+        multiple: false,
+        title: "Select Download Directory",
+      });
+
+      if (!selectedDir) {
+        // User cancelled
+        return;
+      }
+
+      const downloadDir = typeof selectedDir === 'string' ? selectedDir : selectedDir[0];
+
+      setDownloading(true);
+      setError("");
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      // Download each file
+      for (const file of filesToDownload) {
+        if (!file) continue;
+
+        // Get the full path on device
+        const devicePath = file.name.startsWith("/")
+          ? file.name
+          : currentPath === "/"
+          ? `/${file.name}`
+          : `${currentPath}/${file.name}`;
+
+        // Extract just the filename (not the full path)
+        const fileName = file.name.startsWith("/") ? file.name.split('/').pop() || file.name : file.name;
+
+        // Build the local save path with the same name as source
+        const localPath = await join(downloadDir, fileName);
+
+        try {
+          await invoke("download_file", {
+            deviceId: selectedDevice,
+            devicePath: devicePath,
+            localPath: localPath,
+          });
+          successCount++;
+        } catch (err) {
+          errorCount++;
+          console.error(`Download error for ${fileName}:`, err);
+        }
+      }
+
+      setDownloading(false);
+      setSelectedFiles(new Set());
+
+      if (errorCount > 0) {
+        setError(`Downloaded ${successCount} file(s), ${errorCount} failed`);
+      }
+    } catch (err) {
+      setDownloading(false);
+      setError(`Failed to download files: ${err}`);
+      console.error(`Download error:`, err);
+    }
+  }
+
+  async function handleUpload() {
+    if (!selectedDevice) return;
+
+    try {
+      // Show file picker dialog
+      const selected = await open({
+        multiple: false,
+        title: "Select File to Upload",
+      });
+
+      if (!selected) {
+        // User cancelled
+        return;
+      }
+
+      // Get the file path (open returns string | string[] | null)
+      const localPath = typeof selected === 'string' ? selected : selected[0];
+
+      // Extract just the filename from the path
+      const fileName = localPath.split('/').pop() || 'file';
+
+      // Upload to current directory
+      const devicePath = currentPath === "/"
+        ? `/${fileName}`
+        : `${currentPath}/${fileName}`;
+
+      setUploading(true);
+      setError("");
+
+      // Upload the file
+      await invoke("upload_file", {
+        deviceId: selectedDevice,
+        localPath: localPath,
+        devicePath: devicePath,
+      });
+
+      setUploading(false);
+
+      // Refresh file list to show the new file
+      await loadFiles();
+    } catch (err) {
+      setUploading(false);
+      setError(`Failed to upload file: ${err}`);
+      console.error(`Upload error:`, err);
+    }
+  }
+
   function getDisplayFiles(): FileEntry[] {
     if (searchMode) {
       return searchResults;
@@ -760,6 +977,14 @@ function App() {
                   Clear
                 </button>
               )}
+              <button
+                onClick={handleUpload}
+                disabled={uploading}
+                className="upload-btn"
+                title="Upload file to current directory"
+              >
+                {uploading ? "Uploading..." : "Upload"}
+              </button>
             </div>
 
             <div className="file-actions">
@@ -770,6 +995,14 @@ function App() {
                   </span>
                   <button onClick={clearSelection} className="clear-selection-btn">
                     Clear
+                  </button>
+                  <button
+                    onClick={handleDownload}
+                    disabled={downloading}
+                    className="download-btn"
+                    title={`Download ${selectedFiles.size} file(s)`}
+                  >
+                    {downloading ? "Downloading..." : "Download"}
                   </button>
                   <button
                     onClick={() => setShowDeleteConfirm(true)}
@@ -834,6 +1067,12 @@ function App() {
               </table>
             )}
           </div>
+
+          <StatusBar
+            storageInfo={storageInfo}
+            fileCount={getDisplayFiles().length}
+            selectedCount={selectedFiles.size}
+          />
         </>
       )}
 
