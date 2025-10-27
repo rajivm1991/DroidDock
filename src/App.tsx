@@ -187,6 +187,104 @@ function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCac
   );
 }
 
+interface GridItemProps {
+  file: FileEntry;
+  fileIndex: number;
+  currentPath: string;
+  thumbnailsEnabled: boolean;
+  thumbnailCache: Map<string, string>;
+  loadThumbnail: (file: FileEntry, filePath: string) => Promise<void>;
+  needsThumbnail: (file: FileEntry) => boolean;
+  onNavigate: () => void;
+  isSelected: boolean;
+  onSelect: (index: number, e: React.MouseEvent) => void;
+}
+
+function GridItem({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate, isSelected, onSelect }: GridItemProps) {
+  const itemRef = useRef<HTMLDivElement>(null);
+  const [hasLoadedThumbnail, setHasLoadedThumbnail] = useState(false);
+
+  // Compute file path once
+  const filePathRef = useRef<string | null>(null);
+  if (filePathRef.current === null) {
+    filePathRef.current = file.name.startsWith("/")
+      ? file.name
+      : currentPath === "/"
+      ? `/${file.name}`
+      : `${currentPath}/${file.name}`;
+  }
+  const filePath = filePathRef.current;
+
+  useEffect(() => {
+    if (!thumbnailsEnabled || !needsThumbnail(file) || hasLoadedThumbnail) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasLoadedThumbnail) {
+            loadThumbnail(file, filePath);
+            setHasLoadedThumbnail(true);
+          }
+        });
+      },
+      { rootMargin: "50px" }
+    );
+
+    const currentItem = itemRef.current;
+    if (currentItem) {
+      observer.observe(currentItem);
+    }
+
+    return () => {
+      if (currentItem) {
+        observer.unobserve(currentItem);
+      }
+    };
+  }, [thumbnailsEnabled, file, hasLoadedThumbnail, loadThumbnail, needsThumbnail, filePath]);
+
+  useEffect(() => {
+    setHasLoadedThumbnail(false);
+    filePathRef.current = null;
+  }, [file.name]);
+
+  const thumbnailUrl = thumbnailCache.get(filePath);
+
+  return (
+    <div
+      ref={itemRef}
+      onClick={(e) => {
+        if (file.is_directory) {
+          onNavigate();
+        } else {
+          onSelect(fileIndex, e);
+        }
+      }}
+      className={`grid-item ${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""}`}
+    >
+      <input
+        type="checkbox"
+        checked={isSelected}
+        onChange={() => {}}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect(fileIndex, e);
+        }}
+        className="grid-item-checkbox"
+      />
+      <div className="grid-item-icon">
+        {thumbnailsEnabled && thumbnailUrl ? (
+          <img src={thumbnailUrl} alt={file.name} className="grid-thumbnail" />
+        ) : (
+          <span className="icon-large">{file.is_directory ? "📁" : "📄"}</span>
+        )}
+      </div>
+      <div className="grid-item-name">{file.name}</div>
+    </div>
+  );
+}
+
 function App() {
   const [adbAvailable, setAdbAvailable] = useState<boolean | null>(null);
   const [devices, setDevices] = useState<AdbDevice[]>([]);
@@ -228,6 +326,9 @@ function App() {
   // Sort state
   const [sortColumn, setSortColumn] = useState<'name' | 'size' | 'date'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  // View mode state
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
 
   // Check if ADB is available on startup
   useEffect(() => {
@@ -1035,6 +1136,23 @@ function App() {
               </button>
             </div>
 
+            <div className="view-toggle">
+              <button
+                onClick={() => setViewMode('table')}
+                className={`view-btn ${viewMode === 'table' ? 'active' : ''}`}
+                title="Table view"
+              >
+                ☰
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                title="Grid view"
+              >
+                ⊞
+              </button>
+            </div>
+
             <div className="file-actions">
               {selectedFiles.size > 0 && (
                 <>
@@ -1074,7 +1192,7 @@ function App() {
           <div className="file-list">
             {loading ? (
               <div className="loading">Loading...</div>
-            ) : (
+            ) : viewMode === 'table' ? (
               <table>
                 <thead>
                   <tr>
@@ -1118,6 +1236,33 @@ function App() {
                   )}
                 </tbody>
               </table>
+            ) : (
+              <div className="grid-view">
+                {getDisplayFiles().map((file, index) => (
+                  <GridItem
+                    key={index}
+                    file={file}
+                    fileIndex={index}
+                    currentPath={currentPath}
+                    thumbnailsEnabled={thumbnailsEnabled}
+                    thumbnailCache={thumbnailCache}
+                    loadThumbnail={loadThumbnail}
+                    needsThumbnail={needsThumbnail}
+                    onNavigate={() => file.is_directory && navigateToDirectory(file.name)}
+                    isSelected={selectedFiles.has(file.name)}
+                    onSelect={(idx, e) => handleFileSelect(file.name, idx, e)}
+                  />
+                ))}
+                {getDisplayFiles().length === 0 && !loading && (
+                  <div className="empty">
+                    {searchMode
+                      ? "No files found"
+                      : showHiddenFiles
+                      ? "No files in this directory"
+                      : "No visible files (hidden files are filtered)"}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
