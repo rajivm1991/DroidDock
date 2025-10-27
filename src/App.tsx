@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { join } from "@tauri-apps/api/path";
+import { listen } from "@tauri-apps/api/event";
 import "./App.css";
 
 interface AdbDevice {
@@ -228,6 +229,9 @@ function App() {
   // Sort state
   const [sortColumn, setSortColumn] = useState<'name' | 'size' | 'date'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  // Drag and drop state
+  const [isDragging, setIsDragging] = useState<boolean>(false);
 
   // Check if ADB is available on startup
   useEffect(() => {
@@ -865,6 +869,93 @@ function App() {
     }
   }
 
+  // Drag and drop handlers
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) {
+      setIsDragging(true);
+    }
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set isDragging false if leaving the main container
+    if (e.currentTarget === e.target) {
+      setIsDragging(false);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    // isDragging will be set to false when Tauri event fires
+  }
+
+  async function handleFileDrop(filePaths: string[]) {
+    setIsDragging(false);
+
+    if (!selectedDevice) {
+      setError("No device selected");
+      return;
+    }
+
+    if (filePaths.length === 0) return;
+
+    setUploading(true);
+    setError("");
+    setSuccessMessage("");
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const localPath of filePaths) {
+      try {
+        const fileName = localPath.split('/').pop() || localPath.split('\\').pop() || 'file';
+
+        // Upload to current directory
+        const devicePath = currentPath === "/"
+          ? `/${fileName}`
+          : `${currentPath}/${fileName}`;
+
+        await invoke("upload_file", {
+          deviceId: selectedDevice,
+          localPath: localPath,
+          devicePath: devicePath,
+        });
+
+        successCount++;
+      } catch (err) {
+        errorCount++;
+        console.error(`Upload error for ${localPath}:`, err);
+      }
+    }
+
+    setUploading(false);
+
+    // Refresh file list to show new files
+    await loadFiles();
+
+    if (errorCount > 0) {
+      setError(`Uploaded ${successCount} file(s), ${errorCount} failed`);
+    } else {
+      setSuccessMessage(`Successfully uploaded ${successCount} file(s)`);
+      setTimeout(() => setSuccessMessage(""), 5000);
+    }
+  }
+
+  // Listen for Tauri file drop events
+  useEffect(() => {
+    const unlisten = listen<string[]>('tauri://drag-drop', (event) => {
+      handleFileDrop(event.payload);
+    });
+
+    return () => {
+      unlisten.then(fn => fn());
+    };
+  }, [selectedDevice, currentPath]);
+
   function getDisplayFiles(): FileEntry[] {
     if (searchMode) {
       return searchResults;
@@ -906,7 +997,20 @@ function App() {
   }
 
   return (
-    <div className="container">
+    <div
+      className="container"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {isDragging && (
+        <div className="drag-overlay">
+          <div className="drag-overlay-content">
+            <div className="drag-overlay-icon">📁</div>
+            <div className="drag-overlay-text">Drop files here to upload</div>
+          </div>
+        </div>
+      )}
       <header>
         <h1>DroidDock</h1>
         <div className="device-selector">
