@@ -329,6 +329,7 @@ function App() {
 
   // View mode state
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [iconSize, setIconSize] = useState<'small' | 'medium' | 'large' | 'xlarge'>('medium');
 
   // Check if ADB is available on startup
   useEffect(() => {
@@ -622,17 +623,6 @@ function App() {
 
       return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }
-
-  function handleSort(column: 'name' | 'size' | 'date') {
-    if (column === sortColumn) {
-      // Toggle direction if clicking same column
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      // Set new column and default to ascending
-      setSortColumn(column);
-      setSortDirection('asc');
-    }
   }
 
   function isImageFile(extension: string | null): boolean {
@@ -1058,6 +1048,30 @@ function App() {
                     <span className="toggle-switch"></span>
                   </label>
                 </div>
+                <div className="settings-divider"></div>
+                <div className="settings-item">
+                  <label className="sort-label">Sort by:</label>
+                  <select
+                    value={sortColumn}
+                    onChange={(e) => setSortColumn(e.target.value as 'name' | 'size' | 'date')}
+                    className="sort-select"
+                  >
+                    <option value="name">Name</option>
+                    <option value="size">Size</option>
+                    <option value="date">Date</option>
+                  </select>
+                </div>
+                <div className="settings-item">
+                  <label className="sort-label">Direction:</label>
+                  <select
+                    value={sortDirection}
+                    onChange={(e) => setSortDirection(e.target.value as 'asc' | 'desc')}
+                    className="sort-select"
+                  >
+                    <option value="asc">Ascending</option>
+                    <option value="desc">Descending</option>
+                  </select>
+                </div>
               </div>
             )}
           </div>
@@ -1151,6 +1165,38 @@ function App() {
               >
                 ⊞
               </button>
+              {viewMode === 'grid' && (
+                <div className="zoom-controls">
+                  <button
+                    onClick={() => setIconSize('small')}
+                    className={`zoom-btn ${iconSize === 'small' ? 'active' : ''}`}
+                    title="Small icons"
+                  >
+                    −
+                  </button>
+                  <button
+                    onClick={() => setIconSize('medium')}
+                    className={`zoom-btn ${iconSize === 'medium' ? 'active' : ''}`}
+                    title="Medium icons"
+                  >
+                    ●
+                  </button>
+                  <button
+                    onClick={() => setIconSize('large')}
+                    className={`zoom-btn ${iconSize === 'large' ? 'active' : ''}`}
+                    title="Large icons"
+                  >
+                    ◐
+                  </button>
+                  <button
+                    onClick={() => setIconSize('xlarge')}
+                    className={`zoom-btn ${iconSize === 'xlarge' ? 'active' : ''}`}
+                    title="Extra large icons"
+                  >
+                    ○
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="file-actions">
@@ -1196,15 +1242,9 @@ function App() {
               <table>
                 <thead>
                   <tr>
-                    <th className="sortable-header" onClick={() => handleSort('name')}>
-                      Name {sortColumn === 'name' && (sortDirection === 'asc' ? '▲' : '▼')}
-                    </th>
-                    <th className="sortable-header" onClick={() => handleSort('size')}>
-                      Size {sortColumn === 'size' && (sortDirection === 'asc' ? '▲' : '▼')}
-                    </th>
-                    <th className="sortable-header" onClick={() => handleSort('date')}>
-                      Date {sortColumn === 'date' && (sortDirection === 'asc' ? '▲' : '▼')}
-                    </th>
+                    <th>Name</th>
+                    <th>Size</th>
+                    <th>Date</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1237,7 +1277,7 @@ function App() {
                 </tbody>
               </table>
             ) : (
-              <div className="grid-view">
+              <div className={`grid-view grid-${iconSize}`}>
                 {getDisplayFiles().map((file, index) => (
                   <GridItem
                     key={index}
