@@ -190,8 +190,8 @@ async fn get_thumbnail(
                     file_metadata.len(), file_size, e)
             })?;
 
-        // Resize to thumbnail size (100x100 maintaining aspect ratio)
-        let thumbnail = img.thumbnail(100, 100);
+        // Resize to thumbnail size (256x256 maintaining aspect ratio)
+        let thumbnail = img.thumbnail(256, 256);
 
         // Save thumbnail to cache
         thumbnail.save(&cached_thumb_path)
@@ -230,7 +230,7 @@ async fn get_thumbnail(
                 "-i", temp_file.to_str().unwrap(),
                 "-ss", "00:00:01",
                 "-vframes", "1",
-                "-vf", "scale=100:100:force_original_aspect_ratio=decrease",
+                "-vf", "scale=256:256:force_original_aspect_ratio=decrease",
                 "-y",
                 cached_thumb_path.to_str().unwrap()
             ])
