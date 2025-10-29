@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { join } from "@tauri-apps/api/path";
+import { listen } from "@tauri-apps/api/event";
 import "./App.css";
 
 interface AdbDevice {
@@ -330,6 +331,9 @@ function App() {
   // View mode state
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [iconSize, setIconSize] = useState<'small' | 'medium' | 'large' | 'xlarge'>('medium');
+
+  // Drag and drop state
+  const [isDragging, setIsDragging] = useState<boolean>(false);
 
   // Check if ADB is available on startup
   useEffect(() => {
@@ -956,6 +960,146 @@ function App() {
     }
   }
 
+  // Drag and drop handlers
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isDragging) {
+      setIsDragging(true);
+    }
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set isDragging false if leaving the main container
+    if (e.currentTarget === e.target) {
+      setIsDragging(false);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    // isDragging will be set to false when Tauri event fires
+  }
+
+  // Listen for Tauri file drop events
+  useEffect(() => {
+    console.log("Setting up file drop listeners...");
+
+    async function handleFileDrop(payload: any, eventName: string) {
+      console.log(`File drop event received from ${eventName}:`, payload);
+      console.log("Payload type:", typeof payload, "Is array:", Array.isArray(payload));
+      setIsDragging(false);
+
+      if (!selectedDevice) {
+        console.error("No device selected");
+        setError("No device selected");
+        return;
+      }
+
+      // Handle different payload formats
+      let filePaths: string[] = [];
+      if (Array.isArray(payload)) {
+        filePaths = payload;
+      } else if (typeof payload === 'string') {
+        filePaths = [payload];
+      } else if (payload && typeof payload === 'object' && payload.paths) {
+        filePaths = payload.paths;
+      } else {
+        console.error("Unknown payload format:", payload);
+        setError("Invalid file drop format");
+        return;
+      }
+
+      console.log("Processed file paths:", filePaths);
+
+      if (filePaths.length === 0) {
+        console.log("No files in drop");
+        return;
+      }
+
+      console.log(`Starting upload of ${filePaths.length} file(s) to device ${selectedDevice} at path ${currentPath}`);
+      setUploading(true);
+      setError("");
+      setSuccessMessage("");
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const localPath of filePaths) {
+        try {
+          const fileName = localPath.split('/').pop() || localPath.split('\\').pop() || 'file';
+
+          // Upload to current directory
+          const devicePath = currentPath === "/"
+            ? `/${fileName}`
+            : `${currentPath}/${fileName}`;
+
+          console.log(`Uploading ${fileName} to ${devicePath}`);
+
+          await invoke("upload_file", {
+            deviceId: selectedDevice,
+            localPath: localPath,
+            devicePath: devicePath,
+          });
+
+          console.log(`Successfully uploaded ${fileName}`);
+          successCount++;
+        } catch (err) {
+          errorCount++;
+          console.error(`Upload error for ${localPath}:`, err);
+        }
+      }
+
+      setUploading(false);
+
+      // Refresh file list to show new files
+      console.log("Refreshing file list after upload");
+      try {
+        setLoading(true);
+        setError("");
+        const response: FileEntry[] = await invoke("list_files", {
+          deviceId: selectedDevice,
+          path: currentPath,
+        });
+        setFiles(response);
+        setLoading(false);
+      } catch (err) {
+        setLoading(false);
+        console.error("Error refreshing files:", err);
+      }
+
+      if (errorCount > 0) {
+        setError(`Uploaded ${successCount} file(s), ${errorCount} failed`);
+      } else {
+        setSuccessMessage(`Successfully uploaded ${successCount} file(s)`);
+        setTimeout(() => setSuccessMessage(""), 5000);
+      }
+    }
+
+    // Try multiple event names for Tauri v2 compatibility
+    const eventNames = ['tauri://file-drop', 'tauri://drop', 'tauri://drag-drop', 'tauri://drop-over'];
+    const unlisteners: Promise<() => void>[] = [];
+
+    eventNames.forEach(eventName => {
+      console.log(`Registering listener for: ${eventName}`);
+      const unlisten = listen<any>(eventName, (event) => {
+        console.log(`Event fired: ${eventName}`, event);
+        handleFileDrop(event.payload, eventName);
+      });
+      unlisteners.push(unlisten);
+    });
+
+    return () => {
+      console.log("Cleaning up file drop listeners");
+      unlisteners.forEach(unlisten => {
+        unlisten.then(fn => fn());
+      });
+    };
+  }, [selectedDevice, currentPath]);
+
   function getDisplayFiles(): FileEntry[] {
     if (searchMode) {
       return searchResults;
@@ -997,7 +1141,20 @@ function App() {
   }
 
   return (
-    <div className="container">
+    <div
+      className="container"
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {isDragging && (
+        <div className="drag-overlay">
+          <div className="drag-overlay-content">
+            <div className="drag-overlay-icon">📁</div>
+            <div className="drag-overlay-text">Drop files here to upload</div>
+          </div>
+        </div>
+      )}
       <header>
         <h1>DroidDock</h1>
         <div className="device-selector">

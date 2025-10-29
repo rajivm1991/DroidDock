@@ -1043,6 +1043,46 @@ tbody tr {
   }
 }
 
+/* Drag and Drop Overlay */
+.drag-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(102, 126, 234, 0.95);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.drag-overlay-content {
+  text-align: center;
+  color: white;
+}
+
+.drag-overlay-icon {
+  font-size: 80px;
+  margin-bottom: 20px;
+  animation: bounce 0.6s ease infinite alternate;
+}
+
+.drag-overlay-text {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+@keyframes bounce {
+  from {
+    transform: translateY(0px);
+  }
+  to {
+    transform: translateY(-15px);
+  }
+}
+
 /* View Toggle */
 .view-toggle {
   display: flex;
