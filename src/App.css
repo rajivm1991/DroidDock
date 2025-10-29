@@ -693,6 +693,11 @@ tbody tr.selected td {
   color: #1967d2;
 }
 
+tbody tr.file-row.focused {
+  outline: 2px solid #667eea;
+  outline-offset: -2px;
+}
+
 tbody tr {
   cursor: pointer;
 }
@@ -992,6 +997,11 @@ tbody tr {
     color: #6ba4e7;
   }
 
+  tbody tr.file-row.focused {
+    outline: 2px solid #6ba4e7;
+    outline-offset: -2px;
+  }
+
   .modal-overlay {
     background-color: rgba(0, 0, 0, 0.7);
   }
@@ -1190,6 +1200,11 @@ tbody tr {
 .grid-item.selected {
   background-color: #e8eeff;
   box-shadow: 0 0 0 2px #667eea;
+}
+
+.grid-item.focused {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
 }
 
 .grid-item-checkbox {

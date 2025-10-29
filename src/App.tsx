@@ -36,6 +36,7 @@ interface FileRowProps {
   needsThumbnail: (file: FileEntry) => boolean;
   onNavigate: () => void;
   isSelected: boolean;
+  isFocused: boolean;
   onSelect: (index: number, e: React.MouseEvent) => void;
 }
 
@@ -92,7 +93,7 @@ function StatusBar({ storageInfo, fileCount, selectedCount }: StatusBarProps) {
   );
 }
 
-function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate, isSelected, onSelect }: FileRowProps) {
+function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate, isSelected, isFocused, onSelect }: FileRowProps) {
   const rowRef = useRef<HTMLTableRowElement>(null);
   const [hasLoadedThumbnail, setHasLoadedThumbnail] = useState(false);
 
@@ -152,7 +153,7 @@ function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCac
     <tr
       ref={rowRef}
       onClick={(e) => onSelect(fileIndex, e)}
-      className={`${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""}`}
+      className={`file-row ${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""} ${isFocused ? "focused" : ""}`}
     >
       <td>
         <input
@@ -198,10 +199,11 @@ interface GridItemProps {
   needsThumbnail: (file: FileEntry) => boolean;
   onNavigate: () => void;
   isSelected: boolean;
+  isFocused: boolean;
   onSelect: (index: number, e: React.MouseEvent) => void;
 }
 
-function GridItem({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate, isSelected, onSelect }: GridItemProps) {
+function GridItem({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate, isSelected, isFocused, onSelect }: GridItemProps) {
   const itemRef = useRef<HTMLDivElement>(null);
   const [hasLoadedThumbnail, setHasLoadedThumbnail] = useState(false);
 
@@ -262,7 +264,7 @@ function GridItem({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCa
           onSelect(fileIndex, e);
         }
       }}
-      className={`grid-item ${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""}`}
+      className={`grid-item ${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""} ${isFocused ? "focused" : ""}`}
     >
       <input
         type="checkbox"
@@ -297,7 +299,7 @@ function App() {
   const [showHiddenFiles, setShowHiddenFiles] = useState<boolean>(false);
   const [adbPath, setAdbPath] = useState<string>("");
   const [customAdbPath, setCustomAdbPath] = useState<string>("");
-  const [thumbnailsEnabled, setThumbnailsEnabled] = useState<boolean>(true);
+  const [thumbnailsEnabled, setThumbnailsEnabled] = useState<boolean>(false);
   const [thumbnailCache, setThumbnailCache] = useState<Map<string, string>>(new Map());
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
 
@@ -334,6 +336,9 @@ function App() {
 
   // Drag and drop state
   const [isDragging, setIsDragging] = useState<boolean>(false);
+
+  // Keyboard navigation state
+  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
 
   // Check if ADB is available on startup
   useEffect(() => {
@@ -389,6 +394,9 @@ function App() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle keyboard shortcuts when typing in input fields
+      const isTyping = document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
+
       // Ctrl/Cmd + F: Focus search
       if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault();
@@ -399,10 +407,69 @@ function App() {
         e.preventDefault();
         selectAll();
       }
+      // Cmd/Ctrl + Up Arrow: Navigate to parent directory
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'ArrowUp') {
+        e.preventDefault();
+        navigateUp();
+      }
+      // Cmd/Ctrl + O: Open highlighted folder
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+        e.preventDefault();
+        if (focusedIndex >= 0 && focusedIndex < getDisplayFiles().length) {
+          const file = getDisplayFiles()[focusedIndex];
+          if (file.is_directory) {
+            navigateToDirectory(file.name);
+          }
+        }
+      }
+      // Arrow keys: Navigate in list
+      else if (!isTyping && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        const displayFiles = getDisplayFiles();
+        if (displayFiles.length === 0) return;
+
+        let newIndex = focusedIndex;
+
+        if (viewMode === 'table') {
+          // Table view: only up/down arrows
+          if (e.key === 'ArrowUp') {
+            newIndex = focusedIndex <= 0 ? displayFiles.length - 1 : focusedIndex - 1;
+          } else if (e.key === 'ArrowDown') {
+            newIndex = focusedIndex >= displayFiles.length - 1 ? 0 : focusedIndex + 1;
+          }
+        } else {
+          // Grid view: all four arrows
+          // Calculate grid columns based on container width and icon size
+          const gridSizes = { small: 80, medium: 120, large: 160, xlarge: 200 };
+          const itemWidth = gridSizes[iconSize] + 12; // grid gap
+          const containerWidth = document.querySelector('.grid-view')?.clientWidth || 800;
+          const cols = Math.floor(containerWidth / itemWidth);
+
+          if (e.key === 'ArrowUp') {
+            newIndex = focusedIndex - cols;
+            if (newIndex < 0) newIndex = displayFiles.length - 1;
+          } else if (e.key === 'ArrowDown') {
+            newIndex = focusedIndex + cols;
+            if (newIndex >= displayFiles.length) newIndex = 0;
+          } else if (e.key === 'ArrowLeft') {
+            newIndex = focusedIndex <= 0 ? displayFiles.length - 1 : focusedIndex - 1;
+          } else if (e.key === 'ArrowRight') {
+            newIndex = focusedIndex >= displayFiles.length - 1 ? 0 : focusedIndex + 1;
+          }
+        }
+
+        setFocusedIndex(newIndex);
+
+        // Scroll focused item into view
+        setTimeout(() => {
+          const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
+          focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }, 0);
+      }
       // Delete or Backspace: Delete selected files
       else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedFiles.size > 0) {
         // Only if not typing in an input
-        if (document.activeElement?.tagName !== 'INPUT') {
+        if (!isTyping) {
           e.preventDefault();
           setShowDeleteConfirm(true);
         }
@@ -413,13 +480,15 @@ function App() {
           exitSearchMode();
         } else if (selectedFiles.size > 0) {
           clearSelection();
+        } else if (focusedIndex >= 0) {
+          setFocusedIndex(-1);
         }
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedFiles, searchMode]);
+  }, [selectedFiles, searchMode, focusedIndex, viewMode, iconSize]);
 
   async function checkAdb() {
     try {
@@ -1183,11 +1252,11 @@ function App() {
               <div className="settings-menu">
                 <div className="settings-item">
                   <label className="toggle-label">
-                    <span>Show Hidden Files</span>
+                    <span>Show Thumbnails</span>
                     <input
                       type="checkbox"
-                      checked={showHiddenFiles}
-                      onChange={(e) => setShowHiddenFiles(e.target.checked)}
+                      checked={thumbnailsEnabled}
+                      onChange={(e) => setThumbnailsEnabled(e.target.checked)}
                       className="toggle-checkbox"
                     />
                     <span className="toggle-switch"></span>
@@ -1195,11 +1264,11 @@ function App() {
                 </div>
                 <div className="settings-item">
                   <label className="toggle-label">
-                    <span>Show Thumbnails</span>
+                    <span>Show Hidden Files</span>
                     <input
                       type="checkbox"
-                      checked={thumbnailsEnabled}
-                      onChange={(e) => setThumbnailsEnabled(e.target.checked)}
+                      checked={showHiddenFiles}
+                      onChange={(e) => setShowHiddenFiles(e.target.checked)}
                       className="toggle-checkbox"
                     />
                     <span className="toggle-switch"></span>
@@ -1259,11 +1328,6 @@ function App() {
                 </button>
               </span>
             ))}
-            {currentPath !== "/" && currentPath !== "/storage/emulated/0" && (
-              <button onClick={navigateUp} className="up-btn">
-                ↑ Up
-              </button>
-            )}
           </div>
 
           <div className="toolbar">
@@ -1417,6 +1481,7 @@ function App() {
                       needsThumbnail={needsThumbnail}
                       onNavigate={() => file.is_directory && navigateToDirectory(file.name)}
                       isSelected={selectedFiles.has(file.name)}
+                      isFocused={focusedIndex === index}
                       onSelect={(idx, e) => handleFileSelect(file.name, idx, e)}
                     />
                   ))}
@@ -1447,6 +1512,7 @@ function App() {
                     needsThumbnail={needsThumbnail}
                     onNavigate={() => file.is_directory && navigateToDirectory(file.name)}
                     isSelected={selectedFiles.has(file.name)}
+                    isFocused={focusedIndex === index}
                     onSelect={(idx, e) => handleFileSelect(file.name, idx, e)}
                   />
                 ))}
