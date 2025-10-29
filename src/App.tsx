@@ -339,6 +339,7 @@ function App() {
 
   // Keyboard navigation state
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState<boolean>(false);
 
   // Check if ADB is available on startup
   useEffect(() => {
@@ -397,8 +398,13 @@ function App() {
       // Don't handle keyboard shortcuts when typing in input fields
       const isTyping = document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
 
+      // Ctrl/Cmd + /: Show keyboard shortcuts
+      if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+        e.preventDefault();
+        setShowShortcutsHelp(true);
+      }
       // Ctrl/Cmd + F: Focus search
-      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
@@ -420,6 +426,30 @@ function App() {
           if (file.is_directory) {
             navigateToDirectory(file.name);
           }
+        }
+      }
+      // Cmd/Ctrl + Shift + .: Toggle show hidden files
+      else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === '.') {
+        e.preventDefault();
+        setShowHiddenFiles(!showHiddenFiles);
+      }
+      // Cmd/Ctrl + T: Toggle thumbnails
+      else if ((e.ctrlKey || e.metaKey) && e.key === 't') {
+        e.preventDefault();
+        setThumbnailsEnabled(!thumbnailsEnabled);
+      }
+      // Space: Toggle selection on focused file
+      else if (!isTyping && e.key === ' ') {
+        e.preventDefault();
+        if (focusedIndex >= 0 && focusedIndex < getDisplayFiles().length) {
+          const file = getDisplayFiles()[focusedIndex];
+          const newSelection = new Set(selectedFiles);
+          if (newSelection.has(file.name)) {
+            newSelection.delete(file.name);
+          } else {
+            newSelection.add(file.name);
+          }
+          setSelectedFiles(newSelection);
         }
       }
       // Arrow keys: Navigate in list
@@ -466,17 +496,37 @@ function App() {
           focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
         }, 0);
       }
-      // Delete or Backspace: Delete selected files
-      else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedFiles.size > 0) {
-        // Only if not typing in an input
-        if (!isTyping) {
-          e.preventDefault();
+      // Cmd/Ctrl + Delete: Delete selected or focused files
+      else if ((e.ctrlKey || e.metaKey) && (e.key === 'Delete' || e.key === 'Backspace')) {
+        e.preventDefault();
+        if (selectedFiles.size > 0) {
+          setShowDeleteConfirm(true);
+        } else if (focusedIndex >= 0 && focusedIndex < getDisplayFiles().length) {
+          // Delete focused file if nothing selected
+          const file = getDisplayFiles()[focusedIndex];
+          setSelectedFiles(new Set([file.name]));
           setShowDeleteConfirm(true);
         }
       }
-      // Escape: Clear selection or exit search
+      // Cmd/Ctrl + D: Download selected or focused files
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault();
+        if (selectedFiles.size > 0) {
+          handleDownload();
+        } else if (focusedIndex >= 0 && focusedIndex < getDisplayFiles().length) {
+          // Download focused file if nothing selected
+          const file = getDisplayFiles()[focusedIndex];
+          setSelectedFiles(new Set([file.name]));
+          handleDownload();
+        }
+      }
+      // Escape: Close modals/popups first, then clear selection/focus
       else if (e.key === 'Escape') {
-        if (searchMode) {
+        if (showShortcutsHelp) {
+          setShowShortcutsHelp(false);
+        } else if (showDeleteConfirm) {
+          setShowDeleteConfirm(false);
+        } else if (searchMode) {
           exitSearchMode();
         } else if (selectedFiles.size > 0) {
           clearSelection();
@@ -488,7 +538,7 @@ function App() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedFiles, searchMode, focusedIndex, viewMode, iconSize]);
+  }, [selectedFiles, searchMode, focusedIndex, viewMode, iconSize, showHiddenFiles, thumbnailsEnabled, showShortcutsHelp, showDeleteConfirm]);
 
   async function checkAdb() {
     try {
@@ -585,6 +635,8 @@ function App() {
       ? `/${dirName}`
       : `${currentPath}/${dirName}`;
     setCurrentPath(newPath);
+    // Reset focus to first item when entering new directory
+    setFocusedIndex(0);
     // Exit search mode when navigating to a directory
     if (searchMode) {
       exitSearchMode();
@@ -595,6 +647,8 @@ function App() {
     if (currentPath === "/") return;
     const parentPath = currentPath.split("/").slice(0, -1).join("/") || "/";
     setCurrentPath(parentPath);
+    // Reset focus to first item when going up
+    setFocusedIndex(0);
   }
 
   function getPathSegments() {
@@ -605,6 +659,8 @@ function App() {
     const segments = getPathSegments();
     const newPath = "/" + segments.slice(0, index + 1).join("/");
     setCurrentPath(newPath);
+    // Reset focus to first item when navigating via breadcrumbs
+    setFocusedIndex(0);
   }
 
   // Storage detection helpers
@@ -662,6 +718,8 @@ function App() {
     setCurrentPath(currentPath.startsWith("/storage/emulated/0")
       ? "/storage/emulated/0"
       : "/storage/emulated/0");
+    // Reset focus to first item when navigating home
+    setFocusedIndex(0);
   }
 
   function getVisibleFiles() {
@@ -1298,6 +1356,18 @@ function App() {
                     <option value="desc">Descending</option>
                   </select>
                 </div>
+                <div className="settings-divider"></div>
+                <div className="settings-item">
+                  <button
+                    onClick={() => {
+                      setShowShortcutsHelp(true);
+                      setSettingsOpen(false);
+                    }}
+                    className="shortcuts-btn"
+                  >
+                    ⌨️ Keyboard Shortcuts
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -1561,6 +1631,91 @@ function App() {
                 className="confirm-delete-btn"
               >
                 {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showShortcutsHelp && (
+        <div className="modal-overlay" onClick={() => setShowShortcutsHelp(false)}>
+          <div className="modal-dialog shortcuts-dialog" onClick={(e) => e.stopPropagation()}>
+            <h3>⌨️ Keyboard Shortcuts</h3>
+            <div className="shortcuts-grid">
+              <div className="shortcuts-section">
+                <h4>Navigation</h4>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">↑ ↓</span>
+                  <span className="shortcut-desc">Navigate in list view</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">↑ ↓ ← →</span>
+                  <span className="shortcut-desc">Navigate in grid view</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + ↑</span>
+                  <span className="shortcut-desc">Go to parent directory</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + O</span>
+                  <span className="shortcut-desc">Open focused folder</span>
+                </div>
+              </div>
+
+              <div className="shortcuts-section">
+                <h4>Selection</h4>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Space</span>
+                  <span className="shortcut-desc">Toggle selection on focused file</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + A</span>
+                  <span className="shortcut-desc">Select all files</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Esc</span>
+                  <span className="shortcut-desc">Close popup/clear selection/focus</span>
+                </div>
+              </div>
+
+              <div className="shortcuts-section">
+                <h4>File Actions</h4>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + D</span>
+                  <span className="shortcut-desc">Download selected/focused files</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + Delete</span>
+                  <span className="shortcut-desc">Delete selected/focused files</span>
+                </div>
+              </div>
+
+              <div className="shortcuts-section">
+                <h4>View &amp; Search</h4>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + F</span>
+                  <span className="shortcut-desc">Focus search bar</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + T</span>
+                  <span className="shortcut-desc">Toggle thumbnails</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + Shift + .</span>
+                  <span className="shortcut-desc">Toggle hidden files</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + /</span>
+                  <span className="shortcut-desc">Show this help</span>
+                </div>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                onClick={() => setShowShortcutsHelp(false)}
+                className="cancel-btn"
+              >
+                Close
               </button>
             </div>
           </div>
