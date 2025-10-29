@@ -188,6 +188,104 @@ function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCac
   );
 }
 
+interface GridItemProps {
+  file: FileEntry;
+  fileIndex: number;
+  currentPath: string;
+  thumbnailsEnabled: boolean;
+  thumbnailCache: Map<string, string>;
+  loadThumbnail: (file: FileEntry, filePath: string) => Promise<void>;
+  needsThumbnail: (file: FileEntry) => boolean;
+  onNavigate: () => void;
+  isSelected: boolean;
+  onSelect: (index: number, e: React.MouseEvent) => void;
+}
+
+function GridItem({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate, isSelected, onSelect }: GridItemProps) {
+  const itemRef = useRef<HTMLDivElement>(null);
+  const [hasLoadedThumbnail, setHasLoadedThumbnail] = useState(false);
+
+  // Compute file path once
+  const filePathRef = useRef<string | null>(null);
+  if (filePathRef.current === null) {
+    filePathRef.current = file.name.startsWith("/")
+      ? file.name
+      : currentPath === "/"
+      ? `/${file.name}`
+      : `${currentPath}/${file.name}`;
+  }
+  const filePath = filePathRef.current;
+
+  useEffect(() => {
+    if (!thumbnailsEnabled || !needsThumbnail(file) || hasLoadedThumbnail) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasLoadedThumbnail) {
+            loadThumbnail(file, filePath);
+            setHasLoadedThumbnail(true);
+          }
+        });
+      },
+      { rootMargin: "50px" }
+    );
+
+    const currentItem = itemRef.current;
+    if (currentItem) {
+      observer.observe(currentItem);
+    }
+
+    return () => {
+      if (currentItem) {
+        observer.unobserve(currentItem);
+      }
+    };
+  }, [thumbnailsEnabled, file, hasLoadedThumbnail, loadThumbnail, needsThumbnail, filePath]);
+
+  useEffect(() => {
+    setHasLoadedThumbnail(false);
+    filePathRef.current = null;
+  }, [file.name]);
+
+  const thumbnailUrl = thumbnailCache.get(filePath);
+
+  return (
+    <div
+      ref={itemRef}
+      onClick={(e) => {
+        if (file.is_directory) {
+          onNavigate();
+        } else {
+          onSelect(fileIndex, e);
+        }
+      }}
+      className={`grid-item ${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""}`}
+    >
+      <input
+        type="checkbox"
+        checked={isSelected}
+        onChange={() => {}}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect(fileIndex, e);
+        }}
+        className="grid-item-checkbox"
+      />
+      <div className="grid-item-icon">
+        {thumbnailsEnabled && thumbnailUrl ? (
+          <img src={thumbnailUrl} alt={file.name} className="grid-thumbnail" />
+        ) : (
+          <span className="icon-large">{file.is_directory ? "📁" : "📄"}</span>
+        )}
+      </div>
+      <div className="grid-item-name">{file.name}</div>
+    </div>
+  );
+}
+
 function App() {
   const [adbAvailable, setAdbAvailable] = useState<boolean | null>(null);
   const [devices, setDevices] = useState<AdbDevice[]>([]);
@@ -229,6 +327,10 @@ function App() {
   // Sort state
   const [sortColumn, setSortColumn] = useState<'name' | 'size' | 'date'>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+  // View mode state
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [iconSize, setIconSize] = useState<'small' | 'medium' | 'large' | 'xlarge'>('medium');
 
   // Drag and drop state
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -525,17 +627,6 @@ function App() {
 
       return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }
-
-  function handleSort(column: 'name' | 'size' | 'date') {
-    if (column === sortColumn) {
-      // Toggle direction if clicking same column
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      // Set new column and default to ascending
-      setSortColumn(column);
-      setSortDirection('asc');
-    }
   }
 
   function isImageFile(extension: string | null): boolean {
@@ -1114,6 +1205,30 @@ function App() {
                     <span className="toggle-switch"></span>
                   </label>
                 </div>
+                <div className="settings-divider"></div>
+                <div className="settings-item">
+                  <label className="sort-label">Sort by:</label>
+                  <select
+                    value={sortColumn}
+                    onChange={(e) => setSortColumn(e.target.value as 'name' | 'size' | 'date')}
+                    className="sort-select"
+                  >
+                    <option value="name">Name</option>
+                    <option value="size">Size</option>
+                    <option value="date">Date</option>
+                  </select>
+                </div>
+                <div className="settings-item">
+                  <label className="sort-label">Direction:</label>
+                  <select
+                    value={sortDirection}
+                    onChange={(e) => setSortDirection(e.target.value as 'asc' | 'desc')}
+                    className="sort-select"
+                  >
+                    <option value="asc">Ascending</option>
+                    <option value="desc">Descending</option>
+                  </select>
+                </div>
               </div>
             )}
           </div>
@@ -1192,6 +1307,55 @@ function App() {
               </button>
             </div>
 
+            <div className="view-toggle">
+              <button
+                onClick={() => setViewMode('table')}
+                className={`view-btn ${viewMode === 'table' ? 'active' : ''}`}
+                title="Table view"
+              >
+                ☰
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
+                title="Grid view"
+              >
+                ⊞
+              </button>
+              {viewMode === 'grid' && (
+                <div className="zoom-controls">
+                  <button
+                    onClick={() => setIconSize('small')}
+                    className={`zoom-btn ${iconSize === 'small' ? 'active' : ''}`}
+                    title="Small icons"
+                  >
+                    −
+                  </button>
+                  <button
+                    onClick={() => setIconSize('medium')}
+                    className={`zoom-btn ${iconSize === 'medium' ? 'active' : ''}`}
+                    title="Medium icons"
+                  >
+                    ●
+                  </button>
+                  <button
+                    onClick={() => setIconSize('large')}
+                    className={`zoom-btn ${iconSize === 'large' ? 'active' : ''}`}
+                    title="Large icons"
+                  >
+                    ◐
+                  </button>
+                  <button
+                    onClick={() => setIconSize('xlarge')}
+                    className={`zoom-btn ${iconSize === 'xlarge' ? 'active' : ''}`}
+                    title="Extra large icons"
+                  >
+                    ○
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="file-actions">
               {selectedFiles.size > 0 && (
                 <>
@@ -1231,19 +1395,13 @@ function App() {
           <div className="file-list">
             {loading ? (
               <div className="loading">Loading...</div>
-            ) : (
+            ) : viewMode === 'table' ? (
               <table>
                 <thead>
                   <tr>
-                    <th className="sortable-header" onClick={() => handleSort('name')}>
-                      Name {sortColumn === 'name' && (sortDirection === 'asc' ? '▲' : '▼')}
-                    </th>
-                    <th className="sortable-header" onClick={() => handleSort('size')}>
-                      Size {sortColumn === 'size' && (sortDirection === 'asc' ? '▲' : '▼')}
-                    </th>
-                    <th className="sortable-header" onClick={() => handleSort('date')}>
-                      Date {sortColumn === 'date' && (sortDirection === 'asc' ? '▲' : '▼')}
-                    </th>
+                    <th>Name</th>
+                    <th>Size</th>
+                    <th>Date</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1275,6 +1433,33 @@ function App() {
                   )}
                 </tbody>
               </table>
+            ) : (
+              <div className={`grid-view grid-${iconSize}`}>
+                {getDisplayFiles().map((file, index) => (
+                  <GridItem
+                    key={index}
+                    file={file}
+                    fileIndex={index}
+                    currentPath={currentPath}
+                    thumbnailsEnabled={thumbnailsEnabled}
+                    thumbnailCache={thumbnailCache}
+                    loadThumbnail={loadThumbnail}
+                    needsThumbnail={needsThumbnail}
+                    onNavigate={() => file.is_directory && navigateToDirectory(file.name)}
+                    isSelected={selectedFiles.has(file.name)}
+                    onSelect={(idx, e) => handleFileSelect(file.name, idx, e)}
+                  />
+                ))}
+                {getDisplayFiles().length === 0 && !loading && (
+                  <div className="empty">
+                    {searchMode
+                      ? "No files found"
+                      : showHiddenFiles
+                      ? "No files in this directory"
+                      : "No visible files (hidden files are filtered)"}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
