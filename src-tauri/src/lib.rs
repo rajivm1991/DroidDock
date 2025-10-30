@@ -577,6 +577,81 @@ async fn delete_file(
     Ok(())
 }
 
+// Rename a file or directory on the Android device
+#[tauri::command]
+async fn rename_file(
+    app: tauri::AppHandle,
+    device_id: String,
+    old_path: String,
+    new_name: String,
+) -> Result<(), String> {
+    // Validate new name doesn't contain path separators
+    if new_name.contains('/') || new_name.contains('\\') {
+        return Err("Invalid name: cannot contain path separators".to_string());
+    }
+
+    // Validate new name is not empty
+    if new_name.trim().is_empty() {
+        return Err("Invalid name: cannot be empty".to_string());
+    }
+
+    // Safety check: prevent renaming critical system directories
+    let critical_paths = vec![
+        "/",
+        "/system",
+        "/data",
+        "/vendor",
+        "/boot",
+        "/proc",
+        "/sys",
+        "/dev",
+    ];
+
+    if critical_paths.contains(&old_path.as_str()) {
+        return Err(format!("Cannot rename critical system path: {}", old_path));
+    }
+
+    let shell = app.shell();
+    let adb_cmd = get_adb_command();
+
+    // Build the new path by replacing the filename
+    let parent_path = old_path.rsplit_once('/').map(|(parent, _)| parent).unwrap_or("");
+    let new_path = if parent_path.is_empty() {
+        format!("/{}", new_name)
+    } else {
+        format!("{}/{}", parent_path, new_name)
+    };
+
+    // Escape single quotes in paths
+    let escaped_old_path = old_path.replace("'", "'\\''");
+    let escaped_new_path = new_path.replace("'", "'\\''");
+
+    // Use mv command to rename
+    let mv_command = format!("mv '{}' '{}'", escaped_old_path, escaped_new_path);
+
+    let output = shell
+        .command(&adb_cmd)
+        .args(["-s", &device_id, "shell", &mv_command])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to execute rename command: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if stderr.contains("Permission denied") {
+            return Err(format!("Permission denied: Cannot rename {}", old_path));
+        } else if stderr.contains("File exists") || stderr.contains("already exists") {
+            return Err(format!("A file or folder named '{}' already exists", new_name));
+        } else if stderr.contains("No such file") {
+            return Err(format!("File not found: {}", old_path));
+        } else {
+            return Err(format!("Rename failed: {}", stderr));
+        }
+    }
+
+    Ok(())
+}
+
 // Search for files on the Android device
 #[tauri::command]
 async fn search_files(
@@ -812,6 +887,7 @@ pub fn run() {
             get_current_adb_path,
             get_thumbnail,
             delete_file,
+            rename_file,
             search_files,
             get_storage_info,
             download_file,

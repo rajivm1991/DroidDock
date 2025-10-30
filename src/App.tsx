@@ -36,7 +36,14 @@ interface FileRowProps {
   needsThumbnail: (file: FileEntry) => boolean;
   onNavigate: () => void;
   isSelected: boolean;
+  isFocused: boolean;
   onSelect: (index: number, e: React.MouseEvent) => void;
+  isRenaming: boolean;
+  renameValue: string;
+  onRenameChange: (value: string) => void;
+  onRenameConfirm: () => void;
+  onRenameCancel: () => void;
+  renameInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 // Helper function to format bytes into human-readable format
@@ -92,7 +99,7 @@ function StatusBar({ storageInfo, fileCount, selectedCount }: StatusBarProps) {
   );
 }
 
-function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate, isSelected, onSelect }: FileRowProps) {
+function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate, isSelected, isFocused, onSelect, isRenaming, renameValue, onRenameChange, onRenameConfirm, onRenameCancel, renameInputRef }: FileRowProps) {
   const rowRef = useRef<HTMLTableRowElement>(null);
   const [hasLoadedThumbnail, setHasLoadedThumbnail] = useState(false);
 
@@ -152,7 +159,7 @@ function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCac
     <tr
       ref={rowRef}
       onClick={(e) => onSelect(fileIndex, e)}
-      className={`${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""}`}
+      className={`file-row ${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""} ${isFocused ? "focused" : ""}`}
     >
       <td>
         <input
@@ -170,17 +177,40 @@ function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCac
         ) : (
           <span className="icon">{file.is_directory ? "📁" : "📄"}</span>
         )}
-        <span
-          className={file.is_directory ? "file-name clickable" : "file-name"}
-          onClick={(e) => {
-            if (file.is_directory) {
-              e.stopPropagation();
-              onNavigate();
-            }
-          }}
-        >
-          {file.name}
-        </span>
+        {isRenaming ? (
+          <input
+            ref={renameInputRef}
+            type="text"
+            value={renameValue}
+            onChange={(e) => onRenameChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                onRenameConfirm();
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                onRenameCancel();
+              }
+            }}
+            onBlur={onRenameCancel}
+            onClick={(e) => e.stopPropagation()}
+            className="rename-input"
+          />
+        ) : (
+          <span
+            className={file.is_directory ? "file-name clickable" : "file-name"}
+            onClick={(e) => {
+              if (file.is_directory) {
+                e.stopPropagation();
+                onNavigate();
+              }
+            }}
+          >
+            {file.name}
+          </span>
+        )}
       </td>
       <td>{file.is_directory ? "-" : formatBytes(parseInt(file.size))}</td>
       <td>{file.date}</td>
@@ -198,10 +228,11 @@ interface GridItemProps {
   needsThumbnail: (file: FileEntry) => boolean;
   onNavigate: () => void;
   isSelected: boolean;
+  isFocused: boolean;
   onSelect: (index: number, e: React.MouseEvent) => void;
 }
 
-function GridItem({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate, isSelected, onSelect }: GridItemProps) {
+function GridItem({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate, isSelected, isFocused, onSelect }: GridItemProps) {
   const itemRef = useRef<HTMLDivElement>(null);
   const [hasLoadedThumbnail, setHasLoadedThumbnail] = useState(false);
 
@@ -262,7 +293,7 @@ function GridItem({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCa
           onSelect(fileIndex, e);
         }
       }}
-      className={`grid-item ${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""}`}
+      className={`grid-item ${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""} ${isFocused ? "focused" : ""}`}
     >
       <input
         type="checkbox"
@@ -297,7 +328,7 @@ function App() {
   const [showHiddenFiles, setShowHiddenFiles] = useState<boolean>(false);
   const [adbPath, setAdbPath] = useState<string>("");
   const [customAdbPath, setCustomAdbPath] = useState<string>("");
-  const [thumbnailsEnabled, setThumbnailsEnabled] = useState<boolean>(true);
+  const [thumbnailsEnabled, setThumbnailsEnabled] = useState<boolean>(false);
   const [thumbnailCache, setThumbnailCache] = useState<Map<string, string>>(new Map());
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
 
@@ -335,6 +366,18 @@ function App() {
   // Drag and drop state
   const [isDragging, setIsDragging] = useState<boolean>(false);
 
+  // Keyboard navigation state
+  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState<boolean>(false);
+  // Store focused index for each path to restore when navigating back
+  const focusedIndexHistory = useRef<Map<string, number>>(new Map());
+
+  // Rename state
+  const [renamingIndex, setRenamingIndex] = useState<number>(-1);
+  const [renameValue, setRenameValue] = useState<string>("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const justRenamedFile = useRef<string | null>(null);
+
   // Check if ADB is available on startup
   useEffect(() => {
     checkAdb();
@@ -364,6 +407,44 @@ function App() {
     }
   }, [selectedDevice, currentPath]);
 
+  // Reset focus when files load
+  useEffect(() => {
+    if (files.length > 0) {
+      // If we just renamed a file, find its new position and focus on it
+      if (justRenamedFile.current) {
+        // Search in the DISPLAYED files (filtered and sorted), not raw files array
+        const displayedFiles = getDisplayFiles();
+        const newIndex = displayedFiles.findIndex(f => f.name === justRenamedFile.current);
+        if (newIndex >= 0) {
+          setFocusedIndex(newIndex);
+          // Scroll to the renamed file after a short delay
+          setTimeout(() => {
+            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
+            focusedElement?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          }, 100);
+        }
+        justRenamedFile.current = null; // Clear the flag
+      } else {
+        // Check if we have a saved focus index for this path
+        const savedIndex = focusedIndexHistory.current.get(currentPath);
+        if (savedIndex !== undefined && savedIndex >= 0 && savedIndex < files.length) {
+          // Restore saved focus index
+          setFocusedIndex(savedIndex);
+          // Scroll to the restored focus after a short delay
+          setTimeout(() => {
+            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
+            focusedElement?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          }, 100);
+        } else if (focusedIndex < 0 || focusedIndex >= files.length) {
+          // Otherwise reset to first item if current index is invalid
+          setFocusedIndex(0);
+        }
+      }
+    } else if (files.length === 0) {
+      setFocusedIndex(-1);
+    }
+  }, [files, currentPath]);
+
   // Load storage info when device or path changes
   useEffect(() => {
     if (selectedDevice && currentPath) {
@@ -389,8 +470,16 @@ function App() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't handle keyboard shortcuts when typing in input fields
+      const isTyping = document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
+
+      // Ctrl/Cmd + /: Show keyboard shortcuts
+      if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+        e.preventDefault();
+        setShowShortcutsHelp(true);
+      }
       // Ctrl/Cmd + F: Focus search
-      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault();
         searchInputRef.current?.focus();
       }
@@ -399,27 +488,150 @@ function App() {
         e.preventDefault();
         selectAll();
       }
-      // Delete or Backspace: Delete selected files
-      else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedFiles.size > 0) {
-        // Only if not typing in an input
-        if (document.activeElement?.tagName !== 'INPUT') {
-          e.preventDefault();
+      // Cmd/Ctrl + Up Arrow: Navigate to parent directory
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'ArrowUp') {
+        e.preventDefault();
+        navigateUp();
+      }
+      // Cmd/Ctrl + O: Open highlighted folder
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+        e.preventDefault();
+        if (!loading && focusedIndex >= 0 && focusedIndex < getDisplayFiles().length) {
+          const file = getDisplayFiles()[focusedIndex];
+          if (file.is_directory) {
+            navigateToDirectory(file.name);
+          }
+        }
+      }
+      // Cmd/Ctrl + Shift + .: Toggle show hidden files
+      else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === '.') {
+        e.preventDefault();
+        setShowHiddenFiles(!showHiddenFiles);
+      }
+      // Cmd/Ctrl + T: Toggle thumbnails
+      else if ((e.ctrlKey || e.metaKey) && e.key === 't') {
+        e.preventDefault();
+        setThumbnailsEnabled(!thumbnailsEnabled);
+      }
+      // Space: Toggle selection on focused file
+      else if (!isTyping && e.key === ' ') {
+        e.preventDefault();
+        if (focusedIndex >= 0 && focusedIndex < getDisplayFiles().length) {
+          const file = getDisplayFiles()[focusedIndex];
+          const newSelection = new Set(selectedFiles);
+          if (newSelection.has(file.name)) {
+            newSelection.delete(file.name);
+          } else {
+            newSelection.add(file.name);
+          }
+          setSelectedFiles(newSelection);
+        }
+      }
+      // Arrow keys: Navigate in list
+      else if (!isTyping && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        e.preventDefault();
+        const displayFiles = getDisplayFiles();
+        if (displayFiles.length === 0) return;
+
+        // If nothing is focused yet, start at first item on any arrow key
+        if (focusedIndex < 0) {
+          setFocusedIndex(0);
+          setTimeout(() => {
+            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
+            focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          }, 0);
+          return;
+        }
+
+        let newIndex = focusedIndex;
+
+        if (viewMode === 'table') {
+          // Table view: only up/down arrows
+          if (e.key === 'ArrowUp') {
+            newIndex = focusedIndex <= 0 ? displayFiles.length - 1 : focusedIndex - 1;
+          } else if (e.key === 'ArrowDown') {
+            newIndex = focusedIndex >= displayFiles.length - 1 ? 0 : focusedIndex + 1;
+          }
+        } else {
+          // Grid view: all four arrows
+          // Calculate grid columns based on container width and icon size
+          const gridSizes = { small: 80, medium: 120, large: 160, xlarge: 200 };
+          const itemWidth = gridSizes[iconSize] + 12; // grid gap
+          const containerWidth = document.querySelector('.grid-view')?.clientWidth || 800;
+          const cols = Math.floor(containerWidth / itemWidth);
+
+          if (e.key === 'ArrowUp') {
+            newIndex = focusedIndex - cols;
+            if (newIndex < 0) newIndex = displayFiles.length - 1;
+          } else if (e.key === 'ArrowDown') {
+            newIndex = focusedIndex + cols;
+            if (newIndex >= displayFiles.length) newIndex = 0;
+          } else if (e.key === 'ArrowLeft') {
+            newIndex = focusedIndex <= 0 ? displayFiles.length - 1 : focusedIndex - 1;
+          } else if (e.key === 'ArrowRight') {
+            newIndex = focusedIndex >= displayFiles.length - 1 ? 0 : focusedIndex + 1;
+          }
+        }
+
+        setFocusedIndex(newIndex);
+
+        // Scroll focused item into view
+        setTimeout(() => {
+          const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
+          focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }, 0);
+      }
+      // Cmd/Ctrl + Delete: Delete selected or focused files
+      else if ((e.ctrlKey || e.metaKey) && (e.key === 'Delete' || e.key === 'Backspace')) {
+        e.preventDefault();
+        if (selectedFiles.size > 0) {
+          setShowDeleteConfirm(true);
+        } else if (focusedIndex >= 0 && focusedIndex < getDisplayFiles().length) {
+          // Delete focused file if nothing selected
+          const file = getDisplayFiles()[focusedIndex];
+          setSelectedFiles(new Set([file.name]));
           setShowDeleteConfirm(true);
         }
       }
-      // Escape: Clear selection or exit search
+      // Cmd/Ctrl + D: Download selected or focused files
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        e.preventDefault();
+        if (selectedFiles.size > 0) {
+          handleDownload();
+        } else if (focusedIndex >= 0 && focusedIndex < getDisplayFiles().length) {
+          // Download focused file if nothing selected
+          const file = getDisplayFiles()[focusedIndex];
+          setSelectedFiles(new Set([file.name]));
+          handleDownload();
+        }
+      }
+      // Enter: Rename focused file
+      else if (!isTyping && !loading && e.key === 'Enter' && focusedIndex >= 0 && focusedIndex < getDisplayFiles().length) {
+        e.preventDefault();
+        const file = getDisplayFiles()[focusedIndex];
+        startRename(focusedIndex, file.name);
+      }
+      // Escape: Close modals/popups first, then clear selection/focus
       else if (e.key === 'Escape') {
-        if (searchMode) {
+        if (renamingIndex >= 0) {
+          cancelRename();
+        } else if (showShortcutsHelp) {
+          setShowShortcutsHelp(false);
+        } else if (showDeleteConfirm) {
+          setShowDeleteConfirm(false);
+        } else if (searchMode) {
           exitSearchMode();
         } else if (selectedFiles.size > 0) {
           clearSelection();
+        } else if (focusedIndex >= 0) {
+          setFocusedIndex(-1);
         }
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedFiles, searchMode]);
+  }, [selectedFiles, searchMode, focusedIndex, viewMode, iconSize, showHiddenFiles, thumbnailsEnabled, showShortcutsHelp, showDeleteConfirm, renamingIndex, loading]);
 
   async function checkAdb() {
     try {
@@ -509,6 +721,11 @@ function App() {
   }
 
   function navigateToDirectory(dirName: string) {
+    // Save current focused index before navigating away
+    if (focusedIndex >= 0) {
+      focusedIndexHistory.current.set(currentPath, focusedIndex);
+    }
+
     // If dirName starts with /, it's already a full path (from search results)
     const newPath = dirName.startsWith("/")
       ? dirName
@@ -524,6 +741,10 @@ function App() {
 
   function navigateUp() {
     if (currentPath === "/") return;
+    // Save current focused index before navigating away
+    if (focusedIndex >= 0) {
+      focusedIndexHistory.current.set(currentPath, focusedIndex);
+    }
     const parentPath = currentPath.split("/").slice(0, -1).join("/") || "/";
     setCurrentPath(parentPath);
   }
@@ -533,6 +754,10 @@ function App() {
   }
 
   function navigateToSegment(index: number) {
+    // Save current focused index before navigating away
+    if (focusedIndex >= 0) {
+      focusedIndexHistory.current.set(currentPath, focusedIndex);
+    }
     const segments = getPathSegments();
     const newPath = "/" + segments.slice(0, index + 1).join("/");
     setCurrentPath(newPath);
@@ -589,6 +814,10 @@ function App() {
   }
 
   function navigateToHome() {
+    // Save current focused index before navigating away
+    if (focusedIndex >= 0) {
+      focusedIndexHistory.current.set(currentPath, focusedIndex);
+    }
     // Navigate to the detected storage path (or fall back to /storage/emulated/0)
     setCurrentPath(currentPath.startsWith("/storage/emulated/0")
       ? "/storage/emulated/0"
@@ -789,6 +1018,75 @@ function App() {
 
     if (deleteMessage) {
       setError(deleteMessage);
+    }
+  }
+
+  function startRename(index: number, currentName: string) {
+    setRenamingIndex(index);
+    setRenameValue(currentName);
+    // Focus the input after a short delay to ensure it's rendered
+    setTimeout(() => {
+      renameInputRef.current?.focus();
+      renameInputRef.current?.select();
+    }, 0);
+  }
+
+  function cancelRename() {
+    setRenamingIndex(-1);
+    setRenameValue("");
+  }
+
+  async function confirmRename() {
+    if (!selectedDevice || renamingIndex < 0 || !renameValue.trim()) {
+      cancelRename();
+      return;
+    }
+
+    const file = getDisplayFiles()[renamingIndex];
+    if (!file) {
+      cancelRename();
+      return;
+    }
+
+    // If name hasn't changed, just cancel
+    if (renameValue === file.name) {
+      cancelRename();
+      return;
+    }
+
+    const filePath = file.name.startsWith("/")
+      ? file.name
+      : currentPath === "/"
+      ? `/${file.name}`
+      : `${currentPath}/${file.name}`;
+
+    try {
+      setLoading(true);
+      setError("");
+
+      await invoke("rename_file", {
+        deviceId: selectedDevice,
+        oldPath: filePath,
+        newName: renameValue.trim(),
+      });
+
+      setSuccessMessage(`Renamed to "${renameValue}"`);
+
+      // Store the new filename so we can focus on it after reload
+      justRenamedFile.current = renameValue.trim();
+
+      // Refresh file list
+      if (searchMode) {
+        await performSearch();
+      } else {
+        await loadFiles();
+      }
+    } catch (err) {
+      setError(`Failed to rename: ${err}`);
+      console.error("Rename error:", err);
+    } finally {
+      setLoading(false);
+      cancelRename();
     }
   }
 
@@ -1183,11 +1481,11 @@ function App() {
               <div className="settings-menu">
                 <div className="settings-item">
                   <label className="toggle-label">
-                    <span>Show Hidden Files</span>
+                    <span>Show Thumbnails</span>
                     <input
                       type="checkbox"
-                      checked={showHiddenFiles}
-                      onChange={(e) => setShowHiddenFiles(e.target.checked)}
+                      checked={thumbnailsEnabled}
+                      onChange={(e) => setThumbnailsEnabled(e.target.checked)}
                       className="toggle-checkbox"
                     />
                     <span className="toggle-switch"></span>
@@ -1195,11 +1493,11 @@ function App() {
                 </div>
                 <div className="settings-item">
                   <label className="toggle-label">
-                    <span>Show Thumbnails</span>
+                    <span>Show Hidden Files</span>
                     <input
                       type="checkbox"
-                      checked={thumbnailsEnabled}
-                      onChange={(e) => setThumbnailsEnabled(e.target.checked)}
+                      checked={showHiddenFiles}
+                      onChange={(e) => setShowHiddenFiles(e.target.checked)}
                       className="toggle-checkbox"
                     />
                     <span className="toggle-switch"></span>
@@ -1229,15 +1527,42 @@ function App() {
                     <option value="desc">Descending</option>
                   </select>
                 </div>
+                <div className="settings-divider"></div>
+                <div className="settings-item">
+                  <button
+                    onClick={() => {
+                      setShowShortcutsHelp(true);
+                      setSettingsOpen(false);
+                    }}
+                    className="shortcuts-btn"
+                  >
+                    ⌨️ Keyboard Shortcuts
+                  </button>
+                </div>
               </div>
             )}
           </div>
         </div>
       </header>
 
-      {error && <div className="error">{error}</div>}
-      {successMessage && <div className="success">{successMessage}</div>}
-      {downloadProgress && <div className="info">{downloadProgress}</div>}
+      {error && (
+        <div className="error">
+          {error}
+          <button className="close-btn" onClick={() => setError("")} title="Close">×</button>
+        </div>
+      )}
+      {successMessage && (
+        <div className="success">
+          {successMessage}
+          <button className="close-btn" onClick={() => setSuccessMessage("")} title="Close">×</button>
+        </div>
+      )}
+      {downloadProgress && (
+        <div className="info">
+          {downloadProgress}
+          <button className="close-btn" onClick={() => setDownloadProgress("")} title="Close">×</button>
+        </div>
+      )}
 
       {selectedDevice && (
         <>
@@ -1259,11 +1584,6 @@ function App() {
                 </button>
               </span>
             ))}
-            {currentPath !== "/" && currentPath !== "/storage/emulated/0" && (
-              <button onClick={navigateUp} className="up-btn">
-                ↑ Up
-              </button>
-            )}
           </div>
 
           <div className="toolbar">
@@ -1417,7 +1737,14 @@ function App() {
                       needsThumbnail={needsThumbnail}
                       onNavigate={() => file.is_directory && navigateToDirectory(file.name)}
                       isSelected={selectedFiles.has(file.name)}
+                      isFocused={focusedIndex === index}
                       onSelect={(idx, e) => handleFileSelect(file.name, idx, e)}
+                      isRenaming={renamingIndex === index}
+                      renameValue={renameValue}
+                      onRenameChange={setRenameValue}
+                      onRenameConfirm={confirmRename}
+                      onRenameCancel={cancelRename}
+                      renameInputRef={renameInputRef}
                     />
                   ))}
                   {getDisplayFiles().length === 0 && !loading && (
@@ -1447,6 +1774,7 @@ function App() {
                     needsThumbnail={needsThumbnail}
                     onNavigate={() => file.is_directory && navigateToDirectory(file.name)}
                     isSelected={selectedFiles.has(file.name)}
+                    isFocused={focusedIndex === index}
                     onSelect={(idx, e) => handleFileSelect(file.name, idx, e)}
                   />
                 ))}
@@ -1495,6 +1823,95 @@ function App() {
                 className="confirm-delete-btn"
               >
                 {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showShortcutsHelp && (
+        <div className="modal-overlay" onClick={() => setShowShortcutsHelp(false)}>
+          <div className="modal-dialog shortcuts-dialog" onClick={(e) => e.stopPropagation()}>
+            <h3>⌨️ Keyboard Shortcuts</h3>
+            <div className="shortcuts-grid">
+              <div className="shortcuts-section">
+                <h4>Navigation</h4>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">↑ ↓</span>
+                  <span className="shortcut-desc">Navigate in list view</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">↑ ↓ ← →</span>
+                  <span className="shortcut-desc">Navigate in grid view</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + ↑</span>
+                  <span className="shortcut-desc">Go to parent directory</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + O</span>
+                  <span className="shortcut-desc">Open focused folder</span>
+                </div>
+              </div>
+
+              <div className="shortcuts-section">
+                <h4>Selection</h4>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Space</span>
+                  <span className="shortcut-desc">Toggle selection on focused file</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + A</span>
+                  <span className="shortcut-desc">Select all files</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Esc</span>
+                  <span className="shortcut-desc">Close popup/clear selection/focus</span>
+                </div>
+              </div>
+
+              <div className="shortcuts-section">
+                <h4>File Actions</h4>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Enter</span>
+                  <span className="shortcut-desc">Rename focused file/folder</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + D</span>
+                  <span className="shortcut-desc">Download selected/focused files</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + Delete</span>
+                  <span className="shortcut-desc">Delete selected/focused files</span>
+                </div>
+              </div>
+
+              <div className="shortcuts-section">
+                <h4>View &amp; Search</h4>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + F</span>
+                  <span className="shortcut-desc">Focus search bar</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + T</span>
+                  <span className="shortcut-desc">Toggle thumbnails</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + Shift + .</span>
+                  <span className="shortcut-desc">Toggle hidden files</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + /</span>
+                  <span className="shortcut-desc">Show this help</span>
+                </div>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                onClick={() => setShowShortcutsHelp(false)}
+                className="cancel-btn"
+              >
+                Close
               </button>
             </div>
           </div>

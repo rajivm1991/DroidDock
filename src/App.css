@@ -205,6 +205,10 @@ header h1 {
   border-left: 4px solid #f33;
   color: #c33;
   border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
 
 .success {
@@ -214,6 +218,10 @@ header h1 {
   border-left: 4px solid #4CAF50;
   color: #2e7d32;
   border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
 
 .info {
@@ -223,6 +231,33 @@ header h1 {
   border-left: 4px solid #2196F3;
   color: #1565c0;
   border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.error .close-btn,
+.success .close-btn,
+.info .close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  color: inherit;
+}
+
+.error .close-btn:hover,
+.success .close-btn:hover,
+.info .close-btn:hover {
+  opacity: 1;
 }
 
 .error-screen {
@@ -402,6 +437,7 @@ table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 16px;
+  table-layout: fixed;
 }
 
 thead {
@@ -416,6 +452,18 @@ th {
   font-weight: 600;
   color: #555;
   border-bottom: 2px solid #e0e0e0;
+}
+
+th:nth-child(1) {
+  width: 60%;
+}
+
+th:nth-child(2) {
+  width: 20%;
+}
+
+th:nth-child(3) {
+  width: 20%;
 }
 
 .sortable-header {
@@ -440,6 +488,13 @@ tbody tr:hover {
 td {
   padding: 12px;
   color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+td:first-child {
+  max-width: 0;
 }
 
 .directory {
@@ -456,6 +511,7 @@ td {
 
 .file-name {
   display: inline;
+  vertical-align: middle;
 }
 
 .file-name.clickable {
@@ -470,9 +526,28 @@ td {
   text-decoration: underline;
 }
 
+.rename-input {
+  display: inline-block;
+  padding: 4px 8px;
+  border: 2px solid #667eea;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  background-color: white;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+.rename-input:focus {
+  border-color: #5568d3;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
 .icon {
   margin-right: 8px;
   font-size: 16px;
+  vertical-align: middle;
 }
 
 .thumbnail {
@@ -693,6 +768,11 @@ tbody tr.selected td {
   color: #1967d2;
 }
 
+tbody tr.file-row.focused {
+  outline: 2px solid #667eea;
+  outline-offset: -2px;
+}
+
 tbody tr {
   cursor: pointer;
 }
@@ -724,6 +804,7 @@ tbody tr {
   margin: 0 0 16px 0;
   font-size: 20px;
   color: #333;
+  white-space: nowrap;
 }
 
 .modal-dialog p {
@@ -776,6 +857,71 @@ tbody tr {
 .confirm-delete-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Keyboard Shortcuts Dialog */
+.shortcuts-dialog {
+  min-width: 600px;
+  max-width: 800px;
+}
+
+.shortcuts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.shortcuts-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.shortcut-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  gap: 16px;
+}
+
+.shortcut-keys {
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  font-size: 12px;
+  background-color: #f5f5f5;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  white-space: nowrap;
+  min-width: 80px;
+  text-align: center;
+}
+
+.shortcut-desc {
+  flex: 1;
+  font-size: 14px;
+  color: #333;
+}
+
+.shortcuts-btn {
+  width: 100%;
+  padding: 8px 12px;
+  background-color: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.shortcuts-btn:hover {
+  background-color: #f5f5f5;
 }
 
 /* Status bar */
@@ -944,6 +1090,18 @@ tbody tr {
     color: #f99;
   }
 
+  .success {
+    background-color: #1a3a1a;
+    border-left-color: #6f6;
+    color: #9f9;
+  }
+
+  .info {
+    background-color: #1a2a3a;
+    border-left-color: #6af;
+    color: #9cf;
+  }
+
   .toolbar {
     background-color: #1a1a1a;
     border-bottom-color: #3a3a3a;
@@ -992,6 +1150,11 @@ tbody tr {
     color: #6ba4e7;
   }
 
+  tbody tr.file-row.focused {
+    outline: 2px solid #6ba4e7;
+    outline-offset: -2px;
+  }
+
   .modal-overlay {
     background-color: rgba(0, 0, 0, 0.7);
   }
@@ -1017,6 +1180,24 @@ tbody tr {
     background-color: #4a4a4a;
   }
 
+  .shortcuts-section h4 {
+    color: #999;
+  }
+
+  .shortcut-keys {
+    background-color: #3a3a3a;
+    border-color: #4a4a4a;
+    color: #ccc;
+  }
+
+  .shortcut-desc {
+    color: #ccc;
+  }
+
+  .shortcuts-btn:hover {
+    background-color: #3a3a3a;
+  }
+
   .file-name.clickable {
     color: #8a9ff5;
   }
@@ -1040,6 +1221,17 @@ tbody tr {
 
   .storage-bar {
     background-color: #2a2a2a;
+  }
+
+  .rename-input {
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+    border-color: #6ba4e7;
+  }
+
+  .rename-input:focus {
+    border-color: #8ab4f8;
+    box-shadow: 0 0 0 3px rgba(107, 164, 231, 0.2);
   }
 }
 
@@ -1190,6 +1382,11 @@ tbody tr {
 .grid-item.selected {
   background-color: #e8eeff;
   box-shadow: 0 0 0 2px #667eea;
+}
+
+.grid-item.focused {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
 }
 
 .grid-item-checkbox {
