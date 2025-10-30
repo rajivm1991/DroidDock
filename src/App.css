@@ -205,6 +205,10 @@ header h1 {
   border-left: 4px solid #f33;
   color: #c33;
   border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
 
 .success {
@@ -214,6 +218,10 @@ header h1 {
   border-left: 4px solid #4CAF50;
   color: #2e7d32;
   border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
 }
 
 .info {
@@ -223,6 +231,33 @@ header h1 {
   border-left: 4px solid #2196F3;
   color: #1565c0;
   border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.error .close-btn,
+.success .close-btn,
+.info .close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  color: inherit;
+}
+
+.error .close-btn:hover,
+.success .close-btn:hover,
+.info .close-btn:hover {
+  opacity: 1;
 }
 
 .error-screen {
@@ -475,11 +510,7 @@ td:first-child {
 }
 
 .file-name {
-  display: inline-block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: inline;
   vertical-align: middle;
 }
 
@@ -493,6 +524,24 @@ td:first-child {
 .file-name.clickable:hover {
   color: #5568d3;
   text-decoration: underline;
+}
+
+.rename-input {
+  display: inline-block;
+  padding: 4px 8px;
+  border: 2px solid #667eea;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  background-color: white;
+  min-width: 200px;
+  max-width: 400px;
+}
+
+.rename-input:focus {
+  border-color: #5568d3;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
 .icon {
@@ -1041,6 +1090,18 @@ tbody tr {
     color: #f99;
   }
 
+  .success {
+    background-color: #1a3a1a;
+    border-left-color: #6f6;
+    color: #9f9;
+  }
+
+  .info {
+    background-color: #1a2a3a;
+    border-left-color: #6af;
+    color: #9cf;
+  }
+
   .toolbar {
     background-color: #1a1a1a;
     border-bottom-color: #3a3a3a;
@@ -1160,6 +1221,17 @@ tbody tr {
 
   .storage-bar {
     background-color: #2a2a2a;
+  }
+
+  .rename-input {
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+    border-color: #6ba4e7;
+  }
+
+  .rename-input:focus {
+    border-color: #8ab4f8;
+    box-shadow: 0 0 0 3px rgba(107, 164, 231, 0.2);
   }
 }
 

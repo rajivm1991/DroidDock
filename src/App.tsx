@@ -38,6 +38,12 @@ interface FileRowProps {
   isSelected: boolean;
   isFocused: boolean;
   onSelect: (index: number, e: React.MouseEvent) => void;
+  isRenaming: boolean;
+  renameValue: string;
+  onRenameChange: (value: string) => void;
+  onRenameConfirm: () => void;
+  onRenameCancel: () => void;
+  renameInputRef: React.RefObject<HTMLInputElement | null>;
 }
 
 // Helper function to format bytes into human-readable format
@@ -93,7 +99,7 @@ function StatusBar({ storageInfo, fileCount, selectedCount }: StatusBarProps) {
   );
 }
 
-function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate, isSelected, isFocused, onSelect }: FileRowProps) {
+function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate, isSelected, isFocused, onSelect, isRenaming, renameValue, onRenameChange, onRenameConfirm, onRenameCancel, renameInputRef }: FileRowProps) {
   const rowRef = useRef<HTMLTableRowElement>(null);
   const [hasLoadedThumbnail, setHasLoadedThumbnail] = useState(false);
 
@@ -171,17 +177,40 @@ function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCac
         ) : (
           <span className="icon">{file.is_directory ? "📁" : "📄"}</span>
         )}
-        <span
-          className={file.is_directory ? "file-name clickable" : "file-name"}
-          onClick={(e) => {
-            if (file.is_directory) {
-              e.stopPropagation();
-              onNavigate();
-            }
-          }}
-        >
-          {file.name}
-        </span>
+        {isRenaming ? (
+          <input
+            ref={renameInputRef}
+            type="text"
+            value={renameValue}
+            onChange={(e) => onRenameChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                onRenameConfirm();
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                onRenameCancel();
+              }
+            }}
+            onBlur={onRenameCancel}
+            onClick={(e) => e.stopPropagation()}
+            className="rename-input"
+          />
+        ) : (
+          <span
+            className={file.is_directory ? "file-name clickable" : "file-name"}
+            onClick={(e) => {
+              if (file.is_directory) {
+                e.stopPropagation();
+                onNavigate();
+              }
+            }}
+          >
+            {file.name}
+          </span>
+        )}
       </td>
       <td>{file.is_directory ? "-" : formatBytes(parseInt(file.size))}</td>
       <td>{file.date}</td>
@@ -340,6 +369,14 @@ function App() {
   // Keyboard navigation state
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState<boolean>(false);
+  // Store focused index for each path to restore when navigating back
+  const focusedIndexHistory = useRef<Map<string, number>>(new Map());
+
+  // Rename state
+  const [renamingIndex, setRenamingIndex] = useState<number>(-1);
+  const [renameValue, setRenameValue] = useState<string>("");
+  const renameInputRef = useRef<HTMLInputElement>(null);
+  const justRenamedFile = useRef<string | null>(null);
 
   // Check if ADB is available on startup
   useEffect(() => {
@@ -369,6 +406,44 @@ function App() {
       setLastSelectedIndex(-1);
     }
   }, [selectedDevice, currentPath]);
+
+  // Reset focus when files load
+  useEffect(() => {
+    if (files.length > 0) {
+      // If we just renamed a file, find its new position and focus on it
+      if (justRenamedFile.current) {
+        // Search in the DISPLAYED files (filtered and sorted), not raw files array
+        const displayedFiles = getDisplayFiles();
+        const newIndex = displayedFiles.findIndex(f => f.name === justRenamedFile.current);
+        if (newIndex >= 0) {
+          setFocusedIndex(newIndex);
+          // Scroll to the renamed file after a short delay
+          setTimeout(() => {
+            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
+            focusedElement?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          }, 100);
+        }
+        justRenamedFile.current = null; // Clear the flag
+      } else {
+        // Check if we have a saved focus index for this path
+        const savedIndex = focusedIndexHistory.current.get(currentPath);
+        if (savedIndex !== undefined && savedIndex >= 0 && savedIndex < files.length) {
+          // Restore saved focus index
+          setFocusedIndex(savedIndex);
+          // Scroll to the restored focus after a short delay
+          setTimeout(() => {
+            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
+            focusedElement?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          }, 100);
+        } else if (focusedIndex < 0 || focusedIndex >= files.length) {
+          // Otherwise reset to first item if current index is invalid
+          setFocusedIndex(0);
+        }
+      }
+    } else if (files.length === 0) {
+      setFocusedIndex(-1);
+    }
+  }, [files, currentPath]);
 
   // Load storage info when device or path changes
   useEffect(() => {
@@ -421,7 +496,7 @@ function App() {
       // Cmd/Ctrl + O: Open highlighted folder
       else if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
         e.preventDefault();
-        if (focusedIndex >= 0 && focusedIndex < getDisplayFiles().length) {
+        if (!loading && focusedIndex >= 0 && focusedIndex < getDisplayFiles().length) {
           const file = getDisplayFiles()[focusedIndex];
           if (file.is_directory) {
             navigateToDirectory(file.name);
@@ -457,6 +532,16 @@ function App() {
         e.preventDefault();
         const displayFiles = getDisplayFiles();
         if (displayFiles.length === 0) return;
+
+        // If nothing is focused yet, start at first item on any arrow key
+        if (focusedIndex < 0) {
+          setFocusedIndex(0);
+          setTimeout(() => {
+            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
+            focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+          }, 0);
+          return;
+        }
 
         let newIndex = focusedIndex;
 
@@ -520,9 +605,17 @@ function App() {
           handleDownload();
         }
       }
+      // Enter: Rename focused file
+      else if (!isTyping && !loading && e.key === 'Enter' && focusedIndex >= 0 && focusedIndex < getDisplayFiles().length) {
+        e.preventDefault();
+        const file = getDisplayFiles()[focusedIndex];
+        startRename(focusedIndex, file.name);
+      }
       // Escape: Close modals/popups first, then clear selection/focus
       else if (e.key === 'Escape') {
-        if (showShortcutsHelp) {
+        if (renamingIndex >= 0) {
+          cancelRename();
+        } else if (showShortcutsHelp) {
           setShowShortcutsHelp(false);
         } else if (showDeleteConfirm) {
           setShowDeleteConfirm(false);
@@ -538,7 +631,7 @@ function App() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedFiles, searchMode, focusedIndex, viewMode, iconSize, showHiddenFiles, thumbnailsEnabled, showShortcutsHelp, showDeleteConfirm]);
+  }, [selectedFiles, searchMode, focusedIndex, viewMode, iconSize, showHiddenFiles, thumbnailsEnabled, showShortcutsHelp, showDeleteConfirm, renamingIndex, loading]);
 
   async function checkAdb() {
     try {
@@ -628,6 +721,11 @@ function App() {
   }
 
   function navigateToDirectory(dirName: string) {
+    // Save current focused index before navigating away
+    if (focusedIndex >= 0) {
+      focusedIndexHistory.current.set(currentPath, focusedIndex);
+    }
+
     // If dirName starts with /, it's already a full path (from search results)
     const newPath = dirName.startsWith("/")
       ? dirName
@@ -635,8 +733,6 @@ function App() {
       ? `/${dirName}`
       : `${currentPath}/${dirName}`;
     setCurrentPath(newPath);
-    // Reset focus to first item when entering new directory
-    setFocusedIndex(0);
     // Exit search mode when navigating to a directory
     if (searchMode) {
       exitSearchMode();
@@ -645,10 +741,12 @@ function App() {
 
   function navigateUp() {
     if (currentPath === "/") return;
+    // Save current focused index before navigating away
+    if (focusedIndex >= 0) {
+      focusedIndexHistory.current.set(currentPath, focusedIndex);
+    }
     const parentPath = currentPath.split("/").slice(0, -1).join("/") || "/";
     setCurrentPath(parentPath);
-    // Reset focus to first item when going up
-    setFocusedIndex(0);
   }
 
   function getPathSegments() {
@@ -656,11 +754,13 @@ function App() {
   }
 
   function navigateToSegment(index: number) {
+    // Save current focused index before navigating away
+    if (focusedIndex >= 0) {
+      focusedIndexHistory.current.set(currentPath, focusedIndex);
+    }
     const segments = getPathSegments();
     const newPath = "/" + segments.slice(0, index + 1).join("/");
     setCurrentPath(newPath);
-    // Reset focus to first item when navigating via breadcrumbs
-    setFocusedIndex(0);
   }
 
   // Storage detection helpers
@@ -714,12 +814,14 @@ function App() {
   }
 
   function navigateToHome() {
+    // Save current focused index before navigating away
+    if (focusedIndex >= 0) {
+      focusedIndexHistory.current.set(currentPath, focusedIndex);
+    }
     // Navigate to the detected storage path (or fall back to /storage/emulated/0)
     setCurrentPath(currentPath.startsWith("/storage/emulated/0")
       ? "/storage/emulated/0"
       : "/storage/emulated/0");
-    // Reset focus to first item when navigating home
-    setFocusedIndex(0);
   }
 
   function getVisibleFiles() {
@@ -916,6 +1018,75 @@ function App() {
 
     if (deleteMessage) {
       setError(deleteMessage);
+    }
+  }
+
+  function startRename(index: number, currentName: string) {
+    setRenamingIndex(index);
+    setRenameValue(currentName);
+    // Focus the input after a short delay to ensure it's rendered
+    setTimeout(() => {
+      renameInputRef.current?.focus();
+      renameInputRef.current?.select();
+    }, 0);
+  }
+
+  function cancelRename() {
+    setRenamingIndex(-1);
+    setRenameValue("");
+  }
+
+  async function confirmRename() {
+    if (!selectedDevice || renamingIndex < 0 || !renameValue.trim()) {
+      cancelRename();
+      return;
+    }
+
+    const file = getDisplayFiles()[renamingIndex];
+    if (!file) {
+      cancelRename();
+      return;
+    }
+
+    // If name hasn't changed, just cancel
+    if (renameValue === file.name) {
+      cancelRename();
+      return;
+    }
+
+    const filePath = file.name.startsWith("/")
+      ? file.name
+      : currentPath === "/"
+      ? `/${file.name}`
+      : `${currentPath}/${file.name}`;
+
+    try {
+      setLoading(true);
+      setError("");
+
+      await invoke("rename_file", {
+        deviceId: selectedDevice,
+        oldPath: filePath,
+        newName: renameValue.trim(),
+      });
+
+      setSuccessMessage(`Renamed to "${renameValue}"`);
+
+      // Store the new filename so we can focus on it after reload
+      justRenamedFile.current = renameValue.trim();
+
+      // Refresh file list
+      if (searchMode) {
+        await performSearch();
+      } else {
+        await loadFiles();
+      }
+    } catch (err) {
+      setError(`Failed to rename: ${err}`);
+      console.error("Rename error:", err);
+    } finally {
+      setLoading(false);
+      cancelRename();
     }
   }
 
@@ -1374,9 +1545,24 @@ function App() {
         </div>
       </header>
 
-      {error && <div className="error">{error}</div>}
-      {successMessage && <div className="success">{successMessage}</div>}
-      {downloadProgress && <div className="info">{downloadProgress}</div>}
+      {error && (
+        <div className="error">
+          {error}
+          <button className="close-btn" onClick={() => setError("")} title="Close">×</button>
+        </div>
+      )}
+      {successMessage && (
+        <div className="success">
+          {successMessage}
+          <button className="close-btn" onClick={() => setSuccessMessage("")} title="Close">×</button>
+        </div>
+      )}
+      {downloadProgress && (
+        <div className="info">
+          {downloadProgress}
+          <button className="close-btn" onClick={() => setDownloadProgress("")} title="Close">×</button>
+        </div>
+      )}
 
       {selectedDevice && (
         <>
@@ -1553,6 +1739,12 @@ function App() {
                       isSelected={selectedFiles.has(file.name)}
                       isFocused={focusedIndex === index}
                       onSelect={(idx, e) => handleFileSelect(file.name, idx, e)}
+                      isRenaming={renamingIndex === index}
+                      renameValue={renameValue}
+                      onRenameChange={setRenameValue}
+                      onRenameConfirm={confirmRename}
+                      onRenameCancel={cancelRename}
+                      renameInputRef={renameInputRef}
                     />
                   ))}
                   {getDisplayFiles().length === 0 && !loading && (
@@ -1680,6 +1872,10 @@ function App() {
 
               <div className="shortcuts-section">
                 <h4>File Actions</h4>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Enter</span>
+                  <span className="shortcut-desc">Rename focused file/folder</span>
+                </div>
                 <div className="shortcut-item">
                   <span className="shortcut-keys">Cmd + D</span>
                   <span className="shortcut-desc">Download selected/focused files</span>
