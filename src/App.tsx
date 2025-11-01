@@ -360,8 +360,14 @@ function App() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // View mode state
-  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'grid' | 'column'>('table');
   const [iconSize, setIconSize] = useState<'small' | 'medium' | 'large' | 'xlarge'>('medium');
+
+  // Column view state
+  const [columnPath, setColumnPath] = useState<string[]>([]);
+  const [columnFiles, setColumnFiles] = useState<Map<string, FileEntry[]>>(new Map());
+  const [columnSelected, setColumnSelected] = useState<Map<string, number>>(new Map());
+  const [activeColumnIndex, setActiveColumnIndex] = useState<number>(0);
 
   // Drag and drop state
   const [isDragging, setIsDragging] = useState<boolean>(false);
@@ -467,6 +473,101 @@ function App() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [settingsOpen]);
 
+  // Initialize column view when switching to it or when path changes
+  useEffect(() => {
+    if (viewMode === 'column' && selectedDevice && currentPath) {
+      initializeColumnView();
+    }
+  }, [viewMode, currentPath, selectedDevice]);
+
+  async function initializeColumnView() {
+    if (!selectedDevice || !currentPath) return;
+
+    // Build the column path from currentPath
+    const segments = currentPath.split('/').filter(Boolean);
+    const paths: string[] = ['/'];
+
+    // Build full paths for each segment
+    for (let i = 0; i < segments.length; i++) {
+      paths.push('/' + segments.slice(0, i + 1).join('/'));
+    }
+
+    setColumnPath(paths);
+    setActiveColumnIndex(paths.length - 1);
+
+    // Load files for each column path
+    const newColumnFiles = new Map<string, FileEntry[]>();
+
+    for (const path of paths) {
+      try {
+        const fileList = await invoke<FileEntry[]>("list_files", {
+          deviceId: selectedDevice,
+          path: path,
+        });
+        newColumnFiles.set(path, fileList);
+      } catch (err) {
+        console.error(`Failed to load files for ${path}:`, err);
+        newColumnFiles.set(path, []);
+      }
+    }
+
+    setColumnFiles(newColumnFiles);
+  }
+
+  async function loadColumnFiles(path: string): Promise<FileEntry[]> {
+    if (!selectedDevice) return [];
+
+    try {
+      const fileList = await invoke<FileEntry[]>("list_files", {
+        deviceId: selectedDevice,
+        path: path,
+      });
+      return fileList;
+    } catch (err) {
+      console.error(`Failed to load files for ${path}:`, err);
+      return [];
+    }
+  }
+
+  async function selectColumnItem(columnIndex: number, fileIndex: number, file: FileEntry) {
+    if (!file.is_directory) {
+      // For files, just update selection
+      const path = columnPath[columnIndex];
+      setColumnSelected(new Map(columnSelected).set(path, fileIndex));
+      setActiveColumnIndex(columnIndex);
+      return;
+    }
+
+    // For directories, add a new column
+    const selectedPath = file.name.startsWith("/")
+      ? file.name
+      : columnPath[columnIndex] === "/"
+      ? `/${file.name}`
+      : `${columnPath[columnIndex]}/${file.name}`;
+
+    // Remove columns after the selected one
+    const newPaths = columnPath.slice(0, columnIndex + 1);
+    newPaths.push(selectedPath);
+
+    // Load files for the new column
+    const fileList = await loadColumnFiles(selectedPath);
+
+    // Update state
+    const newColumnFiles = new Map(columnFiles);
+    newColumnFiles.set(selectedPath, fileList);
+
+    const newSelected = new Map(columnSelected);
+    newSelected.set(columnPath[columnIndex], fileIndex);
+
+    setColumnPath(newPaths);
+    setColumnFiles(newColumnFiles);
+    setColumnSelected(newSelected);
+    setActiveColumnIndex(newPaths.length - 1);
+
+    // Also update currentPath to keep breadcrumb in sync
+    setCurrentPath(selectedPath);
+  }
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -503,6 +604,21 @@ function App() {
           }
         }
       }
+      // Cmd/Ctrl + 1: Switch to table view
+      else if ((e.ctrlKey || e.metaKey) && e.key === '1') {
+        e.preventDefault();
+        setViewMode('table');
+      }
+      // Cmd/Ctrl + 2: Switch to grid view
+      else if ((e.ctrlKey || e.metaKey) && e.key === '2') {
+        e.preventDefault();
+        setViewMode('grid');
+      }
+      // Cmd/Ctrl + 3: Switch to column view
+      else if ((e.ctrlKey || e.metaKey) && e.key === '3') {
+        e.preventDefault();
+        setViewMode('column');
+      }
       // Cmd/Ctrl + Shift + .: Toggle show hidden files
       else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === '.') {
         e.preventDefault();
@@ -530,56 +646,101 @@ function App() {
       // Arrow keys: Navigate in list
       else if (!isTyping && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
         e.preventDefault();
-        const displayFiles = getDisplayFiles();
-        if (displayFiles.length === 0) return;
 
-        // If nothing is focused yet, start at first item on any arrow key
-        if (focusedIndex < 0) {
-          setFocusedIndex(0);
+        if (viewMode === 'column') {
+          // Column view: left/right moves between columns, up/down navigates within column
+          if (e.key === 'ArrowLeft') {
+            // Move to previous column
+            if (activeColumnIndex > 0) {
+              setActiveColumnIndex(activeColumnIndex - 1);
+              setTimeout(() => {
+                const activeColumn = document.querySelector(`.column-list[data-column-index="${activeColumnIndex - 1}"]`);
+                activeColumn?.scrollIntoView({ inline: 'center', behavior: 'smooth' });
+              }, 0);
+            }
+          } else if (e.key === 'ArrowRight') {
+            // Move to next column
+            if (activeColumnIndex < columnPath.length - 1) {
+              setActiveColumnIndex(activeColumnIndex + 1);
+              setTimeout(() => {
+                const activeColumn = document.querySelector(`.column-list[data-column-index="${activeColumnIndex + 1}"]`);
+                activeColumn?.scrollIntoView({ inline: 'center', behavior: 'smooth' });
+              }, 0);
+            }
+          } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+            // Navigate within active column
+            const path = columnPath[activeColumnIndex];
+            const files = columnFiles.get(path) || [];
+            if (files.length === 0) return;
+
+            const currentSelected = columnSelected.get(path) ?? -1;
+            let newSelected = currentSelected;
+
+            if (e.key === 'ArrowUp') {
+              newSelected = currentSelected <= 0 ? files.length - 1 : currentSelected - 1;
+            } else if (e.key === 'ArrowDown') {
+              newSelected = currentSelected >= files.length - 1 ? 0 : currentSelected + 1;
+            }
+
+            setColumnSelected(new Map(columnSelected).set(path, newSelected));
+
+            setTimeout(() => {
+              const focusedElement = document.querySelector(`.column-item.selected`);
+              focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }, 0);
+          }
+        } else {
+          const displayFiles = getDisplayFiles();
+          if (displayFiles.length === 0) return;
+
+          // If nothing is focused yet, start at first item on any arrow key
+          if (focusedIndex < 0) {
+            setFocusedIndex(0);
+            setTimeout(() => {
+              const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
+              focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }, 0);
+            return;
+          }
+
+          let newIndex = focusedIndex;
+
+          if (viewMode === 'table') {
+            // Table view: only up/down arrows
+            if (e.key === 'ArrowUp') {
+              newIndex = focusedIndex <= 0 ? displayFiles.length - 1 : focusedIndex - 1;
+            } else if (e.key === 'ArrowDown') {
+              newIndex = focusedIndex >= displayFiles.length - 1 ? 0 : focusedIndex + 1;
+            }
+          } else {
+            // Grid view: all four arrows
+            // Calculate grid columns based on container width and icon size
+            const gridSizes = { small: 80, medium: 120, large: 160, xlarge: 200 };
+            const itemWidth = gridSizes[iconSize] + 12; // grid gap
+            const containerWidth = document.querySelector('.grid-view')?.clientWidth || 800;
+            const cols = Math.floor(containerWidth / itemWidth);
+
+            if (e.key === 'ArrowUp') {
+              newIndex = focusedIndex - cols;
+              if (newIndex < 0) newIndex = displayFiles.length - 1;
+            } else if (e.key === 'ArrowDown') {
+              newIndex = focusedIndex + cols;
+              if (newIndex >= displayFiles.length) newIndex = 0;
+            } else if (e.key === 'ArrowLeft') {
+              newIndex = focusedIndex <= 0 ? displayFiles.length - 1 : focusedIndex - 1;
+            } else if (e.key === 'ArrowRight') {
+              newIndex = focusedIndex >= displayFiles.length - 1 ? 0 : focusedIndex + 1;
+            }
+          }
+
+          setFocusedIndex(newIndex);
+
+          // Scroll focused item into view
           setTimeout(() => {
             const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
             focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
           }, 0);
-          return;
         }
-
-        let newIndex = focusedIndex;
-
-        if (viewMode === 'table') {
-          // Table view: only up/down arrows
-          if (e.key === 'ArrowUp') {
-            newIndex = focusedIndex <= 0 ? displayFiles.length - 1 : focusedIndex - 1;
-          } else if (e.key === 'ArrowDown') {
-            newIndex = focusedIndex >= displayFiles.length - 1 ? 0 : focusedIndex + 1;
-          }
-        } else {
-          // Grid view: all four arrows
-          // Calculate grid columns based on container width and icon size
-          const gridSizes = { small: 80, medium: 120, large: 160, xlarge: 200 };
-          const itemWidth = gridSizes[iconSize] + 12; // grid gap
-          const containerWidth = document.querySelector('.grid-view')?.clientWidth || 800;
-          const cols = Math.floor(containerWidth / itemWidth);
-
-          if (e.key === 'ArrowUp') {
-            newIndex = focusedIndex - cols;
-            if (newIndex < 0) newIndex = displayFiles.length - 1;
-          } else if (e.key === 'ArrowDown') {
-            newIndex = focusedIndex + cols;
-            if (newIndex >= displayFiles.length) newIndex = 0;
-          } else if (e.key === 'ArrowLeft') {
-            newIndex = focusedIndex <= 0 ? displayFiles.length - 1 : focusedIndex - 1;
-          } else if (e.key === 'ArrowRight') {
-            newIndex = focusedIndex >= displayFiles.length - 1 ? 0 : focusedIndex + 1;
-          }
-        }
-
-        setFocusedIndex(newIndex);
-
-        // Scroll focused item into view
-        setTimeout(() => {
-          const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
-          focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        }, 0);
       }
       // Cmd/Ctrl + Delete: Delete selected or focused files
       else if ((e.ctrlKey || e.metaKey) && (e.key === 'Delete' || e.key === 'Backspace')) {
@@ -1631,16 +1792,23 @@ function App() {
               <button
                 onClick={() => setViewMode('table')}
                 className={`view-btn ${viewMode === 'table' ? 'active' : ''}`}
-                title="Table view"
+                title="Table view (Cmd+1)"
               >
                 ☰
               </button>
               <button
                 onClick={() => setViewMode('grid')}
                 className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                title="Grid view"
+                title="Grid view (Cmd+2)"
               >
                 ⊞
+              </button>
+              <button
+                onClick={() => setViewMode('column')}
+                className={`view-btn ${viewMode === 'column' ? 'active' : ''}`}
+                title="Column view (Cmd+3)"
+              >
+                ▦
               </button>
               {viewMode === 'grid' && (
                 <div className="zoom-controls">
@@ -1715,6 +1883,45 @@ function App() {
           <div className="file-list">
             {loading ? (
               <div className="loading">Loading...</div>
+            ) : viewMode === 'column' ? (
+              <div className="column-view">
+                {columnPath.map((path, columnIndex) => {
+                  const files = columnFiles.get(path) || [];
+                  const visibleFiles = showHiddenFiles
+                    ? files
+                    : files.filter(file => !file.name.startsWith('.'));
+                  const selectedIndex = columnSelected.get(path) ?? -1;
+                  const isActiveColumn = columnIndex === activeColumnIndex;
+
+                  return (
+                    <div
+                      key={columnIndex}
+                      className={`column-list ${isActiveColumn ? 'active' : ''}`}
+                      data-column-index={columnIndex}
+                    >
+                      {visibleFiles.map((file, fileIndex) => {
+                        const isSelected = fileIndex === selectedIndex;
+                        return (
+                          <div
+                            key={fileIndex}
+                            onClick={() => selectColumnItem(columnIndex, fileIndex, file)}
+                            className={`column-item ${file.is_directory ? 'directory' : 'file'} ${isSelected ? 'selected' : ''}`}
+                          >
+                            <span className="column-item-icon">{file.is_directory ? "📁" : "📄"}</span>
+                            <span className="column-item-name">{file.name}</span>
+                            {file.is_directory && <span className="column-item-arrow">›</span>}
+                          </div>
+                        );
+                      })}
+                      {visibleFiles.length === 0 && (
+                        <div className="column-empty">
+                          {showHiddenFiles ? "No files" : "No visible files"}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             ) : viewMode === 'table' ? (
               <table>
                 <thead>
@@ -1888,6 +2095,18 @@ function App() {
 
               <div className="shortcuts-section">
                 <h4>View &amp; Search</h4>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + 1</span>
+                  <span className="shortcut-desc">Switch to table view</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + 2</span>
+                  <span className="shortcut-desc">Switch to grid view</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + 3</span>
+                  <span className="shortcut-desc">Switch to column view</span>
+                </div>
                 <div className="shortcut-item">
                   <span className="shortcut-keys">Cmd + F</span>
                   <span className="shortcut-desc">Focus search bar</span>

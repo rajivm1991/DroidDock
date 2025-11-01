@@ -1,0 +1,47 @@
+I Moved to the Mountains to Slow Down… Then I Built Something Fast. 🏔️💻
+
+After 12 years as a software engineer, I left to become a teacher in the Paahad (mountains). Life isn't all about chasing money. I've found peace working with kids in the hills.
+
+But old habits die hard. 😄
+
+While teaching mathematics and doing part-time freelance work, I got frustrated — there wasn't a free, clean way to browse Android files on macOS.
+
+Everything was either paid, clunky, or bloated.
+
+So I built DroidDock — a lightweight, modern macOS app for exploring Android device files via ADB.
+
+✨ Why DroidDock?
+✅ 100% Free & Open Source (MIT License)
+✅ Native macOS app built with Tauri + Rust
+✅ No ads, no tracking, no subscriptions
+✅ Lightweight, fast, and focused — does one thing well
+
+📂 Current Features
+* Browse Android device files with a modern UI
+* Breadcrumb navigation
+* Show/hide hidden files
+* Image & video thumbnails (lazy loaded)
+* Dark mode support
+* Auto-detect storage paths across different devices
+
+🧭 Coming Soon
+* Download & Upload files
+* Delete files
+* Search
+* Preview images & text
+* Drag & Drop
+* Multiple device view
+* Sync between Mac ↔️ Android
+
+🔗 Try it out:
+GitHub: https://github.com/rajivm1991/DroidDock
+🍎 Coming to Mac App Store soon
+
+Tired of paying for basic Android file browsing on Mac? Give DroidDock a try!
+
+Building in the mountains, one feature at a time. 🏔️💻
+
+⭐ Star the repo if you find it useful!
+💬 What features would you like to see next? Drop a comment!
+
+#OpenSource #RustLang #Tauri #macOS #Android #IndieDev #TechForGood #CareerChange #MountainLife
