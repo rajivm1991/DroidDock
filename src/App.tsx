@@ -476,7 +476,18 @@ function App() {
   // Initialize column view when switching to it or when path changes
   useEffect(() => {
     if (viewMode === 'column' && selectedDevice && currentPath) {
-      initializeColumnView();
+      // Only reinitialize if we're switching TO column view or if the currentPath
+      // is not already in our columnPath (meaning we navigated externally, like via breadcrumb)
+      const pathInColumns = columnPath.some(p => p === currentPath);
+      if (columnPath.length === 0 || !pathInColumns) {
+        initializeColumnView();
+      }
+    } else if (viewMode !== 'column' && columnPath.length > 0) {
+      // Clear column state when switching away from column view
+      setColumnPath([]);
+      setColumnFiles(new Map());
+      setColumnSelected(new Map());
+      setActiveColumnIndex(0);
     }
   }, [viewMode, currentPath, selectedDevice]);
 
@@ -497,14 +508,29 @@ function App() {
 
     // Load files for each column path
     const newColumnFiles = new Map<string, FileEntry[]>();
+    const newSelected = new Map<string, number>();
 
-    for (const path of paths) {
+    for (let i = 0; i < paths.length; i++) {
+      const path = paths[i];
       try {
         const fileList = await invoke<FileEntry[]>("list_files", {
           deviceId: selectedDevice,
           path: path,
         });
         newColumnFiles.set(path, fileList);
+
+        // If this is not the last column, find and mark the selected folder
+        if (i < paths.length - 1) {
+          const nextSegment = segments[i];
+          // Filter based on showHiddenFiles to match what's rendered
+          const visibleFiles = showHiddenFiles
+            ? fileList
+            : fileList.filter(file => !file.name.startsWith('.'));
+          const selectedIndex = visibleFiles.findIndex(file => file.name === nextSegment);
+          if (selectedIndex >= 0) {
+            newSelected.set(path, selectedIndex);
+          }
+        }
       } catch (err) {
         console.error(`Failed to load files for ${path}:`, err);
         newColumnFiles.set(path, []);
@@ -512,6 +538,7 @@ function App() {
     }
 
     setColumnFiles(newColumnFiles);
+    setColumnSelected(newSelected);
   }
 
   async function loadColumnFiles(path: string): Promise<FileEntry[]> {
@@ -552,11 +579,25 @@ function App() {
     // Load files for the new column
     const fileList = await loadColumnFiles(selectedPath);
 
-    // Update state
-    const newColumnFiles = new Map(columnFiles);
+    // Update files map - keep only files for paths that still exist
+    const newColumnFiles = new Map<string, FileEntry[]>();
+    for (const path of newPaths.slice(0, -1)) {
+      const existingFiles = columnFiles.get(path);
+      if (existingFiles) {
+        newColumnFiles.set(path, existingFiles);
+      }
+    }
     newColumnFiles.set(selectedPath, fileList);
 
-    const newSelected = new Map(columnSelected);
+    // Update selections - keep only selections for paths that still exist, plus the new selection
+    const newSelected = new Map<string, number>();
+    for (const path of newPaths.slice(0, -1)) {
+      const existingSelection = columnSelected.get(path);
+      if (existingSelection !== undefined) {
+        newSelected.set(path, existingSelection);
+      }
+    }
+    // Set selection for the clicked folder
     newSelected.set(columnPath[columnIndex], fileIndex);
 
     setColumnPath(newPaths);
@@ -652,41 +693,105 @@ function App() {
           if (e.key === 'ArrowLeft') {
             // Move to previous column
             if (activeColumnIndex > 0) {
-              setActiveColumnIndex(activeColumnIndex - 1);
+              const newActiveIndex = activeColumnIndex - 1;
+              setActiveColumnIndex(newActiveIndex);
+
+              // Update currentPath to the new active column's path
+              const newPath = columnPath[newActiveIndex];
+              setCurrentPath(newPath);
+
+              // Remove columns after the new active column
+              const newPaths = columnPath.slice(0, newActiveIndex + 1);
+              if (newPaths.length !== columnPath.length) {
+                setColumnPath(newPaths);
+              }
+
               setTimeout(() => {
-                const activeColumn = document.querySelector(`.column-list[data-column-index="${activeColumnIndex - 1}"]`);
+                const activeColumn = document.querySelector(`.column-list[data-column-index="${newActiveIndex}"]`);
                 activeColumn?.scrollIntoView({ inline: 'center', behavior: 'smooth' });
               }, 0);
             }
           } else if (e.key === 'ArrowRight') {
-            // Move to next column
+            // Move to next column (if exists)
             if (activeColumnIndex < columnPath.length - 1) {
-              setActiveColumnIndex(activeColumnIndex + 1);
+              const newActiveIndex = activeColumnIndex + 1;
+              setActiveColumnIndex(newActiveIndex);
+
+              // Update currentPath to the new active column's path
+              const newPath = columnPath[newActiveIndex];
+              setCurrentPath(newPath);
+
               setTimeout(() => {
-                const activeColumn = document.querySelector(`.column-list[data-column-index="${activeColumnIndex + 1}"]`);
+                const activeColumn = document.querySelector(`.column-list[data-column-index="${newActiveIndex}"]`);
                 activeColumn?.scrollIntoView({ inline: 'center', behavior: 'smooth' });
               }, 0);
             }
           } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
             // Navigate within active column
+            if (activeColumnIndex < 0 || activeColumnIndex >= columnPath.length) return;
+
             const path = columnPath[activeColumnIndex];
             const files = columnFiles.get(path) || [];
-            if (files.length === 0) return;
+            const visibleFiles = showHiddenFiles
+              ? files
+              : files.filter(file => !file.name.startsWith('.'));
+
+            if (visibleFiles.length === 0) return;
 
             const currentSelected = columnSelected.get(path) ?? -1;
             let newSelected = currentSelected;
 
-            if (e.key === 'ArrowUp') {
-              newSelected = currentSelected <= 0 ? files.length - 1 : currentSelected - 1;
+            // If nothing selected, start at first item on any arrow key
+            if (currentSelected < 0) {
+              newSelected = 0;
+            } else if (e.key === 'ArrowUp') {
+              newSelected = currentSelected <= 0 ? visibleFiles.length - 1 : currentSelected - 1;
             } else if (e.key === 'ArrowDown') {
-              newSelected = currentSelected >= files.length - 1 ? 0 : currentSelected + 1;
+              newSelected = currentSelected >= visibleFiles.length - 1 ? 0 : currentSelected + 1;
             }
 
-            setColumnSelected(new Map(columnSelected).set(path, newSelected));
+            // If selected item is a directory, load its contents in the next column
+            const selectedFile = visibleFiles[newSelected];
+            if (selectedFile && selectedFile.is_directory) {
+              const selectedPath = selectedFile.name.startsWith("/")
+                ? selectedFile.name
+                : path === "/"
+                ? `/${selectedFile.name}`
+                : `${path}/${selectedFile.name}`;
+
+              // Update column path to include the preview column
+              const newPaths = columnPath.slice(0, activeColumnIndex + 1);
+              newPaths.push(selectedPath);
+
+              // Load files for the preview column and update all state together
+              loadColumnFiles(selectedPath).then(fileList => {
+                const newColumnFiles = new Map(columnFiles);
+                newColumnFiles.set(selectedPath, fileList);
+                const newColumnSelected = new Map(columnSelected);
+                newColumnSelected.set(path, newSelected);
+
+                // Batch all updates together
+                setColumnFiles(newColumnFiles);
+                setColumnPath(newPaths);
+                setColumnSelected(newColumnSelected);
+              });
+            } else {
+              // If it's a file, remove any columns after the active one
+              const newPaths = columnPath.slice(0, activeColumnIndex + 1);
+              const newColumnSelected = new Map(columnSelected);
+              newColumnSelected.set(path, newSelected);
+
+              setColumnSelected(newColumnSelected);
+              if (newPaths.length !== columnPath.length) {
+                setColumnPath(newPaths);
+              }
+            }
 
             setTimeout(() => {
-              const focusedElement = document.querySelector(`.column-item.selected`);
-              focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+              const activeColumn = document.querySelector(`.column-list[data-column-index="${activeColumnIndex}"]`);
+              const selectedItems = activeColumn?.querySelectorAll('.column-item');
+              const selectedItem = selectedItems?.[newSelected];
+              selectedItem?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             }, 0);
           }
         } else {
@@ -792,7 +897,7 @@ function App() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedFiles, searchMode, focusedIndex, viewMode, iconSize, showHiddenFiles, thumbnailsEnabled, showShortcutsHelp, showDeleteConfirm, renamingIndex, loading]);
+  }, [selectedFiles, searchMode, focusedIndex, viewMode, iconSize, showHiddenFiles, thumbnailsEnabled, showShortcutsHelp, showDeleteConfirm, renamingIndex, loading, columnPath, columnFiles, columnSelected, activeColumnIndex]);
 
   async function checkAdb() {
     try {
@@ -922,6 +1027,19 @@ function App() {
     const segments = getPathSegments();
     const newPath = "/" + segments.slice(0, index + 1).join("/");
     setCurrentPath(newPath);
+
+    // In column view, also update the active column index
+    if (viewMode === 'column') {
+      const pathIndex = columnPath.findIndex(p => p === newPath);
+      if (pathIndex >= 0) {
+        setActiveColumnIndex(pathIndex);
+        // Remove columns after the clicked segment
+        const newPaths = columnPath.slice(0, pathIndex + 1);
+        if (newPaths.length !== columnPath.length) {
+          setColumnPath(newPaths);
+        }
+      }
+    }
   }
 
   // Storage detection helpers
@@ -1728,23 +1846,49 @@ function App() {
       {selectedDevice && (
         <>
           <div className="breadcrumb">
-            {getDisplaySegments().map((segment, index) => (
-              <span key={index}>
-                {index > 0 && <span className="separator">→</span>}
-                <button
-                  onClick={() => {
-                    if (segment.isStorage) {
-                      navigateToHome();
-                    } else {
-                      navigateToSegment(segment.actualIndex);
-                    }
-                  }}
-                  className="breadcrumb-btn"
-                >
-                  {segment.label}
-                </button>
-              </span>
-            ))}
+            {viewMode === 'column' ? (
+              // In column view, show full path without shortening
+              <>
+                <span>
+                  <button
+                    onClick={() => setCurrentPath('/')}
+                    className="breadcrumb-btn"
+                  >
+                    /
+                  </button>
+                </span>
+                {getPathSegments().map((segment, index) => (
+                  <span key={index}>
+                    <span className="separator">→</span>
+                    <button
+                      onClick={() => navigateToSegment(index)}
+                      className="breadcrumb-btn"
+                    >
+                      {segment}
+                    </button>
+                  </span>
+                ))}
+              </>
+            ) : (
+              // In other views, use the display segments (shortened)
+              getDisplaySegments().map((segment, index) => (
+                <span key={index}>
+                  {index > 0 && <span className="separator">→</span>}
+                  <button
+                    onClick={() => {
+                      if (segment.isStorage) {
+                        navigateToHome();
+                      } else {
+                        navigateToSegment(segment.actualIndex);
+                      }
+                    }}
+                    className="breadcrumb-btn"
+                  >
+                    {segment.label}
+                  </button>
+                </span>
+              ))
+            )}
           </div>
 
           <div className="toolbar">
