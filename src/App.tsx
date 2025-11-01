@@ -360,7 +360,11 @@ function App() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // View mode state
-  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>(() => {
+    // Load saved view mode from localStorage
+    const saved = localStorage.getItem('droiddock-view-mode');
+    return (saved === 'table' || saved === 'grid') ? saved : 'table';
+  });
   const [iconSize, setIconSize] = useState<'small' | 'medium' | 'large' | 'xlarge'>('medium');
 
   // Drag and drop state
@@ -452,6 +456,11 @@ function App() {
     }
   }, [selectedDevice, currentPath]);
 
+  // Save view mode to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('droiddock-view-mode', viewMode);
+  }, [viewMode]);
+
   // Close settings dropdown when clicking outside
   useEffect(() => {
     if (!settingsOpen) return;
@@ -477,6 +486,16 @@ function App() {
       if ((e.ctrlKey || e.metaKey) && e.key === '/') {
         e.preventDefault();
         setShowShortcutsHelp(true);
+      }
+      // Ctrl/Cmd + 1: Switch to table view
+      else if ((e.ctrlKey || e.metaKey) && e.key === '1') {
+        e.preventDefault();
+        setViewMode('table');
+      }
+      // Ctrl/Cmd + 2: Switch to grid view
+      else if ((e.ctrlKey || e.metaKey) && e.key === '2') {
+        e.preventDefault();
+        setViewMode('grid');
       }
       // Ctrl/Cmd + F: Focus search
       else if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
@@ -1888,6 +1907,14 @@ function App() {
 
               <div className="shortcuts-section">
                 <h4>View &amp; Search</h4>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + 1</span>
+                  <span className="shortcut-desc">Switch to table view</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + 2</span>
+                  <span className="shortcut-desc">Switch to grid view</span>
+                </div>
                 <div className="shortcut-item">
                   <span className="shortcut-keys">Cmd + F</span>
                   <span className="shortcut-desc">Focus search bar</span>
