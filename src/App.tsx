@@ -162,16 +162,18 @@ function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCac
       className={`file-row ${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""} ${isFocused ? "focused" : ""}`}
     >
       <td>
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={() => {}}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect(fileIndex, e);
-          }}
-          className="file-checkbox"
-        />
+        {!file.is_directory && (
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => {}}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect(fileIndex, e);
+            }}
+            className="file-checkbox"
+          />
+        )}
         {thumbnailsEnabled && thumbnailUrl ? (
           <img src={thumbnailUrl} alt={file.name} className="thumbnail" />
         ) : (
@@ -295,16 +297,18 @@ function GridItem({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCa
       }}
       className={`grid-item ${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""} ${isFocused ? "focused" : ""}`}
     >
-      <input
-        type="checkbox"
-        checked={isSelected}
-        onChange={() => {}}
-        onClick={(e) => {
-          e.stopPropagation();
-          onSelect(fileIndex, e);
-        }}
-        className="grid-item-checkbox"
-      />
+      {!file.is_directory && (
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => {}}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(fileIndex, e);
+          }}
+          className="grid-item-checkbox"
+        />
+      )}
       <div className="grid-item-icon">
         {thumbnailsEnabled && thumbnailUrl ? (
           <img src={thumbnailUrl} alt={file.name} className="grid-thumbnail" />
@@ -333,16 +337,18 @@ function ListItem({ file, fileIndex, onNavigate, isSelected, isFocused, onSelect
       onDoubleClick={() => file.is_directory && onNavigate()}
       className={`list-item ${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""} ${isFocused ? "focused" : ""}`}
     >
-      <input
-        type="checkbox"
-        checked={isSelected}
-        onChange={() => {}}
-        onClick={(e) => {
-          e.stopPropagation();
-          onSelect(fileIndex, e);
-        }}
-        className="list-item-checkbox"
-      />
+      {!file.is_directory && (
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => {}}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(fileIndex, e);
+          }}
+          className="list-item-checkbox"
+        />
+      )}
       <span className="list-item-icon">{file.is_directory ? "📁" : "📄"}</span>
       <span
         className={file.is_directory ? "list-item-name clickable" : "list-item-name"}
