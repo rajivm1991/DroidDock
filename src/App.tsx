@@ -890,11 +890,22 @@ function App() {
             }
           } else {
             // Grid view: all four arrows
-            // Calculate grid columns based on container width and icon size
-            const gridSizes = { small: 80, medium: 120, large: 160, xlarge: 200 };
-            const itemWidth = gridSizes[iconSize] + 12; // grid gap
-            const containerWidth = document.querySelector('.grid-view')?.clientWidth || 800;
-            const cols = Math.floor(containerWidth / itemWidth);
+            // Get actual number of columns by measuring the grid layout
+            const gridItems = document.querySelectorAll('.grid-item');
+            let cols = 1;
+
+            if (gridItems.length >= 2) {
+              // Find number of columns by checking when offsetTop changes
+              const firstItemTop = (gridItems[0] as HTMLElement).offsetTop;
+              for (let i = 1; i < gridItems.length; i++) {
+                if ((gridItems[i] as HTMLElement).offsetTop !== firstItemTop) {
+                  cols = i;
+                  break;
+                }
+              }
+              // If all items are in one row, cols equals total items
+              if (cols === 1) cols = gridItems.length;
+            }
 
             if (e.key === 'ArrowUp') {
               newIndex = focusedIndex - cols;
