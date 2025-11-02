@@ -477,7 +477,7 @@ function App() {
           setFocusedIndex(newIndex);
           // Scroll to the renamed file after a short delay
           setTimeout(() => {
-            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
+            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused, .list-item.focused');
             focusedElement?.scrollIntoView({ block: 'center', behavior: 'smooth' });
           }, 100);
         }
@@ -490,7 +490,7 @@ function App() {
           setFocusedIndex(savedIndex);
           // Scroll to the restored focus after a short delay
           setTimeout(() => {
-            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
+            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused, .list-item.focused');
             focusedElement?.scrollIntoView({ block: 'center', behavior: 'smooth' });
           }, 100);
         } else if (focusedIndex < 0 || focusedIndex >= files.length) {
@@ -882,7 +882,7 @@ function App() {
           if (focusedIndex < 0) {
             setFocusedIndex(0);
             setTimeout(() => {
-              const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
+              const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused, .list-item.focused');
               focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             }, 0);
             return;
@@ -933,7 +933,7 @@ function App() {
 
           // Scroll focused item into view
           setTimeout(() => {
-            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
+            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused, .list-item.focused');
             focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
           }, 0);
         }
