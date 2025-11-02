@@ -22,6 +22,10 @@
   padding-bottom: 28px; /* Make room for status bar */
 }
 
+.container-with-contextual-bar {
+  padding-bottom: 81px; /* Status bar (28px) + Contextual bar (53px) */
+}
+
 header {
   padding: 16px 20px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -1288,6 +1292,179 @@ tbody tr {
   .column-empty {
     color: #666;
   }
+
+  .fab {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.6), 0 2px 4px rgba(0, 0, 0, 0.4);
+  }
+
+  .fab:hover:not(:disabled) {
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.7), 0 4px 8px rgba(0, 0, 0, 0.5);
+  }
+
+  .fab:disabled {
+    background: #555;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .contextual-action-bar {
+    background-color: #1a1a1a;
+    border-top-color: #3a3a3a;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.5);
+  }
+
+  .contextual-action-bar .selection-count {
+    color: #8ab4f8;
+  }
+
+  .contextual-btn.clear-btn {
+    background-color: #3a3a3a;
+    color: #ccc;
+  }
+
+  .contextual-btn.clear-btn:hover {
+    background-color: #4a4a4a;
+  }
+
+  .contextual-btn.download-btn:disabled,
+  .contextual-btn.delete-btn:disabled {
+    background-color: #555;
+  }
+}
+
+/* Floating Action Button (FAB) */
+.fab {
+  position: fixed;
+  bottom: 48px; /* Above status bar (28px) + 20px spacing */
+  right: 24px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4), 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fab:hover:not(:disabled) {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5), 0 4px 8px rgba(0, 0, 0, 0.25);
+}
+
+.fab:active:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.fab:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.fab.fab-raised {
+  bottom: 110px; /* Move above contextual bar when it's visible */
+}
+
+/* Contextual Action Bar */
+.contextual-action-bar {
+  position: fixed;
+  bottom: 28px; /* Above status bar */
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  border-top: 1px solid #e0e0e0;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 1400;
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.contextual-action-bar-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  gap: 16px;
+  max-width: 100%;
+}
+
+.contextual-action-bar .selection-count {
+  font-size: 14px;
+  color: #667eea;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.contextual-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.contextual-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.contextual-btn.clear-btn {
+  background-color: #f0f0f0;
+  color: #666;
+}
+
+.contextual-btn.clear-btn:hover {
+  background-color: #e0e0e0;
+}
+
+.contextual-btn.download-btn {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.contextual-btn.download-btn:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.contextual-btn.download-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.contextual-btn.delete-btn {
+  background-color: #f44336;
+  color: white;
+}
+
+.contextual-btn.delete-btn:hover:not(:disabled) {
+  background-color: #d32f2f;
+}
+
+.contextual-btn.delete-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
 }
 
 /* Drag and Drop Overlay */
