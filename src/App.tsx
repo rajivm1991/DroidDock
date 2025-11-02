@@ -317,6 +317,48 @@ function GridItem({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCa
   );
 }
 
+interface ListItemProps {
+  file: FileEntry;
+  fileIndex: number;
+  onNavigate: () => void;
+  isSelected: boolean;
+  isFocused: boolean;
+  onSelect: (index: number, e: React.MouseEvent) => void;
+}
+
+function ListItem({ file, fileIndex, onNavigate, isSelected, isFocused, onSelect }: ListItemProps) {
+  return (
+    <div
+      onClick={(e) => onSelect(fileIndex, e)}
+      onDoubleClick={() => file.is_directory && onNavigate()}
+      className={`list-item ${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""} ${isFocused ? "focused" : ""}`}
+    >
+      <input
+        type="checkbox"
+        checked={isSelected}
+        onChange={() => {}}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect(fileIndex, e);
+        }}
+        className="list-item-checkbox"
+      />
+      <span className="list-item-icon">{file.is_directory ? "📁" : "📄"}</span>
+      <span
+        className={file.is_directory ? "list-item-name clickable" : "list-item-name"}
+        onClick={(e) => {
+          if (file.is_directory) {
+            e.stopPropagation();
+            onNavigate();
+          }
+        }}
+      >
+        {file.name}
+      </span>
+    </div>
+  );
+}
+
 function App() {
   const [adbAvailable, setAdbAvailable] = useState<boolean | null>(null);
   const [devices, setDevices] = useState<AdbDevice[]>([]);
@@ -360,7 +402,11 @@ function App() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // View mode state
-  const [viewMode, setViewMode] = useState<'table' | 'grid' | 'column'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list' | 'column'>(() => {
+    // Load saved view mode from localStorage
+    const saved = localStorage.getItem('droiddock-view-mode');
+    return (saved === 'table' || saved === 'grid' || saved === 'list' || saved === 'column') ? saved : 'table';
+  });
   const [iconSize, setIconSize] = useState<'small' | 'medium' | 'large' | 'xlarge'>('medium');
 
   // Column view state
@@ -457,6 +503,11 @@ function App() {
       loadStorageInfo();
     }
   }, [selectedDevice, currentPath]);
+
+  // Save view mode to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('droiddock-view-mode', viewMode);
+  }, [viewMode]);
 
   // Close settings dropdown when clicking outside
   useEffect(() => {
@@ -620,6 +671,21 @@ function App() {
         e.preventDefault();
         setShowShortcutsHelp(true);
       }
+      // Ctrl/Cmd + 1: Switch to table view
+      else if ((e.ctrlKey || e.metaKey) && e.key === '1') {
+        e.preventDefault();
+        setViewMode('table');
+      }
+      // Ctrl/Cmd + 2: Switch to grid view
+      else if ((e.ctrlKey || e.metaKey) && e.key === '2') {
+        e.preventDefault();
+        setViewMode('grid');
+      }
+      // Ctrl/Cmd + 3: Switch to list view
+      else if ((e.ctrlKey || e.metaKey) && e.key === '3') {
+        e.preventDefault();
+        setViewMode('list');
+      }
       // Ctrl/Cmd + F: Focus search
       else if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault();
@@ -655,8 +721,13 @@ function App() {
         e.preventDefault();
         setViewMode('grid');
       }
-      // Cmd/Ctrl + 3: Switch to column view
+      // Cmd/Ctrl + 3: Switch to list view
       else if ((e.ctrlKey || e.metaKey) && e.key === '3') {
+        e.preventDefault();
+        setViewMode('list');
+      }
+      // Cmd/Ctrl + 4: Switch to column view
+      else if ((e.ctrlKey || e.metaKey) && e.key === '4') {
         e.preventDefault();
         setViewMode('column');
       }
@@ -1948,9 +2019,16 @@ function App() {
                 ⊞
               </button>
               <button
+                onClick={() => setViewMode('list')}
+                className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
+                title="List view (Cmd+3)"
+              >
+                ≡
+              </button>
+              <button
                 onClick={() => setViewMode('column')}
                 className={`view-btn ${viewMode === 'column' ? 'active' : ''}`}
-                title="Column view (Cmd+3)"
+                title="Column view (Cmd+4)"
               >
                 ▦
               </button>
@@ -2065,6 +2143,29 @@ function App() {
                     </div>
                   );
                 })}
+              </div>
+            ) : viewMode === 'list' ? (
+              <div className="list-view">
+                {getDisplayFiles().map((file, index) => (
+                  <ListItem
+                    key={index}
+                    file={file}
+                    fileIndex={index}
+                    onNavigate={() => file.is_directory && navigateToDirectory(file.name)}
+                    isSelected={selectedFiles.has(file.name)}
+                    isFocused={focusedIndex === index}
+                    onSelect={(idx, e) => handleFileSelect(file.name, idx, e)}
+                  />
+                ))}
+                {getDisplayFiles().length === 0 && !loading && (
+                  <div className="empty">
+                    {searchMode
+                      ? "No files found"
+                      : showHiddenFiles
+                      ? "No files in this directory"
+                      : "No visible files (hidden files are filtered)"}
+                  </div>
+                )}
               </div>
             ) : viewMode === 'table' ? (
               <table>
@@ -2249,6 +2350,10 @@ function App() {
                 </div>
                 <div className="shortcut-item">
                   <span className="shortcut-keys">Cmd + 3</span>
+                  <span className="shortcut-desc">Switch to list view</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + 4</span>
                   <span className="shortcut-desc">Switch to column view</span>
                 </div>
                 <div className="shortcut-item">
