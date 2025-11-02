@@ -747,18 +747,21 @@ function App() {
         e.preventDefault();
         setThumbnailsEnabled(!thumbnailsEnabled);
       }
-      // Space: Toggle selection on focused file
+      // Space: Toggle selection on focused file (files only, not folders)
       else if (!isTyping && e.key === ' ') {
         e.preventDefault();
         if (focusedIndex >= 0 && focusedIndex < getDisplayFiles().length) {
           const file = getDisplayFiles()[focusedIndex];
-          const newSelection = new Set(selectedFiles);
-          if (newSelection.has(file.name)) {
-            newSelection.delete(file.name);
-          } else {
-            newSelection.add(file.name);
+          // Only allow selection of files, not directories
+          if (!file.is_directory) {
+            const newSelection = new Set(selectedFiles);
+            if (newSelection.has(file.name)) {
+              newSelection.delete(file.name);
+            } else {
+              newSelection.add(file.name);
+            }
+            setSelectedFiles(newSelection);
           }
-          setSelectedFiles(newSelection);
         }
       }
       // Arrow keys: Navigate in list
@@ -1288,12 +1291,21 @@ function App() {
   }
 
   function handleFileSelect(fileName: string, index: number, event: React.MouseEvent) {
+    // Check if the file is a directory - don't allow selection of folders
+    const visibleFiles = getDisplayFiles();
+    const file = visibleFiles[index];
+    if (file && file.is_directory) {
+      // Don't select folders - do nothing
+      return;
+    }
+
     if (event.shiftKey && lastSelectedIndex !== -1) {
-      // Range select with Shift
-      const visibleFiles = getDisplayFiles();
+      // Range select with Shift - only select files, not directories
       const start = Math.min(lastSelectedIndex, index);
       const end = Math.max(lastSelectedIndex, index);
-      const rangeFiles = visibleFiles.slice(start, end + 1).map(f => f.name);
+      const rangeFiles = visibleFiles.slice(start, end + 1)
+        .filter(f => !f.is_directory)  // Exclude directories
+        .map(f => f.name);
 
       setSelectedFiles(prev => {
         const newSet = new Set(prev);
@@ -1321,7 +1333,9 @@ function App() {
 
   function selectAll() {
     const visibleFiles = getVisibleFiles();
-    setSelectedFiles(new Set(visibleFiles.map(f => f.name)));
+    // Only select files, not directories (since folder download is not supported)
+    const selectableFiles = visibleFiles.filter(f => !f.is_directory);
+    setSelectedFiles(new Set(selectableFiles.map(f => f.name)));
   }
 
   function clearSelection() {
