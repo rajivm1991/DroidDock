@@ -25,7 +25,7 @@ A sleek macOS desktop application for browsing Android device files via ADB (And
 
 ## Screenshots
 
-![DroidDock Screenshot](screenshots/Screenshot%202025-11-02%20at%207.32.26%20AM.png)
+![DroidDock Screenshot](screenshots/droiddock-2025-11-02-grid-view.png)
 
 *DroidDock with grid view showing image thumbnails, contextual action bar, and floating upload button*
 
