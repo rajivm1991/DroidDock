@@ -6,26 +6,28 @@ A sleek macOS desktop application for browsing Android device files via ADB (And
 
 - **📱 Device Detection**: Automatically detects connected Android devices
 - **📂 File Browsing**: Navigate through your Android device's file system with an intuitive interface
+- **👁️ Multiple View Modes**: Choose between Table, Grid, List, or Column (Miller) view with keyboard shortcuts
 - **🔍 File Search**: Search for files by name with case-insensitive matching and recursive search
 - **🗑️ File Deletion**: Delete files and folders with confirmation dialogs and safety checks
 - **📥 File Download**: Download files from device to Mac with save dialog
-- **📤 File Upload**: Upload files from Mac to device with file picker
+- **📤 File Upload**: Upload files from Mac to device via floating action button
 - **✅ Multi-Select**: Select multiple files with checkboxes, Ctrl/Cmd+click, and Shift+click range selection
 - **🖼️ Thumbnails**: Automatic thumbnail generation for images and videos with lazy loading
 - **🏠 Smart Breadcrumbs**: Clean navigation with "Internal storage" labels and arrow separators
 - **👁️ Hidden Files Toggle**: Show or hide dot files with a single click
 - **📊 File Information**: View file permissions, sizes, and modification dates
 - **💾 Storage Info**: Real-time storage usage display in VSCode-style status bar
-- **⌨️ Keyboard Shortcuts**: Delete (delete files), Ctrl+F (search), Ctrl+A (select all), Escape (clear)
-- **🎨 Dark Mode Support**: Automatically adapts to your system theme
+- **🎯 Contextual Actions**: File actions (download/delete) appear in a slide-up bar when files are selected
+- **⌨️ Keyboard Shortcuts**: Full keyboard navigation with arrow keys, view switching, and file operations
+- **🎨 Dark Mode Support**: Beautiful dark mode with muted, cohesive color palette
 - **🛠️ Smart ADB Detection**: Automatically finds ADB in common installation locations
 - **⚙️ Custom ADB Path**: Set a custom ADB path if it's not automatically detected
 
 ## Screenshots
 
-![DroidDock Screenshot](screenshots/DroidDock-2025-10-23.png)
+![DroidDock Screenshot](screenshots/Screenshot%202025-11-02%20at%207.32.26%20AM.png)
 
-*DroidDock showing file search functionality with results displayed in a clean, intuitive interface*
+*DroidDock with grid view showing image thumbnails, contextual action bar, and floating upload button*
 
 ## Prerequisites
 
@@ -116,9 +118,12 @@ You should see your device listed.
 
 - **Single-click** folder names to open them
 - Use **breadcrumb navigation** or the **↑ Up** button to go back
+- **Switch Views**: Use view toggle buttons or keyboard shortcuts (Cmd+1/2/3/4) to switch between Table, Grid, List, or Column view
 - Toggle **Show Hidden Files** in settings to view dot files
 - Toggle **Show Thumbnails** in settings to enable/disable image and video previews
 - Click **Refresh** to reload the device list
+- **Upload Files**: Click the floating action button (bottom-right) to upload files to current directory
+- **File Actions**: Select files to reveal the contextual action bar with Download and Delete options
 
 ### 5. Search for Files
 
@@ -186,9 +191,15 @@ DroidDock supports these keyboard shortcuts for faster navigation and file manag
 |----------|--------|
 | `Ctrl/Cmd + F` | Focus search bar |
 | `Ctrl/Cmd + A` | Select all visible files |
+| `Ctrl/Cmd + 1` | Switch to Table view |
+| `Ctrl/Cmd + 2` | Switch to Grid view |
+| `Ctrl/Cmd + 3` | Switch to List view |
+| `Ctrl/Cmd + 4` | Switch to Column view |
+| `Arrow Keys` | Navigate between files (Up/Down in table/list, all directions in grid) |
+| `Space` | Toggle selection on focused file |
+| `Enter` | Open focused folder or execute search |
 | `Delete` or `Backspace` | Delete selected files (shows confirmation dialog) |
 | `Escape` | Clear selection or exit search mode |
-| `Enter` (in search bar) | Execute search |
 
 ## Troubleshooting
 
