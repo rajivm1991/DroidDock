@@ -62,13 +62,13 @@ DroidDock automatically checks these common ADB locations:
 
 ### Option 1: Download Release (Coming Soon)
 
-Download the latest `.dmg` file from the [Releases](https://github.com/rajiv/droiddock/releases) page.
+Download the latest `.dmg` file from the [Releases](https://github.com/rajivm1991/DroidDock/releases) page.
 
 ### Option 2: Build from Source
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/rajiv/droiddock.git
+   git clone https://github.com/rajivm1991/DroidDock.git
    cd droiddock
    ```
 
@@ -296,7 +296,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## Support
 
 If you encounter any issues or have questions:
-- Open an issue on [GitHub Issues](https://github.com/rajiv/droiddock/issues)
+- Open an issue on [GitHub Issues](https://github.com/rajivm1991/DroidDock/issues)
 - Check the [Troubleshooting](#troubleshooting) section above
 
 ---
