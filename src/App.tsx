@@ -737,6 +737,22 @@ function App() {
         e.preventDefault();
         setViewMode('column');
       }
+      // Cmd/Ctrl + =: Zoom in (only in grid view)
+      else if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+') && viewMode === 'grid') {
+        e.preventDefault();
+        if (iconSize === 'small') setIconSize('medium');
+        else if (iconSize === 'medium') setIconSize('large');
+        else if (iconSize === 'large') setIconSize('xlarge');
+        // Already at max, stay at xlarge
+      }
+      // Cmd/Ctrl + -: Zoom out (only in grid view)
+      else if ((e.ctrlKey || e.metaKey) && e.key === '-' && viewMode === 'grid') {
+        e.preventDefault();
+        if (iconSize === 'xlarge') setIconSize('large');
+        else if (iconSize === 'large') setIconSize('medium');
+        else if (iconSize === 'medium') setIconSize('small');
+        // Already at min, stay at small
+      }
       // Cmd/Ctrl + Shift + .: Toggle show hidden files
       else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === '.') {
         e.preventDefault();
@@ -2391,6 +2407,14 @@ function App() {
                 <div className="shortcut-item">
                   <span className="shortcut-keys">Cmd + 4</span>
                   <span className="shortcut-desc">Switch to column view</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + +</span>
+                  <span className="shortcut-desc">Zoom in (grid view)</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + -</span>
+                  <span className="shortcut-desc">Zoom out (grid view)</span>
                 </div>
                 <div className="shortcut-item">
                   <span className="shortcut-keys">Cmd + F</span>
