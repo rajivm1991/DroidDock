@@ -477,7 +477,7 @@ function App() {
           setFocusedIndex(newIndex);
           // Scroll to the renamed file after a short delay
           setTimeout(() => {
-            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
+            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused, .list-item.focused');
             focusedElement?.scrollIntoView({ block: 'center', behavior: 'smooth' });
           }, 100);
         }
@@ -490,7 +490,7 @@ function App() {
           setFocusedIndex(savedIndex);
           // Scroll to the restored focus after a short delay
           setTimeout(() => {
-            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
+            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused, .list-item.focused');
             focusedElement?.scrollIntoView({ block: 'center', behavior: 'smooth' });
           }, 100);
         } else if (focusedIndex < 0 || focusedIndex >= files.length) {
@@ -882,7 +882,7 @@ function App() {
           if (focusedIndex < 0) {
             setFocusedIndex(0);
             setTimeout(() => {
-              const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
+              const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused, .list-item.focused');
               focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             }, 0);
             return;
@@ -933,7 +933,7 @@ function App() {
 
           // Scroll focused item into view
           setTimeout(() => {
-            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
+            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused, .list-item.focused');
             focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
           }, 0);
         }
@@ -1821,7 +1821,7 @@ function App() {
 
   return (
     <div
-      className="container"
+      className={`container ${selectedFiles.size > 0 ? 'container-with-contextual-bar' : ''}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -2024,14 +2024,6 @@ function App() {
                   Clear
                 </button>
               )}
-              <button
-                onClick={handleUpload}
-                disabled={uploading}
-                className="upload-btn"
-                title="Upload file to current directory"
-              >
-                {uploading ? "Uploading..." : "Upload"}
-              </button>
             </div>
 
             <div className="view-toggle">
@@ -2094,34 +2086,6 @@ function App() {
                     ○
                   </button>
                 </div>
-              )}
-            </div>
-
-            <div className="file-actions">
-              {selectedFiles.size > 0 && (
-                <>
-                  <span className="selection-count">
-                    {selectedFiles.size} selected
-                  </span>
-                  <button onClick={clearSelection} className="clear-selection-btn">
-                    Clear
-                  </button>
-                  <button
-                    onClick={handleDownload}
-                    disabled={downloading}
-                    className="download-btn"
-                    title={`Download ${selectedFiles.size} file(s)`}
-                  >
-                    {downloading ? "Downloading..." : "Download"}
-                  </button>
-                  <button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    disabled={deleting}
-                    className="delete-btn"
-                  >
-                    Delete
-                  </button>
-                </>
               )}
             </div>
           </div>
@@ -2279,6 +2243,47 @@ function App() {
             fileCount={getDisplayFiles().length}
             selectedCount={selectedFiles.size}
           />
+
+          {/* Floating Action Button for Upload */}
+          <button
+            onClick={handleUpload}
+            disabled={uploading}
+            className={`fab ${selectedFiles.size > 0 ? 'fab-raised' : ''}`}
+            title="Upload file to current directory"
+          >
+            {uploading ? "⏳" : "📤"}
+          </button>
+
+          {/* Contextual Action Bar for File Actions */}
+          {selectedFiles.size > 0 && (
+            <div className="contextual-action-bar">
+              <div className="contextual-action-bar-content">
+                <span className="selection-count">
+                  {selectedFiles.size} file{selectedFiles.size > 1 ? 's' : ''} selected
+                </span>
+                <div className="contextual-actions">
+                  <button onClick={clearSelection} className="contextual-btn clear-btn">
+                    Clear
+                  </button>
+                  <button
+                    onClick={handleDownload}
+                    disabled={downloading}
+                    className="contextual-btn download-btn"
+                    title={`Download ${selectedFiles.size} file(s)`}
+                  >
+                    {downloading ? "Downloading..." : "Download"}
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={deleting}
+                    className="contextual-btn delete-btn"
+                  >
+                    {deleting ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
 

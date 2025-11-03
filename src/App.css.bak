@@ -1476,7 +1476,6 @@ tbody tr {
   font-style: italic;
   font-size: 14px;
 }
-
 @media (prefers-color-scheme: dark) {
   :root {
     color: #e0e0e0;
