@@ -2,6 +2,8 @@
 
 A sleek macOS desktop application for browsing Android device files via ADB (Android Debug Bridge).
 
+🌐 **[Visit DroidDock Website](https://rajivm1991.github.io/DroidDock/)** | 📦 **[Download Latest Release](https://github.com/rajivm1991/DroidDock/releases/latest)**
+
 ## Features
 
 - **📱 Device Detection**: Automatically detects connected Android devices
@@ -60,9 +62,18 @@ DroidDock automatically checks these common ADB locations:
 
 ## Installation
 
-### Option 1: Download Release (Coming Soon)
+### Option 1: Download Pre-built App (Recommended)
 
-Download the latest `.dmg` file from the [Releases](https://github.com/rajivm1991/DroidDock/releases) page.
+1. **Download**: Get the latest `.dmg` file from the [Releases](https://github.com/rajivm1991/DroidDock/releases/latest) page or [DroidDock website](https://rajivm1991.github.io/DroidDock/).
+
+2. **Install**: Open the DMG and drag DroidDock to your Applications folder.
+
+3. **Launch**: Since the app is currently unsigned, you need to:
+   - **Right-click** the app and select **"Open"**
+   - Click **"Open"** in the security dialog
+   - (Future releases will be code-signed to remove this step)
+
+4. **Auto-Updates**: DroidDock will automatically check for updates on launch and notify you when new versions are available.
 
 ### Option 2: Build from Source
 
@@ -260,6 +271,45 @@ npm test
 # Rust tests
 cd src-tauri && cargo test
 ```
+
+## Releases & Distribution
+
+### Creating a New Release
+
+DroidDock uses an automated release workflow:
+
+1. **Prepare the release** (updates versions and creates git tag):
+   ```bash
+   npm run release:prepare 0.2.0
+   ```
+
+2. **Push the changes and tag**:
+   ```bash
+   git push origin <branch-name>
+   git push origin v0.2.0
+   ```
+
+3. **Automated build**: GitHub Actions will:
+   - Build a universal macOS binary (Apple Silicon + Intel)
+   - Create a DMG installer
+   - Generate updater manifest with signature
+   - Create a GitHub Release with the DMG attached
+
+4. **Auto-update**: Users with existing installations will be notified of the update.
+
+### Release Workflow Details
+
+- **Workflow file**: `.github/workflows/release.yml`
+- **Version script**: `scripts/release-prepare.js`
+- **Updater config**: `src-tauri/tauri.conf.json` (plugins.updater)
+- **Signing**: Uses Tauri updater signatures (stored in GitHub Secrets)
+
+### Code Signing (Future)
+
+To remove macOS security warnings, code signing requires:
+- Apple Developer Program membership ($99/year)
+- Code signing certificate
+- Notarization workflow
 
 ## Future Enhancements
 

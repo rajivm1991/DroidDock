@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DroidDock - Browse Android Files on macOS</title>
+    <meta name="description" content="A beautiful macOS app for browsing and managing Android device files via ADB. Fast, intuitive, and powerful.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/svg+xml" href="design/icon-design.svg">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #007AFF 0%, #3DDC84 100%);
+        }
+        .feature-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        .screenshot {
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+        .screenshot:hover {
+            transform: scale(1.02);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Hero Section -->
+    <section class="gradient-bg text-white py-20 px-4">
+        <div class="max-w-6xl mx-auto text-center">
+            <img src="design/icon-design.svg" alt="DroidDock Icon" class="w-32 h-32 mx-auto mb-8 drop-shadow-2xl">
+            <h1 class="text-5xl md:text-6xl font-bold mb-6">DroidDock</h1>
+            <p class="text-xl md:text-2xl mb-8 text-blue-100">Browse Android files on macOS with style</p>
+            <p class="text-lg mb-10 max-w-2xl mx-auto text-blue-50">
+                A beautiful, native macOS application for browsing and managing your Android device files via ADB.
+                Fast, intuitive, and powerful.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <a id="download-btn" href="#download" class="bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-50 transition shadow-lg">
+                    📦 Download for macOS
+                </a>
+                <a href="https://github.com/rajivm1991/DroidDock" class="bg-transparent border-2 border-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-white hover:text-blue-600 transition">
+                    ⭐ View on GitHub
+                </a>
+            </div>
+            <p class="mt-6 text-sm text-blue-100">Version 0.1.0 • macOS 10.13+ • Free & Open Source</p>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="py-20 px-4">
+        <div class="max-w-6xl mx-auto">
+            <h2 class="text-4xl font-bold text-center mb-4 text-gray-800">Features</h2>
+            <p class="text-center text-gray-600 mb-12 text-lg">Everything you need to manage Android files from your Mac</p>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
+                <div class="feature-card bg-white p-6 rounded-xl shadow-md">
+                    <div class="text-4xl mb-4">📱</div>
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">Device Management</h3>
+                    <p class="text-gray-600">Connect and browse multiple Android devices simultaneously with automatic device detection.</p>
+                </div>
+
+                <div class="feature-card bg-white p-6 rounded-xl shadow-md">
+                    <div class="text-4xl mb-4">📁</div>
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">File Browser</h3>
+                    <p class="text-gray-600">Navigate Android filesystem with a beautiful, intuitive interface. Support for all file types.</p>
+                </div>
+
+                <div class="feature-card bg-white p-6 rounded-xl shadow-md">
+                    <div class="text-4xl mb-4">⬇️</div>
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">Fast Downloads</h3>
+                    <p class="text-gray-600">Pull files from Android to Mac with drag-and-drop or single-click downloads.</p>
+                </div>
+
+                <div class="feature-card bg-white p-6 rounded-xl shadow-md">
+                    <div class="text-4xl mb-4">⬆️</div>
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">Easy Uploads</h3>
+                    <p class="text-gray-600">Push files to Android device with drag-and-drop from Finder or file picker.</p>
+                </div>
+
+                <div class="feature-card bg-white p-6 rounded-xl shadow-md">
+                    <div class="text-4xl mb-4">🖼️</div>
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">Image Previews</h3>
+                    <p class="text-gray-600">View image thumbnails directly in the file browser for quick identification.</p>
+                </div>
+
+                <div class="feature-card bg-white p-6 rounded-xl shadow-md">
+                    <div class="text-4xl mb-4">💾</div>
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">Storage Info</h3>
+                    <p class="text-gray-600">Monitor device storage with real-time usage statistics and visual indicators.</p>
+                </div>
+
+                <div class="feature-card bg-white p-6 rounded-xl shadow-md">
+                    <div class="text-4xl mb-4">🔍</div>
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">Quick Search</h3>
+                    <p class="text-gray-600">Find files instantly with built-in search functionality across directories.</p>
+                </div>
+
+                <div class="feature-card bg-white p-6 rounded-xl shadow-md">
+                    <div class="text-4xl mb-4">🌓</div>
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">Dark Mode</h3>
+                    <p class="text-gray-600">Beautiful dark theme that's easy on the eyes during late-night file transfers.</p>
+                </div>
+
+                <div class="feature-card bg-white p-6 rounded-xl shadow-md">
+                    <div class="text-4xl mb-4">🔄</div>
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">Auto-Updates</h3>
+                    <p class="text-gray-600">Stay up-to-date with automatic update notifications and one-click installations.</p>
+                </div>
+            </div>
+
+            <!-- Screenshots -->
+            <h3 class="text-3xl font-bold text-center mb-8 text-gray-800">Screenshots</h3>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <img src="../screenshots/droiddock-2025-10-21.png" alt="DroidDock Main Interface" class="screenshot w-full">
+                    <p class="text-center mt-3 text-gray-600">Main file browser interface</p>
+                </div>
+                <div>
+                    <img src="../screenshots/droiddock-2025-10-23.png" alt="DroidDock File List" class="screenshot w-full">
+                    <p class="text-center mt-3 text-gray-600">Detailed file list view</p>
+                </div>
+                <div>
+                    <img src="../screenshots/droiddock-2025-10-28.png" alt="DroidDock Features" class="screenshot w-full">
+                    <p class="text-center mt-3 text-gray-600">Advanced features and tools</p>
+                </div>
+                <div>
+                    <img src="../screenshots/droiddock-2025-11-02-dark-mode.png" alt="DroidDock Dark Mode" class="screenshot w-full">
+                    <p class="text-center mt-3 text-gray-600">Beautiful dark mode</p>
+                </div>
+                <div class="md:col-span-2 max-w-2xl mx-auto">
+                    <img src="../screenshots/droiddock-2025-11-02-grid-view.png" alt="DroidDock Grid View" class="screenshot w-full">
+                    <p class="text-center mt-3 text-gray-600">Grid view with image previews</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Download Section -->
+    <section id="download" class="bg-white py-20 px-4">
+        <div class="max-w-4xl mx-auto">
+            <h2 class="text-4xl font-bold text-center mb-8 text-gray-800">Download</h2>
+
+            <div class="bg-gradient-to-r from-blue-50 to-green-50 p-8 rounded-xl shadow-lg mb-8">
+                <div class="text-center">
+                    <p class="text-lg mb-6 text-gray-700">Latest Release: <span id="latest-version" class="font-bold">v0.1.0</span></p>
+                    <a id="download-dmg" href="https://github.com/rajivm1991/DroidDock/releases/latest"
+                       class="inline-block bg-gradient-to-r from-blue-600 to-green-600 text-white px-10 py-4 rounded-lg text-lg font-semibold hover:from-blue-700 hover:to-green-700 transition shadow-lg">
+                        📦 Download DroidDock.dmg
+                    </a>
+                    <p class="mt-4 text-sm text-gray-600">Universal Binary (Apple Silicon + Intel)</p>
+                </div>
+            </div>
+
+            <!-- Installation Instructions -->
+            <div class="bg-gray-50 p-8 rounded-xl mb-8">
+                <h3 class="text-2xl font-bold mb-4 text-gray-800">Installation</h3>
+                <ol class="list-decimal list-inside space-y-3 text-gray-700">
+                    <li>Download the <code class="bg-gray-200 px-2 py-1 rounded text-sm">DroidDock.dmg</code> file</li>
+                    <li>Open the DMG and drag DroidDock to your Applications folder</li>
+                    <li><strong>Important:</strong> Right-click the app and select "Open" (required for unsigned apps)</li>
+                    <li>Click "Open" in the security dialog that appears</li>
+                    <li>Connect your Android device via USB with ADB enabled</li>
+                </ol>
+                <div class="mt-6 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+                    <p class="text-sm text-yellow-800">
+                        <strong>⚠️ Security Note:</strong> DroidDock is currently unsigned. macOS will show a security warning on first launch.
+                        Right-click and select "Open" to bypass this. Code signing will be added in future releases.
+                    </p>
+                </div>
+            </div>
+
+            <!-- System Requirements -->
+            <div class="bg-gray-50 p-8 rounded-xl">
+                <h3 class="text-2xl font-bold mb-4 text-gray-800">System Requirements</h3>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold mb-2 text-gray-700">macOS</h4>
+                        <ul class="space-y-2 text-gray-600">
+                            <li>✅ macOS 10.13 (High Sierra) or later</li>
+                            <li>✅ Apple Silicon (M1/M2/M3) or Intel</li>
+                            <li>✅ 50 MB free disk space</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold mb-2 text-gray-700">Prerequisites</h4>
+                        <ul class="space-y-2 text-gray-600">
+                            <li>✅ ADB (Android Debug Bridge) installed</li>
+                            <li>✅ USB cable for device connection</li>
+                            <li>✅ Android device with USB debugging enabled</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="mt-6 p-4 bg-blue-50 border-l-4 border-blue-400 rounded">
+                    <p class="text-sm text-blue-800">
+                        <strong>💡 Tip:</strong> Install ADB via Homebrew: <code class="bg-blue-100 px-2 py-1 rounded">brew install android-platform-tools</code>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-12 px-4">
+        <div class="max-w-6xl mx-auto text-center">
+            <div class="mb-6">
+                <a href="https://github.com/rajivm1991/DroidDock" class="text-blue-400 hover:text-blue-300 mx-3">GitHub</a>
+                <a href="https://github.com/rajivm1991/DroidDock/issues" class="text-blue-400 hover:text-blue-300 mx-3">Report Issue</a>
+                <a href="https://github.com/rajivm1991/DroidDock/releases" class="text-blue-400 hover:text-blue-300 mx-3">Releases</a>
+            </div>
+            <p class="text-gray-400 mb-2">Built with Tauri, Rust, React, and TypeScript</p>
+            <p class="text-gray-500 text-sm">
+                © 2024 DroidDock •
+                <a href="https://github.com/rajivm1991/DroidDock/blob/main/LICENSE" class="text-blue-400 hover:text-blue-300">MIT License</a>
+            </p>
+        </div>
+    </footer>
+
+    <!-- Dynamic Download Link Script -->
+    <script>
+        // Fetch latest release from GitHub API
+        fetch('https://api.github.com/repos/rajivm1991/DroidDock/releases/latest')
+            .then(response => response.json())
+            .then(data => {
+                // Update version
+                const versionEl = document.getElementById('latest-version');
+                if (versionEl && data.tag_name) {
+                    versionEl.textContent = data.tag_name;
+                }
+
+                // Find DMG asset
+                const dmgAsset = data.assets?.find(asset => asset.name.endsWith('.dmg'));
+                if (dmgAsset) {
+                    const downloadLinks = document.querySelectorAll('#download-dmg, #download-btn');
+                    downloadLinks.forEach(link => {
+                        link.href = dmgAsset.browser_download_url;
+                    });
+                }
+            })
+            .catch(error => {
+                console.log('Could not fetch latest release:', error);
+                // Fallback to releases page if API fails
+            });
+    </script>
+</body>
+</html>

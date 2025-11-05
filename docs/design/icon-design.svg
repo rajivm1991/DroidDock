@@ -1,0 +1,66 @@
+<!-- DroidDock App Icon Design -->
+<!-- Theme: Android device connected to Mac dock -->
+<!-- Colors: Android green (#3DDC84) + macOS blue (#007AFF) -->
+<!-- This SVG can be exported to PNG formats and converted to ICNS/ICO -->
+
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle with gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#007AFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3DDC84;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Main background -->
+  <rect width="512" height="512" rx="115" fill="url(#bgGradient)"/>
+
+  <!-- Android phone representation -->
+  <g filter="url(#shadow)">
+    <!-- Phone body -->
+    <rect x="140" y="130" width="130" height="220" rx="15" fill="#ffffff" stroke="#2C3E50" stroke-width="4"/>
+
+    <!-- Phone screen -->
+    <rect x="150" y="150" width="110" height="160" rx="8" fill="#3DDC84" opacity="0.8"/>
+
+    <!-- Phone camera/speaker -->
+    <circle cx="205" cy="143" r="3" fill="#2C3E50"/>
+
+    <!-- Android robot antenna -->
+    <line x1="185" y1="120" x2="185" y2="105" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+    <line x1="225" y1="120" x2="225" y2="105" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+    <circle cx="185" cy="105" r="6" fill="#ffffff"/>
+    <circle cx="225" cy="105" r="6" fill="#ffffff"/>
+  </g>
+
+  <!-- Connection/dock symbol -->
+  <g filter="url(#shadow)">
+    <!-- Dock platform -->
+    <rect x="200" y="360" width="180" height="30" rx="8" fill="#2C3E50"/>
+    <rect x="200" y="385" width="180" height="8" rx="4" fill="#34495E"/>
+
+    <!-- Connection line/cable -->
+    <path d="M 205 350 Q 205 340, 220 330 T 250 320"
+          stroke="#ffffff" stroke-width="8" stroke-linecap="round"
+          fill="none" opacity="0.9"/>
+
+    <!-- Connection indicator dots -->
+    <circle cx="250" cy="370" r="5" fill="#3DDC84"/>
+    <circle cx="270" cy="370" r="5" fill="#3DDC84"/>
+    <circle cx="290" cy="370" r="5" fill="#3DDC84"/>
+  </g>
+
+  <!-- Folder/files icon (represents file browsing) -->
+  <g transform="translate(310, 180)" filter="url(#shadow)">
+    <path d="M 0 10 L 0 60 L 70 60 L 70 10 Z" fill="#FFA500" opacity="0.9"/>
+    <path d="M 0 10 L 25 10 L 30 0 L 50 0 L 55 10 L 70 10 L 70 15 L 0 15 Z" fill="#FFB833"/>
+
+    <!-- File lines inside folder -->
+    <line x1="10" y1="30" x2="60" y2="30" stroke="#ffffff" stroke-width="3" opacity="0.7"/>
+    <line x1="10" y1="40" x2="50" y2="40" stroke="#ffffff" stroke-width="3" opacity="0.7"/>
+    <line x1="10" y1="50" x2="55" y2="50" stroke="#ffffff" stroke-width="3" opacity="0.7"/>
+  </g>
+</svg>
