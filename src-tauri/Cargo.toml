@@ -2,7 +2,7 @@
 name = "droiddock"
 version = "0.1.0"
 description = "macOS app for browsing Android device files via ADB"
-authors = ["rajiv"]
+authors = ["rajivm1991"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
