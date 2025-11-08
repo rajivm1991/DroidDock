@@ -272,6 +272,22 @@ npm test
 cd src-tauri && cargo test
 ```
 
+### Preview GitHub Pages Locally
+
+To preview the website (`docs/index.html`) locally:
+
+```bash
+# Using Python (built-in on macOS)
+cd docs && python3 -m http.server 8080
+
+# Or using npx
+cd docs && npx serve
+```
+
+Then open http://localhost:8080 in your browser.
+
+To stop the server: Press `Ctrl+C` or run `pkill -f "python3 -m http.server 8080"`
+
 ## Releases & Distribution
 
 ### Creating a New Release
