@@ -24,7 +24,9 @@
         {
           "identifier": "main-capability",
           "description": "Main app capabilities",
-          "windows": ["main"],
+          "windows": [
+            "main"
+          ],
           "permissions": [
             "core:default",
             "shell:allow-execute",
