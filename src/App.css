@@ -863,6 +863,126 @@ tbody tr {
   cursor: not-allowed;
 }
 
+/* Preview Modal Styles */
+.preview-dialog {
+  min-width: 600px;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.preview-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 500px;
+}
+
+.preview-header .close-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.preview-header .close-btn:hover {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.preview-content {
+  flex: 1;
+  overflow: auto;
+  min-height: 300px;
+  max-height: calc(90vh - 200px);
+}
+
+.preview-loading,
+.preview-unsupported {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  color: #666;
+  gap: 12px;
+}
+
+.preview-image-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: calc(90vh - 250px);
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.preview-text-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.preview-text {
+  background-color: #f8f8f8;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 16px;
+  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: #333;
+  max-height: calc(90vh - 250px);
+}
+
+.preview-info {
+  color: #999;
+  font-size: 12px;
+  text-align: center;
+  margin: 0;
+}
+
+.preview-btn {
+  background-color: #667eea;
+  color: white;
+}
+
+.preview-btn:hover:not(:disabled) {
+  background-color: #5568d3;
+}
+
 /* Keyboard Shortcuts Dialog */
 .shortcuts-dialog {
   min-width: 600px;
@@ -1969,5 +2089,51 @@ tbody tr {
   .clear-search-btn:hover {
     background-color: #3a3a3a;
     color: #c5cdd6;
+  }
+
+  /* Preview Modal Dark Mode */
+  .preview-dialog {
+    background-color: #2a2a2a;
+  }
+
+  .preview-header {
+    border-bottom-color: #3a3a3a;
+  }
+
+  .preview-header h3 {
+    color: #e0e0e0;
+  }
+
+  .preview-header .close-btn {
+    color: #999;
+  }
+
+  .preview-header .close-btn:hover {
+    background-color: #3a3a3a;
+    color: #ccc;
+  }
+
+  .preview-loading,
+  .preview-unsupported {
+    color: #999;
+  }
+
+  .preview-text {
+    background-color: #1a1a1a;
+    border-color: #3a3a3a;
+    color: #e0e0e0;
+  }
+
+  .preview-info {
+    color: #666;
+  }
+
+  .preview-btn {
+    background-color: #667eea;
+    color: white;
+  }
+
+  .preview-btn:hover:not(:disabled) {
+    background-color: #5568d3;
   }
 }

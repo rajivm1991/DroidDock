@@ -26,6 +26,12 @@ interface StorageInfo {
   percentage_used: number;
 }
 
+interface FilePreview {
+  file_type: string;  // "image", "text", or "unsupported"
+  content: string;    // base64 for images, text content for text files
+  size: number;       // file size in bytes
+}
+
 interface FileRowProps {
   file: FileEntry;
   fileIndex: number;
@@ -385,6 +391,12 @@ function App() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number>(-1);
+
+  // File preview state
+  const [showPreview, setShowPreview] = useState<boolean>(false);
+  const [previewData, setPreviewData] = useState<FilePreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState<boolean>(false);
+  const [previewFileName, setPreviewFileName] = useState<string>("");
 
   // Search state
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -1608,6 +1620,65 @@ function App() {
     }
   }
 
+  async function handlePreview() {
+    if (!selectedDevice || selectedFiles.size === 0) return;
+
+    const selectedFileNames = Array.from(selectedFiles);
+
+    // Only allow preview of a single file
+    if (selectedFileNames.length > 1) {
+      setError("Please select only one file to preview");
+      return;
+    }
+
+    // Find the selected file
+    const fileName = selectedFileNames[0];
+    const file = files.find(f => f.name === fileName) || searchResults.find(f => f.name === fileName);
+
+    if (!file) {
+      setError("File not found");
+      return;
+    }
+
+    // Don't allow preview of directories
+    if (file.is_directory) {
+      setError("Cannot preview directories");
+      return;
+    }
+
+    // Get the full path on device
+    const devicePath = searchMode
+      ? file.name
+      : currentPath === "/storage/emulated/0"
+      ? `/storage/emulated/0/${fileName}`
+      : `${currentPath}/${fileName}`;
+
+    setPreviewFileName(fileName);
+    setShowPreview(true);
+    setPreviewLoading(true);
+    setPreviewData(null);
+    setError("");
+
+    try {
+      const preview: FilePreview = await invoke("preview_file", {
+        deviceId: selectedDevice,
+        devicePath: devicePath,
+        extension: file.extension,
+      });
+
+      setPreviewData(preview);
+
+      if (preview.file_type === "unsupported") {
+        setError(`Cannot preview ${file.extension || "this"} file type. Supported types: images (jpg, png, gif, etc.) and text files.`);
+      }
+    } catch (err) {
+      setError(`Failed to preview file: ${err}`);
+      console.error("Preview error:", err);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }
+
   async function handleUpload() {
     if (!selectedDevice) return;
 
@@ -2281,6 +2352,16 @@ function App() {
                   <button onClick={clearSelection} className="contextual-btn clear-btn">
                     Clear
                   </button>
+                  {selectedFiles.size === 1 && (
+                    <button
+                      onClick={handlePreview}
+                      disabled={previewLoading}
+                      className="contextual-btn preview-btn"
+                      title="Preview file"
+                    >
+                      {previewLoading ? "Loading..." : "👁️ Preview"}
+                    </button>
+                  )}
                   <button
                     onClick={handleDownload}
                     disabled={downloading}
@@ -2327,6 +2408,64 @@ function App() {
                 className="confirm-delete-btn"
               >
                 {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPreview && (
+        <div className="modal-overlay" onClick={() => setShowPreview(false)}>
+          <div className="modal-dialog preview-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="preview-header">
+              <h3>📄 {previewFileName}</h3>
+              <button className="close-btn" onClick={() => setShowPreview(false)}>×</button>
+            </div>
+            <div className="preview-content">
+              {previewLoading ? (
+                <div className="preview-loading">
+                  <p>Loading preview...</p>
+                </div>
+              ) : previewData ? (
+                <>
+                  {previewData.file_type === "image" && (
+                    <div className="preview-image-container">
+                      <img
+                        src={`data:image/${previewFileName.split('.').pop()};base64,${previewData.content}`}
+                        alt={previewFileName}
+                        className="preview-image"
+                      />
+                      <p className="preview-info">
+                        Size: {(previewData.size / 1024).toFixed(2)} KB
+                      </p>
+                    </div>
+                  )}
+                  {previewData.file_type === "text" && (
+                    <div className="preview-text-container">
+                      <pre className="preview-text">{previewData.content}</pre>
+                      <p className="preview-info">
+                        Size: {(previewData.size / 1024).toFixed(2)} KB
+                      </p>
+                    </div>
+                  )}
+                  {previewData.file_type === "unsupported" && (
+                    <div className="preview-unsupported">
+                      <p>❌ Cannot preview this file type</p>
+                      <p className="preview-info">
+                        Supported types: images (jpg, png, gif, etc.) and text files
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="preview-loading">
+                  <p>No preview data available</p>
+                </div>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button onClick={() => setShowPreview(false)} className="cancel-btn">
+                Close
               </button>
             </div>
           </div>

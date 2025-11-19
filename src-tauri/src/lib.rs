@@ -95,6 +95,18 @@ fn is_video_extension(ext: &str) -> bool {
     matches!(ext, "mp4" | "avi" | "mov" | "mkv" | "webm" | "3gp" | "m4v")
 }
 
+// Helper function to check if a file extension is a text file
+fn is_text_extension(ext: &str) -> bool {
+    matches!(
+        ext,
+        "txt" | "log" | "json" | "xml" | "html" | "htm" | "css" | "js" | "jsx" |
+        "ts" | "tsx" | "md" | "yaml" | "yml" | "toml" | "ini" | "conf" | "cfg" |
+        "sh" | "bash" | "zsh" | "fish" | "py" | "rb" | "java" | "c" | "cpp" |
+        "h" | "hpp" | "rs" | "go" | "swift" | "kt" | "gradle" | "properties" |
+        "csv" | "tsv" | "sql" | "gitignore" | "env" | "config"
+    )
+}
+
 // Get thumbnail for an image or video file
 #[tauri::command]
 async fn get_thumbnail(
@@ -872,6 +884,133 @@ async fn upload_file(
     Ok(())
 }
 
+// Response type for file preview
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FilePreview {
+    pub file_type: String,  // "image", "text", or "unsupported"
+    pub content: String,    // base64 for images, text content for text files
+    pub size: u64,          // file size in bytes
+}
+
+// Preview a file from the Android device
+#[tauri::command]
+async fn preview_file(
+    app: tauri::AppHandle,
+    device_id: String,
+    device_path: String,
+    extension: Option<String>,
+) -> Result<FilePreview, String> {
+    let shell = app.shell();
+    let adb_cmd = get_adb_command();
+
+    // Define max file size for preview (10MB for text, 50MB for images)
+    const MAX_TEXT_SIZE: u64 = 10 * 1024 * 1024;
+    const MAX_IMAGE_SIZE: u64 = 50 * 1024 * 1024;
+
+    // Get file size first
+    let stat_output = shell
+        .command(&adb_cmd)
+        .args(["-s", &device_id, "shell", "stat", "-c", "%s", &device_path])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to get file size: {}", e))?;
+
+    if !stat_output.status.success() {
+        return Err("Failed to get file information".to_string());
+    }
+
+    let size_str = String::from_utf8_lossy(&stat_output.stdout).trim().to_string();
+    let file_size: u64 = size_str.parse()
+        .map_err(|_| "Failed to parse file size".to_string())?;
+
+    // Determine file type
+    let ext = extension
+        .as_ref()
+        .and_then(|e| e.strip_prefix("."))
+        .unwrap_or("")
+        .to_lowercase();
+
+    let is_image = is_image_extension(&ext);
+    let is_text = is_text_extension(&ext);
+
+    if !is_image && !is_text {
+        return Ok(FilePreview {
+            file_type: "unsupported".to_string(),
+            content: String::new(),
+            size: file_size,
+        });
+    }
+
+    // Check file size limits
+    if is_text && file_size > MAX_TEXT_SIZE {
+        return Err(format!(
+            "Text file too large to preview ({} MB). Maximum size is 10 MB.",
+            file_size / (1024 * 1024)
+        ));
+    }
+
+    if is_image && file_size > MAX_IMAGE_SIZE {
+        return Err(format!(
+            "Image file too large to preview ({} MB). Maximum size is 50 MB.",
+            file_size / (1024 * 1024)
+        ));
+    }
+
+    // Create a temp file to store the pulled file
+    let temp_file = tempfile::NamedTempFile::new()
+        .map_err(|e| format!("Failed to create temp file: {}", e))?;
+    let temp_path = temp_file.path().to_str()
+        .ok_or("Failed to get temp file path")?;
+
+    // Pull the file from the device
+    let pull_output = shell
+        .command(&adb_cmd)
+        .args(["-s", &device_id, "pull", &device_path, temp_path])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to pull file: {}", e))?;
+
+    if !pull_output.status.success() {
+        let stderr = String::from_utf8_lossy(&pull_output.stderr);
+        return Err(format!("Failed to pull file: {}", stderr));
+    }
+
+    // Read and process the file based on type
+    if is_image {
+        // Read image file and convert to base64
+        let image_bytes = fs::read(temp_path)
+            .map_err(|e| format!("Failed to read image file: {}", e))?;
+        let base64_content = general_purpose::STANDARD.encode(&image_bytes);
+
+        Ok(FilePreview {
+            file_type: "image".to_string(),
+            content: base64_content,
+            size: file_size,
+        })
+    } else {
+        // Read text file
+        let text_content = fs::read_to_string(temp_path)
+            .map_err(|e| format!("Failed to read text file: {}", e))?;
+
+        // Limit text content to reasonable size for display
+        let display_content = if text_content.len() > 500_000 {
+            format!(
+                "{}\n\n... (truncated, showing first 500KB of {} KB file)",
+                &text_content[..500_000],
+                text_content.len() / 1024
+            )
+        } else {
+            text_content
+        };
+
+        Ok(FilePreview {
+            file_type: "text".to_string(),
+            content: display_content,
+            size: file_size,
+        })
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -892,7 +1031,8 @@ pub fn run() {
             search_files,
             get_storage_info,
             download_file,
-            upload_file
+            upload_file,
+            preview_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
