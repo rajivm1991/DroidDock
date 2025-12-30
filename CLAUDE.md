@@ -42,3 +42,8 @@ cd src-tauri && cargo test # Run Rust tests
 2. **Step 2**: Run: `opencode run -m github-copilot/claude-3.5-sonnet "Attempt @impl/{task-name}.md"`
 
 This workflow applies to ALL code modifications and feature implementations - ALWAYS follow these two steps.
+
+**Note on impl/ directory:**
+- Implementation documents in `impl/` are **local-only planning files** and are not committed to git (added to `.gitignore`)
+- They serve as temporary planning artifacts during development
+- Important architectural decisions should be documented in commit messages, PR descriptions, or permanent documentation files

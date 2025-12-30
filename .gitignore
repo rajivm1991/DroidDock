@@ -25,3 +25,6 @@ dist-ssr
 
 # Rust/Tauri
 /src-tauri/target
+
+# Claude Code workflow artifacts
+impl/
