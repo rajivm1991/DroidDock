@@ -908,9 +908,13 @@ async fn preview_file(
     const MAX_IMAGE_SIZE: u64 = 50 * 1024 * 1024;
 
     // Get file size first
+    // Escape single quotes in path and wrap in quotes to handle spaces
+    let escaped_path = device_path.replace("'", "'\\''");
+    let stat_command = format!("stat -c %s '{}'", escaped_path);
+
     let stat_output = shell
         .command(&adb_cmd)
-        .args(["-s", &device_id, "shell", "stat", "-c", "%s", &device_path])
+        .args(["-s", &device_id, "shell", &stat_command])
         .output()
         .await
         .map_err(|e| format!("Failed to get file size: {}", e))?;
