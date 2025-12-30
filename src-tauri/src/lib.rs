@@ -923,15 +923,28 @@ async fn preview_file(
     let file_size: u64 = size_str.parse()
         .map_err(|_| "Failed to parse file size".to_string())?;
 
-    // Determine file type
+    // Determine file type - handle extension with or without dot prefix
     let ext = extension
         .as_ref()
-        .and_then(|e| e.strip_prefix("."))
+        .map(|e| {
+            let trimmed = e.trim();
+            if trimmed.starts_with('.') {
+                &trimmed[1..]
+            } else {
+                trimmed
+            }
+        })
         .unwrap_or("")
         .to_lowercase();
 
+    // Add debug logging
+    eprintln!("Preview file debug - extension param: {:?}", extension);
+    eprintln!("Preview file debug - processed ext: {}", ext);
+
     let is_image = is_image_extension(&ext);
     let is_text = is_text_extension(&ext);
+
+    eprintln!("Preview file debug - is_image: {}, is_text: {}", is_image, is_text);
 
     if !is_image && !is_text {
         return Ok(FilePreview {
