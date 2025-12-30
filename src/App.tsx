@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { join } from "@tauri-apps/api/path";
@@ -1710,7 +1710,7 @@ function App() {
     }
   }
 
-  async function handlePreview() {
+  const handlePreview = useCallback(async () => {
     if (!selectedDevice || selectedFiles.size === 0) return;
 
     const selectedFileNames = Array.from(selectedFiles);
@@ -1743,12 +1743,6 @@ function App() {
       ? `/storage/emulated/0/${fileName}`
       : `${currentPath}/${fileName}`;
 
-    console.log("File preview debug:", {
-      fileName: file.name,
-      extension: file.extension,
-      devicePath: devicePath
-    });
-
     setPreviewFileName(fileName);
     setShowPreview(true);
     setPreviewLoading(true);
@@ -1762,7 +1756,6 @@ function App() {
         extension: file.extension,
       });
 
-      console.log("Preview result:", preview);
       setPreviewData(preview);
 
       if (preview.file_type === "unsupported") {
@@ -1770,13 +1763,12 @@ function App() {
       }
     } catch (err) {
       setError(`Failed to preview file: ${err}`);
-      console.error("Preview error:", err);
     } finally {
       setPreviewLoading(false);
     }
-  }
+  }, [selectedDevice, selectedFiles, files, searchResults, searchMode, currentPath]);
 
-  async function handlePreviewNavigation(key: string) {
+  const handlePreviewNavigation = useCallback(async (key: string) => {
     if (!selectedDevice) return;
 
     const displayFiles = getDisplayFiles();
@@ -1866,9 +1858,7 @@ function App() {
     setFocusedIndex(nextIndex);
 
     // Update selection to new file
-    selectedFiles.clear();
-    selectedFiles.add(newFile.name);
-    setSelectedFiles(new Set(selectedFiles));
+    setSelectedFiles(new Set([newFile.name]));
 
     // Scroll into view
     setTimeout(() => {
@@ -1906,11 +1896,10 @@ function App() {
       }
     } catch (err) {
       setError(`Failed to preview file: ${err}`);
-      console.error("Preview error:", err);
     } finally {
       setPreviewLoading(false);
     }
-  }
+  }, [selectedDevice, focusedIndex, viewMode, files, searchResults, searchMode, currentPath]);
 
   async function handleUpload() {
     if (!selectedDevice) return;

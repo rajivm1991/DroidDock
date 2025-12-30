@@ -942,13 +942,19 @@ async fn preview_file(
         .to_lowercase();
 
     // Add debug logging
-    eprintln!("Preview file debug - extension param: {:?}", extension);
-    eprintln!("Preview file debug - processed ext: {}", ext);
+    #[cfg(debug_assertions)]
+    {
+        eprintln!("Preview file debug - extension param: {:?}", extension);
+        eprintln!("Preview file debug - processed ext: {}", ext);
+    }
 
     let is_image = is_image_extension(&ext);
     let is_text = is_text_extension(&ext);
 
-    eprintln!("Preview file debug - is_image: {}, is_text: {}", is_image, is_text);
+    #[cfg(debug_assertions)]
+    {
+        eprintln!("Preview file debug - is_image: {}, is_text: {}", is_image, is_text);
+    }
 
     if !is_image && !is_text {
         return Ok(FilePreview {
