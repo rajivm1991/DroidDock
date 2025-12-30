@@ -787,9 +787,7 @@ function App() {
           if (!file.is_directory) {
             // Temporarily set selection to the focused file (needed for handlePreview)
             const fileName = file.name;
-            selectedFiles.clear();
-            selectedFiles.add(fileName);
-            setSelectedFiles(new Set(selectedFiles));
+            setSelectedFiles(new Set([fileName]));
             handlePreview();
           }
         }
@@ -921,8 +919,7 @@ function App() {
               setFocusedIndex(0);
               const file = displayFiles[0];
               if (!file.is_directory) {
-                selectedFiles.add(file.name);
-                setSelectedFiles(new Set(selectedFiles));
+                setSelectedFiles(new Set([...selectedFiles, file.name]));
               }
               setTimeout(() => {
                 const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused, .list-item.focused');
@@ -933,8 +930,9 @@ function App() {
 
             // First, select the anchor file if not already selected
             const currentFile = displayFiles[focusedIndex];
+            let updatedSelection = new Set(selectedFiles);
             if (!currentFile.is_directory && !selectedFiles.has(currentFile.name)) {
-              selectedFiles.add(currentFile.name);
+              updatedSelection.add(currentFile.name);
             }
 
             let newIndex = focusedIndex;
@@ -980,9 +978,9 @@ function App() {
 
             // Add to selection (only files, not directories)
             if (!file.is_directory) {
-              selectedFiles.add(file.name);
-              setSelectedFiles(new Set(selectedFiles));
+              updatedSelection.add(file.name);
             }
+            setSelectedFiles(updatedSelection);
 
             // Scroll into view
             setTimeout(() => {
@@ -2638,9 +2636,15 @@ function App() {
 
       {showPreview && (
         <div className="modal-overlay" onClick={() => setShowPreview(false)}>
-          <div className="modal-dialog preview-dialog" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal-dialog preview-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="preview-title"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="preview-header">
-              <h3>📄 {previewFileName}</h3>
+              <h3 id="preview-title">📄 {previewFileName}</h3>
               <button className="close-btn" onClick={() => setShowPreview(false)}>×</button>
             </div>
             <div className="preview-content">
