@@ -41,6 +41,7 @@ interface FileRowProps {
   loadThumbnail: (file: FileEntry, filePath: string) => Promise<void>;
   needsThumbnail: (file: FileEntry) => boolean;
   onNavigate: () => void;
+  onPreview: () => void;
   isSelected: boolean;
   isFocused: boolean;
   onSelect: (index: number, e: React.MouseEvent) => void;
@@ -105,7 +106,7 @@ function StatusBar({ storageInfo, fileCount, selectedCount }: StatusBarProps) {
   );
 }
 
-function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate, isSelected, isFocused, onSelect, isRenaming, renameValue, onRenameChange, onRenameConfirm, onRenameCancel, renameInputRef }: FileRowProps) {
+function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate, onPreview, isSelected, isFocused, onSelect, isRenaming, renameValue, onRenameChange, onRenameConfirm, onRenameCancel, renameInputRef }: FileRowProps) {
   const rowRef = useRef<HTMLTableRowElement>(null);
   const [hasLoadedThumbnail, setHasLoadedThumbnail] = useState(false);
 
@@ -165,22 +166,17 @@ function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCac
     <tr
       ref={rowRef}
       onClick={(e) => onSelect(fileIndex, e)}
+      onDoubleClick={() => {
+        if (file.is_directory) {
+          onNavigate();
+        } else {
+          onPreview();
+        }
+      }}
       className={`file-row ${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""} ${isFocused ? "focused" : ""}`}
       data-file-index={fileIndex}
     >
       <td>
-        {!file.is_directory && (
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => {}}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(fileIndex, e);
-            }}
-            className="file-checkbox"
-          />
-        )}
         {thumbnailsEnabled && thumbnailUrl ? (
           <img src={thumbnailUrl} alt={file.name} className="thumbnail" />
         ) : (
@@ -221,8 +217,9 @@ function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCac
           </span>
         )}
       </td>
-      <td>{file.is_directory ? "-" : formatBytes(parseInt(file.size))}</td>
-      <td>{file.date}</td>
+      <td className="kind-cell">{getFileKind(file)}</td>
+      <td className="size-cell">{file.is_directory ? "-" : formatBytes(parseInt(file.size))}</td>
+      <td className="date-cell">{file.date}</td>
     </tr>
   );
 }
@@ -236,12 +233,13 @@ interface GridItemProps {
   loadThumbnail: (file: FileEntry, filePath: string) => Promise<void>;
   needsThumbnail: (file: FileEntry) => boolean;
   onNavigate: () => void;
+  onPreview: () => void;
   isSelected: boolean;
   isFocused: boolean;
   onSelect: (index: number, e: React.MouseEvent) => void;
 }
 
-function GridItem({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate, isSelected, isFocused, onSelect }: GridItemProps) {
+function GridItem({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCache, loadThumbnail, needsThumbnail, onNavigate, onPreview, isSelected, isFocused, onSelect }: GridItemProps) {
   const itemRef = useRef<HTMLDivElement>(null);
   const [hasLoadedThumbnail, setHasLoadedThumbnail] = useState(false);
 
@@ -302,21 +300,14 @@ function GridItem({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCa
           onSelect(fileIndex, e);
         }
       }}
+      onDoubleClick={() => {
+        if (!file.is_directory) {
+          onPreview();
+        }
+      }}
       className={`grid-item ${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""} ${isFocused ? "focused" : ""}`}
       data-file-index={fileIndex}
     >
-      {!file.is_directory && (
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={() => {}}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect(fileIndex, e);
-          }}
-          className="grid-item-checkbox"
-        />
-      )}
       <div className="grid-item-icon">
         {thumbnailsEnabled && thumbnailUrl ? (
           <img src={thumbnailUrl} alt={file.name} className="grid-thumbnail" />
@@ -325,51 +316,6 @@ function GridItem({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCa
         )}
       </div>
       <div className="grid-item-name">{file.name}</div>
-    </div>
-  );
-}
-
-interface ListItemProps {
-  file: FileEntry;
-  fileIndex: number;
-  onNavigate: () => void;
-  isSelected: boolean;
-  isFocused: boolean;
-  onSelect: (index: number, e: React.MouseEvent) => void;
-}
-
-function ListItem({ file, fileIndex, onNavigate, isSelected, isFocused, onSelect }: ListItemProps) {
-  return (
-    <div
-      onClick={(e) => onSelect(fileIndex, e)}
-      onDoubleClick={() => file.is_directory && onNavigate()}
-      className={`list-item ${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""} ${isFocused ? "focused" : ""}`}
-      data-file-index={fileIndex}
-    >
-      {!file.is_directory && (
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={() => {}}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelect(fileIndex, e);
-          }}
-          className="list-item-checkbox"
-        />
-      )}
-      <span className="list-item-icon">{file.is_directory ? "📁" : "📄"}</span>
-      <span
-        className={file.is_directory ? "list-item-name clickable" : "list-item-name"}
-        onClick={(e) => {
-          if (file.is_directory) {
-            e.stopPropagation();
-            onNavigate();
-          }
-        }}
-      >
-        {file.name}
-      </span>
     </div>
   );
 }
@@ -388,6 +334,62 @@ const IMAGE_MIME_TYPES: { [key: string]: string } = {
 function getImageMimeType(fileName: string): string {
   const ext = fileName.split('.').pop()?.toLowerCase();
   return IMAGE_MIME_TYPES[ext || ''] || 'image/jpeg'; // default to jpeg if unknown
+}
+
+// Helper function to get file kind/type
+function getFileKind(file: FileEntry): string {
+  if (file.is_directory) {
+    return 'Folder';
+  }
+  
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  
+  // Image files
+  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg', 'ico', 'heic', 'heif'].includes(ext)) {
+    return 'Image';
+  }
+  // Video files
+  if (['mp4', 'avi', 'mov', 'mkv', 'flv', 'wmv', 'webm', 'm4v', '3gp'].includes(ext)) {
+    return 'Video';
+  }
+  // Audio files
+  if (['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a', 'wma', 'opus'].includes(ext)) {
+    return 'Audio';
+  }
+  // Document files
+  if (['pdf', 'doc', 'docx', 'txt', 'rtf', 'odt'].includes(ext)) {
+    return 'Document';
+  }
+  // Spreadsheet files
+  if (['xls', 'xlsx', 'csv', 'ods'].includes(ext)) {
+    return 'Spreadsheet';
+  }
+  // Presentation files
+  if (['ppt', 'pptx', 'odp', 'key'].includes(ext)) {
+    return 'Presentation';
+  }
+  // Archive files
+  if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'iso'].includes(ext)) {
+    return 'Archive';
+  }
+  // Code files
+  if (['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'c', 'cpp', 'h', 'cs', 'php', 'rb', 'go', 'rs', 'swift', 'kt'].includes(ext)) {
+    return 'Code';
+  }
+  // Web files
+  if (['html', 'htm', 'css', 'scss', 'sass', 'less', 'json', 'xml', 'yaml', 'yml'].includes(ext)) {
+    return 'Web';
+  }
+  // Executable/APK
+  if (['apk', 'exe', 'dmg', 'app', 'deb', 'rpm'].includes(ext)) {
+    return 'Application';
+  }
+  
+  // Default
+  if (ext) {
+    return ext.toUpperCase() + ' File';
+  }
+  return 'File';
 }
 
 // Helper function to calculate grid columns for navigation
@@ -435,6 +437,8 @@ function App() {
   const [previewData, setPreviewData] = useState<FilePreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState<boolean>(false);
   const [previewFileName, setPreviewFileName] = useState<string>("");
+  const [imageOrientation, setImageOrientation] = useState<'portrait' | 'landscape' | 'square'>('landscape');
+  const [imageDimensions, setImageDimensions] = useState<{width: number; height: number} | null>(null);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -458,10 +462,10 @@ function App() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // View mode state
-  const [viewMode, setViewMode] = useState<'table' | 'grid' | 'list' | 'column'>(() => {
+  const [viewMode, setViewMode] = useState<'table' | 'grid' | 'column'>(() => {
     // Load saved view mode from localStorage
     const saved = localStorage.getItem('droiddock-view-mode');
-    return (saved === 'table' || saved === 'grid' || saved === 'list' || saved === 'column') ? saved : 'table';
+    return (saved === 'table' || saved === 'grid' || saved === 'column') ? saved : 'table';
   });
   const [iconSize, setIconSize] = useState<'small' | 'medium' | 'large' | 'xlarge'>('medium');
 
@@ -527,7 +531,7 @@ function App() {
           setFocusedIndex(newIndex);
           // Scroll to the renamed file after a short delay
           setTimeout(() => {
-            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused, .list-item.focused');
+            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
             focusedElement?.scrollIntoView({ block: 'center', behavior: 'smooth' });
           }, 100);
         }
@@ -540,7 +544,7 @@ function App() {
           setFocusedIndex(savedIndex);
           // Scroll to the restored focus after a short delay
           setTimeout(() => {
-            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused, .list-item.focused');
+            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
             focusedElement?.scrollIntoView({ block: 'center', behavior: 'smooth' });
           }, 100);
         } else if (focusedIndex < 0 || focusedIndex >= files.length) {
@@ -737,10 +741,10 @@ function App() {
         e.preventDefault();
         setViewMode('grid');
       }
-      // Ctrl/Cmd + 3: Switch to list view
+      // Ctrl/Cmd + 3: Switch to column view
       else if ((e.ctrlKey || e.metaKey) && e.key === '3') {
         e.preventDefault();
-        setViewMode('list');
+        setViewMode('column');
       }
       // Ctrl/Cmd + F: Focus search
       else if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
@@ -777,13 +781,8 @@ function App() {
         e.preventDefault();
         setViewMode('grid');
       }
-      // Cmd/Ctrl + 3: Switch to list view
+      // Cmd/Ctrl + 3: Switch to column view
       else if ((e.ctrlKey || e.metaKey) && e.key === '3') {
-        e.preventDefault();
-        setViewMode('list');
-      }
-      // Cmd/Ctrl + 4: Switch to column view
-      else if ((e.ctrlKey || e.metaKey) && e.key === '4') {
         e.preventDefault();
         setViewMode('column');
       }
@@ -813,17 +812,18 @@ function App() {
         e.preventDefault();
         setThumbnailsEnabled(!thumbnailsEnabled);
       }
-      // Space: Preview focused file (files only, not folders)
+      // Space: Toggle preview for focused file (files only, not folders)
       else if (!isTyping && e.key === ' ') {
         e.preventDefault();
-        if (focusedIndex >= 0 && focusedIndex < getDisplayFiles().length) {
+        // If preview is already open, close it
+        if (showPreview) {
+          setShowPreview(false);
+        } else if (focusedIndex >= 0 && focusedIndex < getDisplayFiles().length) {
           const file = getDisplayFiles()[focusedIndex];
           // Only allow preview of files, not directories
           if (!file.is_directory) {
-            // Temporarily set selection to the focused file (needed for handlePreview)
-            const fileName = file.name;
-            setSelectedFiles(new Set([fileName]));
-            handlePreview();
+            // Preview the focused file directly without changing selection
+            previewFileByName(file.name);
           }
         }
       }
@@ -957,7 +957,7 @@ function App() {
                 setSelectedFiles(new Set([...selectedFiles, file.name]));
               }
               setTimeout(() => {
-                const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused, .list-item.focused');
+                const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
                 focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
               }, 0);
               return;
@@ -972,8 +972,8 @@ function App() {
 
             let newIndex = focusedIndex;
 
-            if (viewMode === 'table' || viewMode === 'list') {
-              // Table/List view: only up/down arrows
+            if (viewMode === 'table') {
+              // Table view: only up/down arrows
               if (e.key === 'ArrowUp') {
                 newIndex = focusedIndex <= 0 ? displayFiles.length - 1 : focusedIndex - 1;
               } else if (e.key === 'ArrowDown') {
@@ -1007,7 +1007,7 @@ function App() {
 
             // Scroll into view
             setTimeout(() => {
-              const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused, .list-item.focused');
+              const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
               focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             }, 0);
             return;
@@ -1018,7 +1018,7 @@ function App() {
           if (focusedIndex < 0) {
             setFocusedIndex(0);
             setTimeout(() => {
-              const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused, .list-item.focused');
+              const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
               focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
             }, 0);
             return;
@@ -1069,7 +1069,7 @@ function App() {
 
           // Scroll focused item into view
           setTimeout(() => {
-            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused, .list-item.focused');
+            const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused');
             focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
           }, 0);
         }
@@ -1334,6 +1334,23 @@ function App() {
       : "/storage/emulated/0");
   }
 
+  function getTruncatedBreadcrumb(): { label: string; isStorage: boolean; actualIndex: number; isEllipsis?: boolean }[] {
+    const segments = getDisplaySegments();
+    
+    // If 4 or fewer segments, show all
+    if (segments.length <= 4) {
+      return segments;
+    }
+    
+    // Show: first / ... / second-to-last / last
+    return [
+      segments[0],
+      { label: '...', isStorage: false, actualIndex: -1, isEllipsis: true },
+      segments[segments.length - 2],
+      segments[segments.length - 1]
+    ];
+  }
+
   function getVisibleFiles() {
     const visibleFiles = showHiddenFiles
       ? files
@@ -1431,11 +1448,14 @@ function App() {
   }
 
   function handleFileSelect(fileName: string, index: number, event: React.MouseEvent) {
+    // Always update focused index when clicking on any item
+    setFocusedIndex(index);
+
     // Check if the file is a directory - don't allow selection of folders
     const visibleFiles = getDisplayFiles();
     const file = visibleFiles[index];
     if (file && file.is_directory) {
-      // Don't select folders - do nothing
+      // Don't select folders - but we already set focus above
       return;
     }
 
@@ -1790,6 +1810,63 @@ function App() {
     }
   }, [selectedDevice, selectedFiles, files, searchResults, searchMode, currentPath]);
 
+  // Preview a file by name without changing selection
+  const previewFileByName = useCallback(async (fileName: string) => {
+    if (!selectedDevice) return;
+
+    // Find the file
+    const file = files.find(f => f.name === fileName) || searchResults.find(f => f.name === fileName);
+
+    if (!file) {
+      setError("File not found");
+      return;
+    }
+
+    // Don't allow preview of directories
+    if (file.is_directory) {
+      setError("Cannot preview directories");
+      return;
+    }
+
+    // Get the full path on device
+    const devicePath = searchMode
+      ? file.name
+      : currentPath === "/storage/emulated/0"
+      ? `/storage/emulated/0/${fileName}`
+      : `${currentPath}/${fileName}`;
+
+    setPreviewFileName(fileName);
+    setShowPreview(true);
+    setPreviewLoading(true);
+    setPreviewData(null);
+    setError("");
+
+    try {
+      const preview: FilePreview = await invoke("preview_file", {
+        deviceId: selectedDevice,
+        devicePath: devicePath,
+        extension: file.extension,
+      });
+
+      setPreviewData(preview);
+
+      if (preview.file_type === "unsupported") {
+        setError(`Cannot preview ${file.extension || "this"} file type. Supported types: images (jpg, png, gif, etc.) and text files.`);
+      }
+    } catch (err) {
+      setError(`Failed to preview file: ${err}`);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [selectedDevice, files, searchResults, searchMode, currentPath]);
+
+  const previewFile = useCallback((fileName: string) => {
+    // Select the file and trigger preview
+    setSelectedFiles(new Set([fileName]));
+    // Use setTimeout to ensure state is updated before preview
+    setTimeout(() => handlePreview(), 0);
+  }, [handlePreview]);
+
   const handlePreviewNavigation = useCallback(async (key: string) => {
     if (!selectedDevice) return;
 
@@ -1812,14 +1889,14 @@ function App() {
       } else if (key === 'ArrowLeft') {
         nextIndex = ((focusedIndex - 1) + displayFiles.length) % displayFiles.length;
       }
-    } else if (viewMode === 'table' || viewMode === 'list') {
-      // Table/List view: simple up/down
+    } else if (viewMode === 'table') {
+      // Table view: simple up/down
       if (key === 'ArrowDown') {
         nextIndex = (focusedIndex + 1) % displayFiles.length;
       } else if (key === 'ArrowUp') {
         nextIndex = ((focusedIndex - 1) + displayFiles.length) % displayFiles.length;
       } else {
-        // Left/Right don't apply in table/list view
+        // Left/Right don't apply in table view
         return;
       }
     } else {
@@ -2149,96 +2226,248 @@ function App() {
           </div>
         </div>
       )}
-      <header>
-        <h1>DroidDock</h1>
-        <div className="device-selector">
-          <label>Device:</label>
-          <select
-            value={selectedDevice}
-            onChange={(e) => setSelectedDevice(e.target.value)}
-            disabled={devices.length === 0}
-          >
-            <option value="">Select a device</option>
-            {devices.map((device) => (
-              <option key={device.id} value={device.id}>
-                {device.id} ({device.status})
-              </option>
-            ))}
-          </select>
-          <button onClick={loadDevices}>Refresh</button>
-          <div className="settings-dropdown">
-            <button
-              onClick={() => setSettingsOpen(!settingsOpen)}
-              title="Settings"
+      <header className="compact-header">
+        <div className="header-row-1">
+          <div className="header-controls">
+            <select
+              value={selectedDevice}
+              onChange={(e) => setSelectedDevice(e.target.value)}
+              disabled={devices.length === 0}
+              className="device-select"
             >
-              ⋯
+              <option value="">Select a device</option>
+              {devices.map((device) => (
+                <option key={device.id} value={device.id}>
+                  {device.id} ({device.status})
+                </option>
+              ))}
+            </select>
+            <button onClick={loadDevices} className="control-btn">Refresh</button>
+            
+            <div className="control-divider"></div>
+            
+            <button
+              onClick={() => setViewMode('table')}
+              className={`control-btn ${viewMode === 'table' ? 'active' : ''}`}
+              title="Table view (Cmd+1)"
+            >
+              ☰
             </button>
-            {settingsOpen && (
-              <div className="settings-menu">
-                <div className="settings-item">
-                  <label className="toggle-label">
-                    <span>Show Thumbnails</span>
-                    <input
-                      type="checkbox"
-                      checked={thumbnailsEnabled}
-                      onChange={(e) => setThumbnailsEnabled(e.target.checked)}
-                      className="toggle-checkbox"
-                    />
-                    <span className="toggle-switch"></span>
-                  </label>
-                </div>
-                <div className="settings-item">
-                  <label className="toggle-label">
-                    <span>Show Hidden Files</span>
-                    <input
-                      type="checkbox"
-                      checked={showHiddenFiles}
-                      onChange={(e) => setShowHiddenFiles(e.target.checked)}
-                      className="toggle-checkbox"
-                    />
-                    <span className="toggle-switch"></span>
-                  </label>
-                </div>
-                <div className="settings-divider"></div>
-                <div className="settings-item">
-                  <label className="sort-label">Sort by:</label>
-                  <select
-                    value={sortColumn}
-                    onChange={(e) => setSortColumn(e.target.value as 'name' | 'size' | 'date')}
-                    className="sort-select"
-                  >
-                    <option value="name">Name</option>
-                    <option value="size">Size</option>
-                    <option value="date">Date</option>
-                  </select>
-                </div>
-                <div className="settings-item">
-                  <label className="sort-label">Direction:</label>
-                  <select
-                    value={sortDirection}
-                    onChange={(e) => setSortDirection(e.target.value as 'asc' | 'desc')}
-                    className="sort-select"
-                  >
-                    <option value="asc">Ascending</option>
-                    <option value="desc">Descending</option>
-                  </select>
-                </div>
-                <div className="settings-divider"></div>
-                <div className="settings-item">
-                  <button
-                    onClick={() => {
-                      setShowShortcutsHelp(true);
-                      setSettingsOpen(false);
-                    }}
-                    className="shortcuts-btn"
-                  >
-                    ⌨️ Keyboard Shortcuts
-                  </button>
-                </div>
-              </div>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`control-btn ${viewMode === 'grid' ? 'active' : ''}`}
+              title="Grid view (Cmd+2)"
+            >
+              ⊞
+            </button>
+            <button
+              onClick={() => setViewMode('column')}
+              className={`control-btn ${viewMode === 'column' ? 'active' : ''}`}
+              title="Column view (Cmd+3)"
+            >
+              ▦
+            </button>
+            
+            {viewMode === 'grid' && (
+              <>
+                <div className="control-divider"></div>
+                <button
+                  onClick={() => setIconSize('small')}
+                  className={`control-btn ${iconSize === 'small' ? 'active' : ''}`}
+                  title="Small icons"
+                >
+                  −
+                </button>
+                <button
+                  onClick={() => setIconSize('medium')}
+                  className={`control-btn ${iconSize === 'medium' ? 'active' : ''}`}
+                  title="Medium icons"
+                >
+                  ●
+                </button>
+                <button
+                  onClick={() => setIconSize('large')}
+                  className={`control-btn ${iconSize === 'large' ? 'active' : ''}`}
+                  title="Large icons"
+                >
+                  ◐
+                </button>
+                <button
+                  onClick={() => setIconSize('xlarge')}
+                  className={`control-btn ${iconSize === 'xlarge' ? 'active' : ''}`}
+                  title="Extra large icons"
+                >
+                  ○
+                </button>
+              </>
             )}
+            
+            <div className="control-divider"></div>
+            
+            <div className="settings-dropdown">
+              <button
+                onClick={() => setSettingsOpen(!settingsOpen)}
+                title="Settings"
+                className="control-btn settings-btn"
+              >
+                ⚙
+              </button>
+              {settingsOpen && (
+                <div className="settings-menu">
+                  <div className="settings-item">
+                    <label className="toggle-label">
+                      <span>Show Thumbnails</span>
+                      <input
+                        type="checkbox"
+                        checked={thumbnailsEnabled}
+                        onChange={(e) => setThumbnailsEnabled(e.target.checked)}
+                        className="toggle-checkbox"
+                      />
+                      <span className="toggle-switch"></span>
+                    </label>
+                  </div>
+                  <div className="settings-item">
+                    <label className="toggle-label">
+                      <span>Show Hidden Files</span>
+                      <input
+                        type="checkbox"
+                        checked={showHiddenFiles}
+                        onChange={(e) => setShowHiddenFiles(e.target.checked)}
+                        className="toggle-checkbox"
+                      />
+                      <span className="toggle-switch"></span>
+                    </label>
+                  </div>
+                  <div className="settings-divider"></div>
+                  <div className="settings-item">
+                    <label className="sort-label">Sort by:</label>
+                    <select
+                      value={sortColumn}
+                      onChange={(e) => setSortColumn(e.target.value as 'name' | 'size' | 'date')}
+                      className="sort-select"
+                    >
+                      <option value="name">Name</option>
+                      <option value="size">Size</option>
+                      <option value="date">Date</option>
+                    </select>
+                  </div>
+                  <div className="settings-item">
+                    <label className="sort-label">Direction:</label>
+                    <select
+                      value={sortDirection}
+                      onChange={(e) => setSortDirection(e.target.value as 'asc' | 'desc')}
+                      className="sort-select"
+                    >
+                      <option value="asc">Ascending</option>
+                      <option value="desc">Descending</option>
+                    </select>
+                  </div>
+                  <div className="settings-divider"></div>
+                  <div className="settings-item">
+                    <button
+                      onClick={() => {
+                        setShowShortcutsHelp(true);
+                        setSettingsOpen(false);
+                      }}
+                      className="shortcuts-btn"
+                    >
+                      ⌨️ Keyboard Shortcuts
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
+
+        {selectedDevice && (
+          <>
+            <div className="header-row-2">
+              <div className="breadcrumb">
+                {viewMode === 'column' ? (
+                  // In column view, show full path without shortening
+                  <>
+                    <span>
+                      <button
+                        onClick={() => setCurrentPath('/')}
+                        className="breadcrumb-btn"
+                      >
+                        /
+                      </button>
+                    </span>
+                    {getPathSegments().map((segment, index) => (
+                      <span key={index}>
+                        <span className="separator">→</span>
+                        <button
+                          onClick={() => navigateToSegment(index)}
+                          className="breadcrumb-btn"
+                        >
+                          {segment}
+                        </button>
+                      </span>
+                    ))}
+                  </>
+                ) : (
+                  // In other views, use truncated breadcrumb
+                  getTruncatedBreadcrumb().map((segment, index) => (
+                    <span key={index}>
+                      {index > 0 && <span className="separator">→</span>}
+                      {segment.isEllipsis ? (
+                        <span className="breadcrumb-ellipsis">{segment.label}</span>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (segment.isStorage) {
+                              navigateToHome();
+                            } else {
+                              navigateToSegment(segment.actualIndex);
+                            }
+                          }}
+                          className="breadcrumb-btn"
+                        >
+                          {segment.label}
+                        </button>
+                      )}
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="header-row-3">
+              <div className="search-bar">
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search files..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && performSearch()}
+                  className="search-input"
+                />
+                <label className="search-option">
+                  <input
+                    type="checkbox"
+                    checked={searchRecursive}
+                    onChange={(e) => setSearchRecursive(e.target.checked)}
+                  />
+                  All subdirectories
+                </label>
+                <button
+                  onClick={performSearch}
+                  className="search-btn"
+                >
+                  {searching ? "Searching..." : "Search"}
+                </button>
+                {searchMode && (
+                  <button onClick={exitSearchMode} className="clear-search-btn">
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+          </>
+        )}
       </header>
 
       {error && (
@@ -2262,149 +2491,6 @@ function App() {
 
       {selectedDevice && (
         <>
-          <div className="breadcrumb">
-            {viewMode === 'column' ? (
-              // In column view, show full path without shortening
-              <>
-                <span>
-                  <button
-                    onClick={() => setCurrentPath('/')}
-                    className="breadcrumb-btn"
-                  >
-                    /
-                  </button>
-                </span>
-                {getPathSegments().map((segment, index) => (
-                  <span key={index}>
-                    <span className="separator">→</span>
-                    <button
-                      onClick={() => navigateToSegment(index)}
-                      className="breadcrumb-btn"
-                    >
-                      {segment}
-                    </button>
-                  </span>
-                ))}
-              </>
-            ) : (
-              // In other views, use the display segments (shortened)
-              getDisplaySegments().map((segment, index) => (
-                <span key={index}>
-                  {index > 0 && <span className="separator">→</span>}
-                  <button
-                    onClick={() => {
-                      if (segment.isStorage) {
-                        navigateToHome();
-                      } else {
-                        navigateToSegment(segment.actualIndex);
-                      }
-                    }}
-                    className="breadcrumb-btn"
-                  >
-                    {segment.label}
-                  </button>
-                </span>
-              ))
-            )}
-          </div>
-
-          <div className="toolbar">
-            <div className="search-bar">
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search files..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && performSearch()}
-                className="search-input"
-              />
-              <label className="search-option">
-                <input
-                  type="checkbox"
-                  checked={searchRecursive}
-                  onChange={(e) => setSearchRecursive(e.target.checked)}
-                />
-                All subdirectories
-              </label>
-              <button
-                onClick={performSearch}
-                disabled={!searchQuery.trim() || searching}
-                className="search-btn"
-              >
-                {searching ? "Searching..." : "Search"}
-              </button>
-              {searchMode && (
-                <button onClick={exitSearchMode} className="clear-search-btn">
-                  Clear
-                </button>
-              )}
-            </div>
-
-            <div className="view-toggle">
-              <button
-                onClick={() => setViewMode('table')}
-                className={`view-btn ${viewMode === 'table' ? 'active' : ''}`}
-                title="Table view (Cmd+1)"
-              >
-                ☰
-              </button>
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                title="Grid view (Cmd+2)"
-              >
-                ⊞
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
-                title="List view (Cmd+3)"
-              >
-                ≡
-              </button>
-              <button
-                onClick={() => setViewMode('column')}
-                className={`view-btn ${viewMode === 'column' ? 'active' : ''}`}
-                title="Column view (Cmd+4)"
-              >
-                ▦
-              </button>
-              {viewMode === 'grid' && (
-                <div className="zoom-controls">
-                  <button
-                    onClick={() => setIconSize('small')}
-                    className={`zoom-btn ${iconSize === 'small' ? 'active' : ''}`}
-                    title="Small icons"
-                  >
-                    −
-                  </button>
-                  <button
-                    onClick={() => setIconSize('medium')}
-                    className={`zoom-btn ${iconSize === 'medium' ? 'active' : ''}`}
-                    title="Medium icons"
-                  >
-                    ●
-                  </button>
-                  <button
-                    onClick={() => setIconSize('large')}
-                    className={`zoom-btn ${iconSize === 'large' ? 'active' : ''}`}
-                    title="Large icons"
-                  >
-                    ◐
-                  </button>
-                  <button
-                    onClick={() => setIconSize('xlarge')}
-                    className={`zoom-btn ${iconSize === 'xlarge' ? 'active' : ''}`}
-                    title="Extra large icons"
-                  >
-                    ○
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
           {searchMode && (
             <div className="search-info">
               Showing {searchResults.length} result(s) for "{searchQuery}"
@@ -2454,34 +2540,12 @@ function App() {
                   );
                 })}
               </div>
-            ) : viewMode === 'list' ? (
-              <div className="list-view">
-                {getDisplayFiles().map((file, index) => (
-                  <ListItem
-                    key={index}
-                    file={file}
-                    fileIndex={index}
-                    onNavigate={() => file.is_directory && navigateToDirectory(file.name)}
-                    isSelected={selectedFiles.has(file.name)}
-                    isFocused={focusedIndex === index}
-                    onSelect={(idx, e) => handleFileSelect(file.name, idx, e)}
-                  />
-                ))}
-                {getDisplayFiles().length === 0 && !loading && (
-                  <div className="empty">
-                    {searchMode
-                      ? "No files found"
-                      : showHiddenFiles
-                      ? "No files in this directory"
-                      : "No visible files (hidden files are filtered)"}
-                  </div>
-                )}
-              </div>
             ) : viewMode === 'table' ? (
               <table>
                 <thead>
                   <tr>
                     <th>Name</th>
+                    <th>Kind</th>
                     <th>Size</th>
                     <th>Date</th>
                   </tr>
@@ -2498,6 +2562,7 @@ function App() {
                       loadThumbnail={loadThumbnail}
                       needsThumbnail={needsThumbnail}
                       onNavigate={() => file.is_directory && navigateToDirectory(file.name)}
+                      onPreview={() => previewFile(file.name)}
                       isSelected={selectedFiles.has(file.name)}
                       isFocused={focusedIndex === index}
                       onSelect={(idx, e) => handleFileSelect(file.name, idx, e)}
@@ -2511,7 +2576,7 @@ function App() {
                   ))}
                   {getDisplayFiles().length === 0 && !loading && (
                     <tr>
-                      <td colSpan={3} className="empty">
+                      <td colSpan={4} className="empty">
                         {searchMode
                           ? "No files found"
                           : showHiddenFiles
@@ -2535,6 +2600,7 @@ function App() {
                     loadThumbnail={loadThumbnail}
                     needsThumbnail={needsThumbnail}
                     onNavigate={() => file.is_directory && navigateToDirectory(file.name)}
+                    onPreview={() => previewFile(file.name)}
                     isSelected={selectedFiles.has(file.name)}
                     isFocused={focusedIndex === index}
                     onSelect={(idx, e) => handleFileSelect(file.name, idx, e)}
@@ -2645,7 +2711,7 @@ function App() {
       {showPreview && (
         <div className="modal-overlay" onClick={() => setShowPreview(false)}>
           <div
-            className="modal-dialog preview-dialog"
+            className={`modal-dialog preview-dialog preview-${imageOrientation}`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="preview-title"
@@ -2669,15 +2735,68 @@ function App() {
               ) : previewData ? (
                 <>
                   {previewData.file_type === "image" && (
-                    <div className="preview-image-container">
-                      <img
-                        src={`data:${getImageMimeType(previewFileName)};base64,${previewData.content}`}
-                        alt={previewFileName}
-                        className="preview-image"
-                      />
-                      <p className="preview-info">
-                        Size: {(previewData.size / 1024).toFixed(2)} KB
-                      </p>
+                    <div className="preview-two-column">
+                      <div className="preview-image-container">
+                        <img
+                          src={`data:${getImageMimeType(previewFileName)};base64,${previewData.content}`}
+                          alt={previewFileName}
+                          className="preview-image"
+                          onLoad={(e) => {
+                            const img = e.target as HTMLImageElement;
+                            const ratio = img.naturalWidth / img.naturalHeight;
+                            setImageDimensions({
+                              width: img.naturalWidth,
+                              height: img.naturalHeight
+                            });
+                            if (Math.abs(ratio - 1) < 0.1) {
+                              setImageOrientation('square');
+                            } else if (ratio > 1) {
+                              setImageOrientation('landscape');
+                            } else {
+                              setImageOrientation('portrait');
+                            }
+                          }}
+                        />
+                      </div>
+                      <div className="preview-info-panel">
+                        <h4>File Information</h4>
+                        <div className="info-item">
+                          <span className="info-label">Name:</span>
+                          <span className="info-value">{previewFileName}</span>
+                        </div>
+                        <div className="info-item">
+                          <span className="info-label">Size:</span>
+                          <span className="info-value">
+                            {previewData.size < 1024 
+                              ? `${previewData.size} B`
+                              : previewData.size < 1024 * 1024
+                              ? `${(previewData.size / 1024).toFixed(2)} KB`
+                              : `${(previewData.size / (1024 * 1024)).toFixed(2)} MB`}
+                          </span>
+                        </div>
+                        {imageDimensions && (
+                          <>
+                            <div className="info-item">
+                              <span className="info-label">Dimensions:</span>
+                              <span className="info-value">{imageDimensions.width} × {imageDimensions.height} px</span>
+                            </div>
+                            <div className="info-item">
+                              <span className="info-label">Aspect Ratio:</span>
+                              <span className="info-value">
+                                {(imageDimensions.width / imageDimensions.height).toFixed(2)}
+                              </span>
+                            </div>
+                            <div className="info-item">
+                              <span className="info-label">Orientation:</span>
+                              <span className="info-value">{imageOrientation}</span>
+                            </div>
+                            <div className="info-item">
+                              <span className="info-label">Type:</span>
+                              <span className="info-value">{getImageMimeType(previewFileName)}</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   )}
                   {previewData.file_type === "text" && (
@@ -2702,11 +2821,6 @@ function App() {
                   <p>No preview data available</p>
                 </div>
               )}
-            </div>
-            <div className="modal-actions">
-              <button onClick={() => setShowPreview(false)} className="cancel-btn">
-                Close
-              </button>
             </div>
           </div>
         </div>
@@ -2787,10 +2901,6 @@ function App() {
                 </div>
                 <div className="shortcut-item">
                   <span className="shortcut-keys">Cmd + 3</span>
-                  <span className="shortcut-desc">Switch to list view</span>
-                </div>
-                <div className="shortcut-item">
-                  <span className="shortcut-keys">Cmd + 4</span>
                   <span className="shortcut-desc">Switch to column view</span>
                 </div>
                 <div className="shortcut-item">
