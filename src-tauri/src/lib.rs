@@ -941,7 +941,8 @@ async fn preview_file(
         .unwrap_or("")
         .to_lowercase();
 
-    // Add debug logging
+    // Add debug logging (using eprintln! for simplicity in debug builds)
+    // Note: For larger applications, consider using the 'log' crate
     #[cfg(debug_assertions)]
     {
         eprintln!("Preview file debug - extension param: {:?}", extension);
@@ -1016,10 +1017,12 @@ async fn preview_file(
             .map_err(|e| format!("Failed to read text file: {}", e))?;
 
         // Limit text content to reasonable size for display
+        // Use char-based truncation to avoid panicking on multi-byte UTF-8 characters
         let display_content = if text_content.len() > 500_000 {
+            let truncated: String = text_content.chars().take(500_000).collect();
             format!(
                 "{}\n\n... (truncated, showing first 500KB of {} KB file)",
-                &text_content[..500_000],
+                truncated,
                 text_content.len() / 1024
             )
         } else {
