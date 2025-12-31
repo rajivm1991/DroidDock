@@ -23,7 +23,7 @@ cd src-tauri && cargo test # Run Rust tests
 1. **ALWAYS create a new branch from main when starting work on a fresh GitHub issue**: `git checkout main && git pull && git checkout -b feature/issue-description`
 2. Make changes and test: `npm run build` and `cargo build`
 3. Commit with issue reference: `Fixes #N`
-4. Create PR: `gh pr create --title "Title" --body "Description" --reviewer rajivm1991`
+4. Create PR: `gh pr create --title "Title" --body "Description" --reviewer rajivm1991 --reviewer copilot`
 5. After merge: delete branch locally and remotely, pull main
 
 ## Architecture
