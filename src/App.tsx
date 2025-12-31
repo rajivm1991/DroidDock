@@ -374,6 +374,41 @@ function ListItem({ file, fileIndex, onNavigate, isSelected, isFocused, onSelect
   );
 }
 
+// Helper constants and functions (defined outside component for performance)
+const IMAGE_MIME_TYPES: { [key: string]: string } = {
+  'jpg': 'image/jpeg',
+  'jpeg': 'image/jpeg',
+  'png': 'image/png',
+  'gif': 'image/gif',
+  'webp': 'image/webp',
+  'bmp': 'image/bmp'
+};
+
+// Helper function to get proper MIME type from file extension
+function getImageMimeType(fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  return IMAGE_MIME_TYPES[ext || ''] || 'image/jpeg'; // default to jpeg if unknown
+}
+
+// Helper function to calculate grid columns for navigation
+function calculateGridColumns(): number {
+  const gridItems = document.querySelectorAll('.grid-item');
+  let cols = 1;
+
+  if (gridItems.length >= 2) {
+    const firstItemTop = (gridItems[0] as HTMLElement).offsetTop;
+    for (let i = 1; i < gridItems.length; i++) {
+      if ((gridItems[i] as HTMLElement).offsetTop !== firstItemTop) {
+        cols = i;
+        break;
+      }
+    }
+    if (cols === 1) cols = gridItems.length;
+  }
+
+  return cols;
+}
+
 function App() {
   const [adbAvailable, setAdbAvailable] = useState<boolean | null>(null);
   const [devices, setDevices] = useState<AdbDevice[]>([]);
@@ -400,39 +435,6 @@ function App() {
   const [previewData, setPreviewData] = useState<FilePreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState<boolean>(false);
   const [previewFileName, setPreviewFileName] = useState<string>("");
-
-  // Helper function to get proper MIME type from file extension
-  const getImageMimeType = (fileName: string): string => {
-    const ext = fileName.split('.').pop()?.toLowerCase();
-    const mimeMap: { [key: string]: string } = {
-      'jpg': 'image/jpeg',
-      'jpeg': 'image/jpeg',
-      'png': 'image/png',
-      'gif': 'image/gif',
-      'webp': 'image/webp',
-      'bmp': 'image/bmp'
-    };
-    return mimeMap[ext || ''] || 'image/jpeg'; // default to jpeg if unknown
-  };
-
-  // Helper function to calculate grid columns for navigation
-  const calculateGridColumns = (): number => {
-    const gridItems = document.querySelectorAll('.grid-item');
-    let cols = 1;
-
-    if (gridItems.length >= 2) {
-      const firstItemTop = (gridItems[0] as HTMLElement).offsetTop;
-      for (let i = 1; i < gridItems.length; i++) {
-        if ((gridItems[i] as HTMLElement).offsetTop !== firstItemTop) {
-          cols = i;
-          break;
-        }
-      }
-      if (cols === 1) cols = gridItems.length;
-    }
-
-    return cols;
-  };
 
   // Search state
   const [searchQuery, setSearchQuery] = useState<string>("");
