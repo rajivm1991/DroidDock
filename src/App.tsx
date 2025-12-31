@@ -374,6 +374,41 @@ function ListItem({ file, fileIndex, onNavigate, isSelected, isFocused, onSelect
   );
 }
 
+// Helper constants and functions (defined outside component for performance)
+const IMAGE_MIME_TYPES: { [key: string]: string } = {
+  'jpg': 'image/jpeg',
+  'jpeg': 'image/jpeg',
+  'png': 'image/png',
+  'gif': 'image/gif',
+  'webp': 'image/webp',
+  'bmp': 'image/bmp'
+};
+
+// Helper function to get proper MIME type from file extension
+function getImageMimeType(fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  return IMAGE_MIME_TYPES[ext || ''] || 'image/jpeg'; // default to jpeg if unknown
+}
+
+// Helper function to calculate grid columns for navigation
+function calculateGridColumns(): number {
+  const gridItems = document.querySelectorAll('.grid-item');
+  let cols = 1;
+
+  if (gridItems.length >= 2) {
+    const firstItemTop = (gridItems[0] as HTMLElement).offsetTop;
+    for (let i = 1; i < gridItems.length; i++) {
+      if ((gridItems[i] as HTMLElement).offsetTop !== firstItemTop) {
+        cols = i;
+        break;
+      }
+    }
+    if (cols === 1) cols = gridItems.length;
+  }
+
+  return cols;
+}
+
 function App() {
   const [adbAvailable, setAdbAvailable] = useState<boolean | null>(null);
   const [devices, setDevices] = useState<AdbDevice[]>([]);
@@ -946,19 +981,7 @@ function App() {
               }
             } else {
               // Grid view: all four arrows
-              const gridItems = document.querySelectorAll('.grid-item');
-              let cols = 1;
-
-              if (gridItems.length >= 2) {
-                const firstItemTop = (gridItems[0] as HTMLElement).offsetTop;
-                for (let i = 1; i < gridItems.length; i++) {
-                  if ((gridItems[i] as HTMLElement).offsetTop !== firstItemTop) {
-                    cols = i;
-                    break;
-                  }
-                }
-                if (cols === 1) cols = gridItems.length;
-              }
+              const cols = calculateGridColumns();
 
               if (e.key === 'ArrowUp') {
                 newIndex = focusedIndex - cols;
@@ -1092,6 +1115,7 @@ function App() {
         } else if (showPreview) {
           setShowPreview(false);
           setPreviewData(null);
+          setError(""); // Clear any preview-related error messages
         } else if (searchMode) {
           exitSearchMode();
         } else if (selectedFiles.size > 0) {
@@ -1777,19 +1801,7 @@ function App() {
     // Calculate next index based on key and view mode
     if (viewMode === 'grid') {
       // Grid view: calculate columns for up/down navigation
-      const gridItems = document.querySelectorAll('.grid-item');
-      let cols = 1;
-
-      if (gridItems.length >= 2) {
-        const firstItemTop = (gridItems[0] as HTMLElement).offsetTop;
-        for (let i = 1; i < gridItems.length; i++) {
-          if ((gridItems[i] as HTMLElement).offsetTop !== firstItemTop) {
-            cols = i;
-            break;
-          }
-        }
-        if (cols === 1) cols = gridItems.length;
-      }
+      const cols = calculateGridColumns();
 
       if (key === 'ArrowDown') {
         nextIndex = (focusedIndex + cols) % displayFiles.length;
@@ -1852,10 +1864,8 @@ function App() {
       return;
     }
 
-    // Update focus
+    // Update focus and selection (React 18 automatically batches these state updates)
     setFocusedIndex(nextIndex);
-
-    // Update selection to new file
     setSelectedFiles(new Set([newFile.name]));
 
     // Scroll into view
@@ -1867,9 +1877,7 @@ function App() {
     // Trigger preview for new file
     const fileName = newFile.name;
     const devicePath = searchMode
-      ? fileName.startsWith('/')
-        ? fileName
-        : `/${fileName}`
+      ? fileName  // Search results already contain full paths
       : currentPath === '/storage/emulated/0'
         ? `/storage/emulated/0/${fileName}`
         : `${currentPath}/${fileName}`;
@@ -1897,7 +1905,7 @@ function App() {
     } finally {
       setPreviewLoading(false);
     }
-  }, [selectedDevice, focusedIndex, viewMode, files, searchResults, searchMode, currentPath]);
+  }, [selectedDevice, focusedIndex, viewMode, files, searchResults, searchMode, currentPath, showHiddenFiles, sortColumn, sortDirection]);
 
   async function handleUpload() {
     if (!selectedDevice) return;
@@ -2579,7 +2587,7 @@ function App() {
                       className="contextual-btn preview-btn"
                       title="Preview file"
                     >
-                      {previewLoading ? "Loading..." : "👁️ Preview"}
+                      {previewLoading ? "Loading..." : "Preview"}
                     </button>
                   )}
                   <button
@@ -2645,7 +2653,13 @@ function App() {
           >
             <div className="preview-header">
               <h3 id="preview-title">📄 {previewFileName}</h3>
-              <button className="close-btn" onClick={() => setShowPreview(false)}>×</button>
+              <button 
+                className="close-btn" 
+                onClick={() => setShowPreview(false)}
+                aria-label="Close preview"
+              >
+                ×
+              </button>
             </div>
             <div className="preview-content">
               {previewLoading ? (
@@ -2657,7 +2671,7 @@ function App() {
                   {previewData.file_type === "image" && (
                     <div className="preview-image-container">
                       <img
-                        src={`data:image/${previewFileName.split('.').pop()};base64,${previewData.content}`}
+                        src={`data:${getImageMimeType(previewFileName)};base64,${previewData.content}`}
                         alt={previewFileName}
                         className="preview-image"
                       />
@@ -2739,7 +2753,9 @@ function App() {
                 </div>
                 <div className="shortcut-item">
                   <span className="shortcut-keys">Esc</span>
-                  <span className="shortcut-desc">Close preview/popup/clear selection/focus</span>
+                  <span className="shortcut-desc">
+                    Exit rename → close help → cancel delete → close preview → close search → clear selection → clear focus
+                  </span>
                 </div>
               </div>
 
