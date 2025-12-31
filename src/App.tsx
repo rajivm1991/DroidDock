@@ -2587,7 +2587,7 @@ function App() {
                       className="contextual-btn preview-btn"
                       title="Preview file"
                     >
-                      {previewLoading ? "Loading..." : "👁️ Preview"}
+                      {previewLoading ? "Loading..." : "Preview"}
                     </button>
                   )}
                   <button
