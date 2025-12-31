@@ -301,7 +301,9 @@ function GridItem({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCa
         }
       }}
       onDoubleClick={() => {
-        if (!file.is_directory) {
+        if (file.is_directory) {
+          onNavigate();
+        } else {
           onPreview();
         }
       }}
@@ -568,6 +570,14 @@ function App() {
   useEffect(() => {
     localStorage.setItem('droiddock-view-mode', viewMode);
   }, [viewMode]);
+
+  // Reset orientation and dimensions when preview is closed
+  useEffect(() => {
+    if (!showPreview) {
+      setImageOrientation('landscape');
+      setImageDimensions(null);
+    }
+  }, [showPreview]);
 
   // Close settings dropdown when clicking outside
   useEffect(() => {
@@ -1889,18 +1899,18 @@ function App() {
       } else if (key === 'ArrowLeft') {
         nextIndex = ((focusedIndex - 1) + displayFiles.length) % displayFiles.length;
       }
-    } else if (viewMode === 'table') {
-      // Table view: simple up/down
+    } else if (viewMode === 'table' || viewMode === 'column') {
+      // Table and column view: simple up/down
       if (key === 'ArrowDown') {
         nextIndex = (focusedIndex + 1) % displayFiles.length;
       } else if (key === 'ArrowUp') {
         nextIndex = ((focusedIndex - 1) + displayFiles.length) % displayFiles.length;
       } else {
-        // Left/Right don't apply in table view
+        // Left/Right don't apply in table/column view
         return;
       }
     } else {
-      // Column view or other: don't support preview navigation
+      // Other view modes: don't support preview navigation
       return;
     }
 
@@ -2456,6 +2466,7 @@ function App() {
                 <button
                   onClick={performSearch}
                   className="search-btn"
+                  disabled={!searchQuery.trim() || searching}
                 >
                   {searching ? "Searching..." : "Search"}
                 </button>
@@ -2855,7 +2866,7 @@ function App() {
                 <h4>Selection</h4>
                 <div className="shortcut-item">
                   <span className="shortcut-keys">Space</span>
-                  <span className="shortcut-desc">Preview focused file</span>
+                  <span className="shortcut-desc">Toggle preview for focused file</span>
                 </div>
                 <div className="shortcut-item">
                   <span className="shortcut-keys">Shift + Arrow</span>
