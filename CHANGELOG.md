@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-01-01
+
+### Added
+- **File Preview System**: View files without downloading
+  - Image preview with base64 display and high-quality rendering
+  - Text file preview with syntax highlighting
+  - Two-column layout (image + metadata panel)
+  - Dynamic modal sizing based on image orientation (portrait/landscape/square)
+  - File metadata display (name, size, dimensions, aspect ratio, type)
+  - Keyboard navigation in preview modal (arrow keys to browse files)
+  - Space key for quick-preview without changing selection
+- **Enhanced Keyboard Navigation**
+  - Space key to preview files while maintaining current selection
+  - Arrow key navigation within preview modal
+  - Double-click to preview files (single-click for directories)
+  - Improved focus management and restoration
+- **"Kind" column in Table View**: Shows file type (Document, Image, Video, Audio, etc.)
+- **Scrollbar in Keyboard Shortcuts Dialog**: Better usability for long shortcut lists
+
+### Changed
+- **Simplified View Modes**: Reduced from 4 to 3 view modes (Table, Grid, Column)
+  - Removed List view (redundant with Table view)
+  - Updated keyboard shortcuts: Cmd+1 (Table), Cmd+2 (Grid), Cmd+3 (Column)
+  - Removed Cmd+4 shortcut
+- **Enhanced Visual Feedback**: Stronger selection indicators (blue backgrounds + 3px left borders)
+- **Compact Header Design**: Streamlined 3-line header structure
+- **Improved Breadcrumb Navigation**: Better truncation for long paths
+- **Gear Icon Style**: Changed from emoji (⚙️) to line drawing (⚙) for consistency
+
+### Removed
+- List view mode (streamlined to 3 essential view modes)
+- Cmd+4 keyboard shortcut
+
+### Fixed
+- Focus management when navigating between directories
+- Text selection in preview modal and input fields
+- Preview navigation edge cases
+- Arrow key navigation consistency across view modes
+
+### Technical
+- Bundle size reduction: CSS from 25.59 KB to 24.50 KB, JS from 242.92 KB to 241.41 KB
+- Better TypeScript type safety for view modes
+- Cleaner component architecture with removed redundant code
+- Performance optimizations in preview rendering
+
 ## [0.1.0] - 2025-11-08
 
 ## [0.1.0] - 2025-11-08
@@ -98,5 +143,6 @@ npm run release:prepare 0.2.0
 
 ---
 
-[Unreleased]: https://github.com/rajivm1991/DroidDock/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/rajivm1991/DroidDock/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/rajivm1991/DroidDock/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/rajivm1991/DroidDock/releases/tag/v0.1.0

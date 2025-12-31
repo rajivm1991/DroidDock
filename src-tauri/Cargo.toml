@@ -1,6 +1,6 @@
 [package]
 name = "droiddock"
-version = "0.1.0"
+version = "0.2.0"
 description = "macOS app for browsing Android device files via ADB"
 authors = ["rajivm1991"]
 edition = "2021"

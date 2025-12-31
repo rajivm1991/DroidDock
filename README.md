@@ -8,16 +8,17 @@ A sleek macOS desktop application for browsing Android device files via ADB (And
 
 - **📱 Device Detection**: Automatically detects connected Android devices
 - **📂 File Browsing**: Navigate through your Android device's file system with an intuitive interface
-- **👁️ Multiple View Modes**: Choose between Table, Grid, List, or Column (Miller) view with keyboard shortcuts
+- **👁️ Multiple View Modes**: Choose between Table, Grid, or Column (Miller) view with keyboard shortcuts
+- **🖼️ File Preview**: View images and text files without downloading - press Space for quick preview or double-click
 - **🔍 File Search**: Search for files by name with case-insensitive matching and recursive search
 - **🗑️ File Deletion**: Delete files and folders with confirmation dialogs and safety checks
 - **📥 File Download**: Download files from device to Mac with save dialog
 - **📤 File Upload**: Upload files from Mac to device via floating action button
-- **✅ Multi-Select**: Select multiple files with checkboxes, Ctrl/Cmd+click, and Shift+click range selection
+- **✅ Multi-Select**: Select multiple files with click, Ctrl/Cmd+click, and Shift+click range selection
 - **🖼️ Thumbnails**: Automatic thumbnail generation for images and videos with lazy loading
 - **🏠 Smart Breadcrumbs**: Clean navigation with "Internal storage" labels and arrow separators
 - **👁️ Hidden Files Toggle**: Show or hide dot files with a single click
-- **📊 File Information**: View file permissions, sizes, and modification dates
+- **📊 File Information**: View file types, permissions, sizes, and modification dates
 - **💾 Storage Info**: Real-time storage usage display in VSCode-style status bar
 - **🎯 Contextual Actions**: File actions (download/delete) appear in a slide-up bar when files are selected
 - **⌨️ Keyboard Shortcuts**: Full keyboard navigation with arrow keys, view switching, and file operations
@@ -27,9 +28,13 @@ A sleek macOS desktop application for browsing Android device files via ADB (And
 
 ## Screenshots
 
-![DroidDock Screenshot](screenshots/droiddock-2025-11-02-grid-view.png)
+![File Preview](screenshots/droiddock-2026-01-01-file-preview.png)
 
-*DroidDock with grid view showing image thumbnails, contextual action bar, and floating upload button*
+*Preview images directly in DroidDock with metadata panel and keyboard navigation*
+
+![Table View with Kind Column](screenshots/droiddock-2026-01-01-table-view-with-kind-column.png)
+
+*Table view with new "Kind" column showing file types*
 
 ## Prerequisites
 
@@ -128,8 +133,10 @@ You should see your device listed.
 ### 4. Navigate & Manage Files
 
 - **Single-click** folder names to open them
+- **Double-click** files to preview them (images, text files)
+- **Press Space** to quick-preview the focused file without changing selection
 - Use **breadcrumb navigation** or the **↑ Up** button to go back
-- **Switch Views**: Use view toggle buttons or keyboard shortcuts (Cmd+1/2/3/4) to switch between Table, Grid, List, or Column view
+- **Switch Views**: Use view toggle buttons or keyboard shortcuts (Cmd+1/2/3) to switch between Table, Grid, or Column view
 - Toggle **Show Hidden Files** in settings to view dot files
 - Toggle **Show Thumbnails** in settings to enable/disable image and video previews
 - Click **Refresh** to reload the device list
@@ -146,7 +153,7 @@ You should see your device listed.
 
 ### 6. Select & Delete Files
 
-- **Click checkbox** or **click row** to select files
+- **Click row** to select files (no more checkboxes!)
 - **Ctrl/Cmd + Click**: Toggle individual files for multi-select
 - **Shift + Click**: Select a range of files between two clicks
 - **Ctrl/Cmd + A**: Select all visible files
@@ -204,13 +211,16 @@ DroidDock supports these keyboard shortcuts for faster navigation and file manag
 | `Ctrl/Cmd + A` | Select all visible files |
 | `Ctrl/Cmd + 1` | Switch to Table view |
 | `Ctrl/Cmd + 2` | Switch to Grid view |
-| `Ctrl/Cmd + 3` | Switch to List view |
-| `Ctrl/Cmd + 4` | Switch to Column view |
-| `Arrow Keys` | Navigate between files (Up/Down in table/list, all directions in grid) |
-| `Space` | Toggle selection on focused file |
+| `Ctrl/Cmd + 3` | Switch to Column view |
+| `Ctrl/Cmd + =/-` | Zoom in/out (Grid view only) |
+| `Arrow Keys` | Navigate between files (Up/Down in table, all directions in grid) |
+| `Space` | Quick-preview focused file (or close preview) |
 | `Enter` | Open focused folder or execute search |
 | `Delete` or `Backspace` | Delete selected files (shows confirmation dialog) |
-| `Escape` | Clear selection or exit search mode |
+| `Escape` | Clear selection or close dialogs |
+| **In Preview Mode** | |
+| `Arrow Keys` | Navigate to next/previous file |
+| `Escape` or `Space` | Close preview |
 
 ## Troubleshooting
 
@@ -331,13 +341,13 @@ To remove macOS security warnings, code signing requires:
 
 Potential features for future releases:
 
-- 📷 **File Preview** - Preview images and text files in-app
 - 💾 **Drag & Drop** - Drag files to/from the app
 - 📱 **Multiple Devices** - View multiple devices simultaneously
 - ⏱️ **File Sync** - Sync files between Mac and Android
 - 📊 **Sortable Columns** - Sort files by name, size, date, etc.
 - 📈 **Transfer Progress** - Show progress bars for file transfers
 - 📁 **Folder Download/Upload** - Support for transferring entire directories
+- 🎬 **Video Preview** - Preview video files in-app
 
 ## Contributing
 
