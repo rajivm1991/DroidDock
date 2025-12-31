@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { join } from "@tauri-apps/api/path";
@@ -24,6 +24,12 @@ interface StorageInfo {
   used_bytes: number;
   free_bytes: number;
   percentage_used: number;
+}
+
+interface FilePreview {
+  file_type: string;  // "image", "text", or "unsupported"
+  content: string;    // base64 for images, text content for text files
+  size: number;       // file size in bytes
 }
 
 interface FileRowProps {
@@ -160,6 +166,7 @@ function FileRow({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCac
       ref={rowRef}
       onClick={(e) => onSelect(fileIndex, e)}
       className={`file-row ${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""} ${isFocused ? "focused" : ""}`}
+      data-file-index={fileIndex}
     >
       <td>
         {!file.is_directory && (
@@ -296,6 +303,7 @@ function GridItem({ file, fileIndex, currentPath, thumbnailsEnabled, thumbnailCa
         }
       }}
       className={`grid-item ${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""} ${isFocused ? "focused" : ""}`}
+      data-file-index={fileIndex}
     >
       {!file.is_directory && (
         <input
@@ -336,6 +344,7 @@ function ListItem({ file, fileIndex, onNavigate, isSelected, isFocused, onSelect
       onClick={(e) => onSelect(fileIndex, e)}
       onDoubleClick={() => file.is_directory && onNavigate()}
       className={`list-item ${file.is_directory ? "directory" : "file"} ${isSelected ? "selected" : ""} ${isFocused ? "focused" : ""}`}
+      data-file-index={fileIndex}
     >
       {!file.is_directory && (
         <input
@@ -365,6 +374,41 @@ function ListItem({ file, fileIndex, onNavigate, isSelected, isFocused, onSelect
   );
 }
 
+// Helper constants and functions (defined outside component for performance)
+const IMAGE_MIME_TYPES: { [key: string]: string } = {
+  'jpg': 'image/jpeg',
+  'jpeg': 'image/jpeg',
+  'png': 'image/png',
+  'gif': 'image/gif',
+  'webp': 'image/webp',
+  'bmp': 'image/bmp'
+};
+
+// Helper function to get proper MIME type from file extension
+function getImageMimeType(fileName: string): string {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  return IMAGE_MIME_TYPES[ext || ''] || 'image/jpeg'; // default to jpeg if unknown
+}
+
+// Helper function to calculate grid columns for navigation
+function calculateGridColumns(): number {
+  const gridItems = document.querySelectorAll('.grid-item');
+  let cols = 1;
+
+  if (gridItems.length >= 2) {
+    const firstItemTop = (gridItems[0] as HTMLElement).offsetTop;
+    for (let i = 1; i < gridItems.length; i++) {
+      if ((gridItems[i] as HTMLElement).offsetTop !== firstItemTop) {
+        cols = i;
+        break;
+      }
+    }
+    if (cols === 1) cols = gridItems.length;
+  }
+
+  return cols;
+}
+
 function App() {
   const [adbAvailable, setAdbAvailable] = useState<boolean | null>(null);
   const [devices, setDevices] = useState<AdbDevice[]>([]);
@@ -385,6 +429,12 @@ function App() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [deleting, setDeleting] = useState<boolean>(false);
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number>(-1);
+
+  // File preview state
+  const [showPreview, setShowPreview] = useState<boolean>(false);
+  const [previewData, setPreviewData] = useState<FilePreview | null>(null);
+  const [previewLoading, setPreviewLoading] = useState<boolean>(false);
+  const [previewFileName, setPreviewFileName] = useState<string>("");
 
   // Search state
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -763,26 +813,29 @@ function App() {
         e.preventDefault();
         setThumbnailsEnabled(!thumbnailsEnabled);
       }
-      // Space: Toggle selection on focused file (files only, not folders)
+      // Space: Preview focused file (files only, not folders)
       else if (!isTyping && e.key === ' ') {
         e.preventDefault();
         if (focusedIndex >= 0 && focusedIndex < getDisplayFiles().length) {
           const file = getDisplayFiles()[focusedIndex];
-          // Only allow selection of files, not directories
+          // Only allow preview of files, not directories
           if (!file.is_directory) {
-            const newSelection = new Set(selectedFiles);
-            if (newSelection.has(file.name)) {
-              newSelection.delete(file.name);
-            } else {
-              newSelection.add(file.name);
-            }
-            setSelectedFiles(newSelection);
+            // Temporarily set selection to the focused file (needed for handlePreview)
+            const fileName = file.name;
+            setSelectedFiles(new Set([fileName]));
+            handlePreview();
           }
         }
       }
-      // Arrow keys: Navigate in list
+      // Arrow keys: Navigate in list (with Shift for selection)
       else if (!isTyping && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
         e.preventDefault();
+
+        // Special handling when preview window is open
+        if (showPreview && !e.shiftKey) {
+          handlePreviewNavigation(e.key);
+          return;
+        }
 
         if (viewMode === 'column') {
           // Column view: left/right moves between columns, up/down navigates within column
@@ -894,6 +947,73 @@ function App() {
           const displayFiles = getDisplayFiles();
           if (displayFiles.length === 0) return;
 
+          // If Shift is held, handle checkbox selection while navigating
+          if (e.shiftKey) {
+            // If nothing is focused yet, start at first item
+            if (focusedIndex < 0) {
+              setFocusedIndex(0);
+              const file = displayFiles[0];
+              if (!file.is_directory) {
+                setSelectedFiles(new Set([...selectedFiles, file.name]));
+              }
+              setTimeout(() => {
+                const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused, .list-item.focused');
+                focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+              }, 0);
+              return;
+            }
+
+            // First, select the anchor file if not already selected
+            const currentFile = displayFiles[focusedIndex];
+            let updatedSelection = new Set(selectedFiles);
+            if (!currentFile.is_directory && !selectedFiles.has(currentFile.name)) {
+              updatedSelection.add(currentFile.name);
+            }
+
+            let newIndex = focusedIndex;
+
+            if (viewMode === 'table' || viewMode === 'list') {
+              // Table/List view: only up/down arrows
+              if (e.key === 'ArrowUp') {
+                newIndex = focusedIndex <= 0 ? displayFiles.length - 1 : focusedIndex - 1;
+              } else if (e.key === 'ArrowDown') {
+                newIndex = focusedIndex >= displayFiles.length - 1 ? 0 : focusedIndex + 1;
+              }
+            } else {
+              // Grid view: all four arrows
+              const cols = calculateGridColumns();
+
+              if (e.key === 'ArrowUp') {
+                newIndex = focusedIndex - cols;
+                if (newIndex < 0) newIndex = displayFiles.length - 1;
+              } else if (e.key === 'ArrowDown') {
+                newIndex = focusedIndex + cols;
+                if (newIndex >= displayFiles.length) newIndex = 0;
+              } else if (e.key === 'ArrowLeft') {
+                newIndex = focusedIndex <= 0 ? displayFiles.length - 1 : focusedIndex - 1;
+              } else if (e.key === 'ArrowRight') {
+                newIndex = focusedIndex >= displayFiles.length - 1 ? 0 : focusedIndex + 1;
+              }
+            }
+
+            setFocusedIndex(newIndex);
+            const file = displayFiles[newIndex];
+
+            // Add to selection (only files, not directories)
+            if (!file.is_directory) {
+              updatedSelection.add(file.name);
+            }
+            setSelectedFiles(updatedSelection);
+
+            // Scroll into view
+            setTimeout(() => {
+              const focusedElement = document.querySelector('.file-row.focused, .grid-item.focused, .list-item.focused');
+              focusedElement?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }, 0);
+            return;
+          }
+
+          // Normal navigation without Shift (no selection change)
           // If nothing is focused yet, start at first item on any arrow key
           if (focusedIndex < 0) {
             setFocusedIndex(0);
@@ -992,6 +1112,10 @@ function App() {
           setShowShortcutsHelp(false);
         } else if (showDeleteConfirm) {
           setShowDeleteConfirm(false);
+        } else if (showPreview) {
+          setShowPreview(false);
+          setPreviewData(null);
+          setError(""); // Clear any preview-related error messages
         } else if (searchMode) {
           exitSearchMode();
         } else if (selectedFiles.size > 0) {
@@ -1004,7 +1128,7 @@ function App() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedFiles, searchMode, focusedIndex, viewMode, iconSize, showHiddenFiles, thumbnailsEnabled, showShortcutsHelp, showDeleteConfirm, renamingIndex, loading, columnPath, columnFiles, columnSelected, activeColumnIndex]);
+  }, [selectedFiles, searchMode, focusedIndex, viewMode, iconSize, showHiddenFiles, thumbnailsEnabled, showShortcutsHelp, showDeleteConfirm, renamingIndex, loading, columnPath, columnFiles, columnSelected, activeColumnIndex, showPreview, previewLoading]);
 
   async function checkAdb() {
     try {
@@ -1607,6 +1731,181 @@ function App() {
       console.error(`Download error:`, err);
     }
   }
+
+  const handlePreview = useCallback(async () => {
+    if (!selectedDevice || selectedFiles.size === 0) return;
+
+    const selectedFileNames = Array.from(selectedFiles);
+
+    // Only allow preview of a single file
+    if (selectedFileNames.length > 1) {
+      setError("Please select only one file to preview");
+      return;
+    }
+
+    // Find the selected file
+    const fileName = selectedFileNames[0];
+    const file = files.find(f => f.name === fileName) || searchResults.find(f => f.name === fileName);
+
+    if (!file) {
+      setError("File not found");
+      return;
+    }
+
+    // Don't allow preview of directories
+    if (file.is_directory) {
+      setError("Cannot preview directories");
+      return;
+    }
+
+    // Get the full path on device
+    const devicePath = searchMode
+      ? file.name
+      : currentPath === "/storage/emulated/0"
+      ? `/storage/emulated/0/${fileName}`
+      : `${currentPath}/${fileName}`;
+
+    setPreviewFileName(fileName);
+    setShowPreview(true);
+    setPreviewLoading(true);
+    setPreviewData(null);
+    setError("");
+
+    try {
+      const preview: FilePreview = await invoke("preview_file", {
+        deviceId: selectedDevice,
+        devicePath: devicePath,
+        extension: file.extension,
+      });
+
+      setPreviewData(preview);
+
+      if (preview.file_type === "unsupported") {
+        setError(`Cannot preview ${file.extension || "this"} file type. Supported types: images (jpg, png, gif, etc.) and text files.`);
+      }
+    } catch (err) {
+      setError(`Failed to preview file: ${err}`);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [selectedDevice, selectedFiles, files, searchResults, searchMode, currentPath]);
+
+  const handlePreviewNavigation = useCallback(async (key: string) => {
+    if (!selectedDevice) return;
+
+    const displayFiles = getDisplayFiles();
+    if (displayFiles.length === 0) return;
+
+    let nextIndex = focusedIndex;
+
+    // Calculate next index based on key and view mode
+    if (viewMode === 'grid') {
+      // Grid view: calculate columns for up/down navigation
+      const cols = calculateGridColumns();
+
+      if (key === 'ArrowDown') {
+        nextIndex = (focusedIndex + cols) % displayFiles.length;
+      } else if (key === 'ArrowUp') {
+        nextIndex = ((focusedIndex - cols) + displayFiles.length) % displayFiles.length;
+      } else if (key === 'ArrowRight') {
+        nextIndex = (focusedIndex + 1) % displayFiles.length;
+      } else if (key === 'ArrowLeft') {
+        nextIndex = ((focusedIndex - 1) + displayFiles.length) % displayFiles.length;
+      }
+    } else if (viewMode === 'table' || viewMode === 'list') {
+      // Table/List view: simple up/down
+      if (key === 'ArrowDown') {
+        nextIndex = (focusedIndex + 1) % displayFiles.length;
+      } else if (key === 'ArrowUp') {
+        nextIndex = ((focusedIndex - 1) + displayFiles.length) % displayFiles.length;
+      } else {
+        // Left/Right don't apply in table/list view
+        return;
+      }
+    } else {
+      // Column view or other: don't support preview navigation
+      return;
+    }
+
+    // Skip directories - find next previewable file
+    let attempts = 0;
+    const maxAttempts = displayFiles.length;
+    const direction = (key === 'ArrowDown' || key === 'ArrowRight') ? 1 : -1;
+
+    while (attempts < maxAttempts) {
+      const file = displayFiles[nextIndex];
+
+      // Found a previewable file
+      if (!file.is_directory) {
+        break;
+      }
+
+      // Skip this directory, try next
+      if (direction > 0) {
+        nextIndex = (nextIndex + 1) % displayFiles.length;
+      } else {
+        nextIndex = ((nextIndex - 1) + displayFiles.length) % displayFiles.length;
+      }
+      attempts++;
+    }
+
+    // Check if we found a previewable file
+    if (attempts >= maxAttempts) {
+      // All files are directories, close preview
+      setShowPreview(false);
+      setPreviewData(null);
+      setError("No previewable files found");
+      return;
+    }
+
+    const newFile = displayFiles[nextIndex];
+    if (newFile.is_directory) {
+      // Still on a directory somehow, do nothing
+      return;
+    }
+
+    // Update focus and selection (React 18 automatically batches these state updates)
+    setFocusedIndex(nextIndex);
+    setSelectedFiles(new Set([newFile.name]));
+
+    // Scroll into view
+    setTimeout(() => {
+      const fileElement = document.querySelector(`[data-file-index="${nextIndex}"]`);
+      fileElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 0);
+
+    // Trigger preview for new file
+    const fileName = newFile.name;
+    const devicePath = searchMode
+      ? fileName  // Search results already contain full paths
+      : currentPath === '/storage/emulated/0'
+        ? `/storage/emulated/0/${fileName}`
+        : `${currentPath}/${fileName}`;
+
+    setPreviewFileName(fileName);
+    setPreviewLoading(true);
+    setPreviewData(null);
+
+    try {
+      const preview: FilePreview = await invoke("preview_file", {
+        deviceId: selectedDevice,
+        devicePath: devicePath,
+        extension: newFile.extension,
+      });
+
+      setPreviewData(preview);
+
+      if (preview.file_type === "unsupported") {
+        setError(`Cannot preview ${newFile.extension || "this"} file type. Supported types: images (jpg, png, gif, etc.) and text files.`);
+      } else {
+        setError(""); // Clear any previous errors
+      }
+    } catch (err) {
+      setError(`Failed to preview file: ${err}`);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [selectedDevice, focusedIndex, viewMode, files, searchResults, searchMode, currentPath, showHiddenFiles, sortColumn, sortDirection]);
 
   async function handleUpload() {
     if (!selectedDevice) return;
@@ -2281,6 +2580,16 @@ function App() {
                   <button onClick={clearSelection} className="contextual-btn clear-btn">
                     Clear
                   </button>
+                  {selectedFiles.size === 1 && (
+                    <button
+                      onClick={handlePreview}
+                      disabled={previewLoading}
+                      className="contextual-btn preview-btn"
+                      title="Preview file"
+                    >
+                      {previewLoading ? "Loading..." : "Preview"}
+                    </button>
+                  )}
                   <button
                     onClick={handleDownload}
                     disabled={downloading}
@@ -2333,6 +2642,76 @@ function App() {
         </div>
       )}
 
+      {showPreview && (
+        <div className="modal-overlay" onClick={() => setShowPreview(false)}>
+          <div
+            className="modal-dialog preview-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="preview-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="preview-header">
+              <h3 id="preview-title">📄 {previewFileName}</h3>
+              <button 
+                className="close-btn" 
+                onClick={() => setShowPreview(false)}
+                aria-label="Close preview"
+              >
+                ×
+              </button>
+            </div>
+            <div className="preview-content">
+              {previewLoading ? (
+                <div className="preview-loading">
+                  <p>Loading preview...</p>
+                </div>
+              ) : previewData ? (
+                <>
+                  {previewData.file_type === "image" && (
+                    <div className="preview-image-container">
+                      <img
+                        src={`data:${getImageMimeType(previewFileName)};base64,${previewData.content}`}
+                        alt={previewFileName}
+                        className="preview-image"
+                      />
+                      <p className="preview-info">
+                        Size: {(previewData.size / 1024).toFixed(2)} KB
+                      </p>
+                    </div>
+                  )}
+                  {previewData.file_type === "text" && (
+                    <div className="preview-text-container">
+                      <pre className="preview-text">{previewData.content}</pre>
+                      <p className="preview-info">
+                        Size: {(previewData.size / 1024).toFixed(2)} KB
+                      </p>
+                    </div>
+                  )}
+                  {previewData.file_type === "unsupported" && (
+                    <div className="preview-unsupported">
+                      <p>❌ Cannot preview this file type</p>
+                      <p className="preview-info">
+                        Supported types: images (jpg, png, gif, etc.) and text files
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="preview-loading">
+                  <p>No preview data available</p>
+                </div>
+              )}
+            </div>
+            <div className="modal-actions">
+              <button onClick={() => setShowPreview(false)} className="cancel-btn">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showShortcutsHelp && (
         <div className="modal-overlay" onClick={() => setShowShortcutsHelp(false)}>
           <div className="modal-dialog shortcuts-dialog" onClick={(e) => e.stopPropagation()}>
@@ -2362,7 +2741,11 @@ function App() {
                 <h4>Selection</h4>
                 <div className="shortcut-item">
                   <span className="shortcut-keys">Space</span>
-                  <span className="shortcut-desc">Toggle selection on focused file</span>
+                  <span className="shortcut-desc">Preview focused file</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Shift + Arrow</span>
+                  <span className="shortcut-desc">Select files while navigating</span>
                 </div>
                 <div className="shortcut-item">
                   <span className="shortcut-keys">Cmd + A</span>
@@ -2370,7 +2753,9 @@ function App() {
                 </div>
                 <div className="shortcut-item">
                   <span className="shortcut-keys">Esc</span>
-                  <span className="shortcut-desc">Close popup/clear selection/focus</span>
+                  <span className="shortcut-desc">
+                    Exit rename → close help → cancel delete → close preview → close search → clear selection → clear focus
+                  </span>
                 </div>
               </div>
 
