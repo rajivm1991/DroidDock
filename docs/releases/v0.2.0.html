@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DroidDock v0.2.0 Release Notes</title>
+    <meta name="description" content="DroidDock v0.2.0 - File preview system and enhanced keyboard navigation">
+    <link rel="icon" type="image/svg+xml" href="../design/icon-design.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #ffffff;
+            color: #333;
+        }
+        .hero-bg {
+            background: #b0b0b0;
+        }
+    </style>
+</head>
+<body class="bg-white">
+    <!-- Header -->
+    <header class="hero-bg text-white py-12 px-4">
+        <div class="max-w-4xl mx-auto">
+            <a href="../" class="text-white hover:underline mb-4 inline-block">← Back to DroidDock</a>
+            <h1 class="text-4xl md:text-5xl font-bold mb-4">DroidDock v0.2.0</h1>
+            <p class="text-xl" style="color: rgba(255, 255, 255, 0.9);">Release Notes • January 1, 2026</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-12">
+        <!-- What's New -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">What's New in v0.2.0</h2>
+            
+            <div class="space-y-6">
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">File Preview System</h3>
+                    <p class="text-gray-700">View images and text files without downloading them. Press Space to open a quick preview modal with file metadata (dimensions, size, type). Dynamic modal sizing adapts to portrait, landscape, or square images.</p>
+                </div>
+
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Keyboard Navigation in Preview</h3>
+                    <p class="text-gray-700">Navigate between files using arrow keys while in preview mode. Space key provides quick-preview without changing your current selection.</p>
+                </div>
+
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Kind Column</h3>
+                    <p class="text-gray-700">New "Kind" column in table view shows file types at a glance: Document, Image, Video, Audio, Archive, etc.</p>
+                </div>
+
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Simplified View Modes</h3>
+                    <p class="text-gray-700">Streamlined from 4 to 3 view modes: Table (Cmd+1), Grid (Cmd+2), and Column (Cmd+3). Removed redundant List view.</p>
+                </div>
+
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Enhanced Keyboard Shortcuts</h3>
+                    <p class="text-gray-700">Improved focus management, double-click to preview, and better arrow key navigation across all view modes.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screenshots -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Screenshots</h2>
+            <div class="grid md:grid-cols-2 gap-6">
+                <div>
+                    <img src="../screenshots/droiddock-2025-10-23-search.png" alt="File Search with Preview" class="rounded-lg shadow-lg w-full">
+                    <p class="text-center mt-2 text-gray-600">File Search with Preview</p>
+                </div>
+                <div>
+                    <img src="../screenshots/droiddock-2025-10-21-list-view-01.png" alt="Table View with Kind Column" class="rounded-lg shadow-lg w-full">
+                    <p class="text-center mt-2 text-gray-600">Table View with Kind Column</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Download -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Download</h2>
+            <div class="bg-gray-50 p-8 rounded-lg text-center">
+                <a href="https://github.com/rajivm1991/DroidDock/releases/tag/v0.2.0" 
+                   class="inline-block px-8 py-4 rounded-lg text-lg font-semibold text-white transition shadow-lg"
+                   style="background-color: #b0b0b0;"
+                   onmouseover="this.style.backgroundColor='#666666'" 
+                   onmouseout="this.style.backgroundColor='#b0b0b0'">
+                    Download DroidDock v0.2.0
+                </a>
+                <p class="mt-4 text-gray-600">macOS 10.13+ • Universal Binary (Apple Silicon + Intel)</p>
+            </div>
+        </section>
+
+        <!-- Full Changelog -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Full Changelog</h2>
+            <div class="bg-gray-50 p-6 rounded-lg">
+                <h3 class="text-xl font-semibold mb-4 text-gray-800">v0.2.0 - January 1, 2026</h3>
+                
+                <h4 class="font-semibold text-gray-700 mb-2">Added</h4>
+                <ul class="list-disc list-inside mb-4 text-gray-600 space-y-1">
+                    <li>File preview system (images + text files)</li>
+                    <li>Image preview with base64 display and high-quality rendering</li>
+                    <li>Text file preview with syntax highlighting</li>
+                    <li>Two-column layout (image + metadata panel)</li>
+                    <li>Dynamic modal sizing based on image orientation</li>
+                    <li>Keyboard navigation in preview modal (arrow keys)</li>
+                    <li>Space key for quick-preview without changing selection</li>
+                    <li>"Kind" column in Table View</li>
+                    <li>Scrollbar in Keyboard Shortcuts Dialog</li>
+                </ul>
+
+                <h4 class="font-semibold text-gray-700 mb-2">Changed</h4>
+                <ul class="list-disc list-inside mb-4 text-gray-600 space-y-1">
+                    <li>Simplified from 4 to 3 view modes (Table, Grid, Column)</li>
+                    <li>Updated keyboard shortcuts: Cmd+1 (Table), Cmd+2 (Grid), Cmd+3 (Column)</li>
+                    <li>Enhanced visual feedback with stronger selection indicators</li>
+                    <li>Compact header design with 3-line structure</li>
+                    <li>Improved breadcrumb navigation with better truncation</li>
+                </ul>
+
+                <h4 class="font-semibold text-gray-700 mb-2">Removed</h4>
+                <ul class="list-disc list-inside mb-4 text-gray-600 space-y-1">
+                    <li>List view mode (streamlined to 3 essential view modes)</li>
+                    <li>Cmd+4 keyboard shortcut</li>
+                </ul>
+
+                <h4 class="font-semibold text-gray-700 mb-2">Fixed</h4>
+                <ul class="list-disc list-inside text-gray-600 space-y-1">
+                    <li>Focus management when navigating between directories</li>
+                    <li>Text selection in preview modal and input fields</li>
+                    <li>Preview navigation edge cases</li>
+                    <li>Arrow key navigation consistency across view modes</li>
+                </ul>
+
+                <p class="mt-4">
+                    <a href="https://github.com/rajivm1991/DroidDock/blob/main/CHANGELOG.md" 
+                       class="text-gray-700 hover:underline"
+                       style="color: #b0b0b0;">
+                        View complete changelog →
+                    </a>
+                </p>
+            </div>
+        </section>
+
+        <!-- Links -->
+        <section>
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Links</h2>
+            <div class="space-y-2 text-gray-700">
+                <p>
+                    <a href="https://github.com/rajivm1991/DroidDock" class="hover:underline" style="color: #b0b0b0;">
+                        GitHub Repository →
+                    </a>
+                </p>
+                <p>
+                    <a href="https://github.com/rajivm1991/DroidDock/releases/tag/v0.2.0" class="hover:underline" style="color: #b0b0b0;">
+                        Release on GitHub →
+                    </a>
+                </p>
+                <p>
+                    <a href="../" class="hover:underline" style="color: #b0b0b0;">
+                        DroidDock Website →
+                    </a>
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 px-4 mt-12">
+        <div class="max-w-4xl mx-auto text-center">
+            <p class="text-gray-400">Built with Tauri, Rust, React, and TypeScript</p>
+            <p class="text-gray-500 text-sm mt-2">
+                © 2025-2026 DroidDock •
+                <a href="https://github.com/rajivm1991/DroidDock/blob/main/LICENSE" 
+                   style="color: #b0b0b0;" 
+                   class="hover:underline">
+                    MIT License
+                </a>
+            </p>
+        </div>
+    </footer>
+</body>
+</html>
