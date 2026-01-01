@@ -179,6 +179,16 @@ header {
   color: #333;
 }
 
+.control-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.control-btn:disabled:hover {
+  background-color: #ffffff;
+  color: #666;
+}
+
 .control-btn.active {
   background-color: #333;
   color: #ffffff;
