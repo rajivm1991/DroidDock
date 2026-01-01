@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 4 zoom levels: small → medium → large → xlarge
 
 ### Changed
-- **Zen Habits Minimalist UI**: Complete visual redesign with 95% grayscale aesthetic
+- **Minimalist UI**: Complete visual redesign with 95% grayscale aesthetic
   - Clean white backgrounds with medium gray accents (#b0b0b0)
   - Removed all blue/gold colors (except functional: red delete, green download)
   - Unicode symbols instead of emoji: ↻ (refresh), ↑ (upload), − (zoom out), + (zoom in), ⋯ (loading)
@@ -36,7 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Friendly robot with antennae standing on dock platform
   - Floating document icons representing file management
   - Clean white-on-black minimalist design
-  - Matches Zen Habits aesthetic
 - **Improved Table View Date Column**
   - Width increased from 140px to 180px (fully visible dates)
   - Monospace font for better alignment and readability
