@@ -2284,6 +2284,7 @@ function App() {
             {viewMode === 'grid' && (
               <>
                 <div className="control-divider"></div>
+                <div>
                 <button
                   onClick={() => setIconSize('small')}
                   className={`control-btn ${iconSize === 'small' ? 'active' : ''}`}
@@ -2312,8 +2313,30 @@ function App() {
                 >
                   ○
                 </button>
+                </div>
               </>
             )}
+            
+            <div className="control-divider"></div>
+            
+            <select
+              value={sortColumn}
+              onChange={(e) => setSortColumn(e.target.value as 'name' | 'size' | 'date')}
+              className="sort-select"
+              title="Sort by"
+            >
+              <option value="name">Name</option>
+              <option value="size">Size</option>
+              <option value="date">Date</option>
+            </select>
+            
+            <button
+              onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
+              className="control-btn"
+              title={`Sort ${sortDirection === 'asc' ? 'descending' : 'ascending'}`}
+            >
+              {sortDirection === 'asc' ? '↑' : '↓'}
+            </button>
             
             <div className="control-divider"></div>
             
@@ -2350,30 +2373,6 @@ function App() {
                       />
                       <span className="toggle-switch"></span>
                     </label>
-                  </div>
-                  <div className="settings-divider"></div>
-                  <div className="settings-item">
-                    <label className="sort-label">Sort by:</label>
-                    <select
-                      value={sortColumn}
-                      onChange={(e) => setSortColumn(e.target.value as 'name' | 'size' | 'date')}
-                      className="sort-select"
-                    >
-                      <option value="name">Name</option>
-                      <option value="size">Size</option>
-                      <option value="date">Date</option>
-                    </select>
-                  </div>
-                  <div className="settings-item">
-                    <label className="sort-label">Direction:</label>
-                    <select
-                      value={sortDirection}
-                      onChange={(e) => setSortDirection(e.target.value as 'asc' | 'desc')}
-                      className="sort-select"
-                    >
-                      <option value="asc">Ascending</option>
-                      <option value="desc">Descending</option>
-                    </select>
                   </div>
                   <div className="settings-divider"></div>
                   <div className="settings-item">
