@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-01-01
+
+### Added
+- **Clickable Column Headers**: Click table column headers (Name, Size, Date) to sort
+  - Click same header again to toggle sort direction (ascending ↔ descending)
+  - Visual indicators show active column with arrows (↑/↓)
+  - Syncs with header sort dropdown controls
+- **Sort Controls in Header**: Moved sort options from settings menu to main header
+  - Sort by dropdown (Name/Size/Date) always visible
+  - Sort direction toggle button with arrow indicators
+  - Seamless grouped control design (select + button appear as one unit)
+- **Zoom Controls for Grid View**: Simplified icon size controls
+  - Changed from 4 separate buttons to 2 zoom buttons (− and +)
+  - Works with Cmd+/Cmd− keyboard shortcuts
+  - Disabled state visual feedback (opacity 0.4) at min/max zoom
+  - 4 zoom levels: small → medium → large → xlarge
+
+### Changed
+- **Zen Habits Minimalist UI**: Complete visual redesign with 95% grayscale aesthetic
+  - Clean white backgrounds with medium gray accents (#b0b0b0)
+  - Removed all blue/gold colors (except functional: red delete, green download)
+  - Unicode symbols instead of emoji: ↻ (refresh), ↑ (upload), − (zoom out), + (zoom in), ⋯ (loading)
+  - Consistent shadows across all controls: `0 1px 3px rgba(0, 0, 0, 0.08)`
+  - Seamless grouped controls (no visible gaps between related buttons)
+  - Dark mode updated with darker grayscale palette (#1a1a1a, #2a2a2a, #3a3a3a)
+- **New App Icon**: Playful Android robot design
+  - Friendly robot with antennae standing on dock platform
+  - Floating document icons representing file management
+  - Clean white-on-black minimalist design
+  - Matches Zen Habits aesthetic
+- **Improved Table View Date Column**
+  - Width increased from 140px to 180px (fully visible dates)
+  - Monospace font for better alignment and readability
+  - Font: 'SF Mono', 'Menlo', 'Monaco', 'Courier New'
+  - Letter spacing: 0.3px for improved scanning
+- **Header Layout Improvements**
+  - Better control grouping and spacing
+  - Sort controls prominently displayed (no longer hidden in settings)
+  - Consistent button sizing (32px height)
+
+### Fixed
+- TypeScript error: Unused 'searching' variable marked with underscore prefix
+- Date truncation in table view (now fully visible)
+- Icon size button confusion (simplified to zoom metaphor)
+
+### Technical
+- Icon file sizes reduced (icon.icns: 195 KB → 117 KB, icon.ico: 83 KB)
+- Cleaner CSS with consistent design tokens
+- Better control component reusability
+
 ## [0.2.0] - 2026-01-01
 
 ### Added
@@ -127,6 +177,7 @@ npm run release:prepare 0.2.0
 
 ---
 
-[Unreleased]: https://github.com/rajivm1991/DroidDock/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/rajivm1991/DroidDock/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/rajivm1991/DroidDock/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/rajivm1991/DroidDock/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/rajivm1991/DroidDock/releases/tag/v0.1.0
