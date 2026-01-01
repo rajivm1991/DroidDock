@@ -465,9 +465,16 @@ th:nth-child(3) {
   width: 100px;
 }
 
-/* Date column - minimal space */
+/* Date column - enough space for full dates */
 th:nth-child(4) {
-  width: 140px;
+  width: 180px;
+}
+
+/* Date column cells - monospace font */
+td:nth-child(4) {
+  font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  letter-spacing: 0.3px;
 }
 
 .sortable-header {
