@@ -2295,7 +2295,7 @@ function App() {
                   title="Zoom out (Cmd+-)"
                   disabled={iconSize === 'small'}
                 >
-                  🔍−
+                  −
                 </button>
                 <button
                   onClick={() => {
@@ -2307,7 +2307,7 @@ function App() {
                   title="Zoom in (Cmd++)"
                   disabled={iconSize === 'xlarge'}
                 >
-                  🔍+
+                  +
                 </button>
                 </div>
               </>
