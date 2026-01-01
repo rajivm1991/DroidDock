@@ -2290,28 +2290,28 @@ function App() {
                   className={`control-btn ${iconSize === 'small' ? 'active' : ''}`}
                   title="Small icons"
                 >
-                  −
+                  ▫
                 </button>
                 <button
                   onClick={() => setIconSize('medium')}
                   className={`control-btn ${iconSize === 'medium' ? 'active' : ''}`}
                   title="Medium icons"
                 >
-                  ●
+                  ▪
                 </button>
                 <button
                   onClick={() => setIconSize('large')}
                   className={`control-btn ${iconSize === 'large' ? 'active' : ''}`}
                   title="Large icons"
                 >
-                  ◐
+                  ◼
                 </button>
                 <button
                   onClick={() => setIconSize('xlarge')}
                   className={`control-btn ${iconSize === 'xlarge' ? 'active' : ''}`}
                   title="Extra large icons"
                 >
-                  ○
+                  ⬛
                 </button>
                 </div>
               </>
