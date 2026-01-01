@@ -2551,10 +2551,49 @@ function App() {
               <table>
                 <thead>
                   <tr>
-                    <th>Name</th>
+                    <th 
+                      onClick={() => {
+                        if (sortColumn === 'name') {
+                          setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setSortColumn('name');
+                          setSortDirection('asc');
+                        }
+                      }}
+                      className={sortColumn === 'name' ? 'sortable active' : 'sortable'}
+                      title="Click to sort by name"
+                    >
+                      Name {sortColumn === 'name' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
                     <th>Kind</th>
-                    <th>Size</th>
-                    <th>Date</th>
+                    <th 
+                      onClick={() => {
+                        if (sortColumn === 'size') {
+                          setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setSortColumn('size');
+                          setSortDirection('asc');
+                        }
+                      }}
+                      className={sortColumn === 'size' ? 'sortable active' : 'sortable'}
+                      title="Click to sort by size"
+                    >
+                      Size {sortColumn === 'size' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
+                    <th 
+                      onClick={() => {
+                        if (sortColumn === 'date') {
+                          setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+                        } else {
+                          setSortColumn('date');
+                          setSortDirection('asc');
+                        }
+                      }}
+                      className={sortColumn === 'date' ? 'sortable active' : 'sortable'}
+                      title="Click to sort by date"
+                    >
+                      Date {sortColumn === 'date' && (sortDirection === 'asc' ? '↑' : '↓')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>

@@ -426,8 +426,28 @@ th {
   padding: 12px;
   text-align: left;
   font-weight: 600;
-  color: #555;
-  border-bottom: 2px solid #e0e0e0;
+  color: #666;
+  font-size: 13px;
+  border-bottom: 1px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+th.sortable:hover {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+th.sortable.active {
+  color: #333;
+  font-weight: 700;
 }
 
 /* Name column - takes most space */
@@ -1625,6 +1645,15 @@ tbody tr {
   th {
     color: #ccc;
     border-bottom-color: #3a3a3a;
+  }
+
+  th.sortable:hover {
+    background-color: #3a3a3a;
+    color: #e0e0e0;
+  }
+
+  th.sortable.active {
+    color: #e0e0e0;
   }
 
   tbody tr {
