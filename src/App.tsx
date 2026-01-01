@@ -84,9 +84,9 @@ function StatusBar({ storageInfo, fileCount, selectedCount }: StatusBarProps) {
               style={{
                 width: `${Math.min(storageInfo.percentage_used, 100)}%`,
                 backgroundColor:
-                  storageInfo.percentage_used > 90 ? '#ff4444' :
-                  storageInfo.percentage_used > 75 ? '#ffaa00' :
-                  '#4CAF50'
+                  storageInfo.percentage_used > 90 ? '#333333' :
+                  storageInfo.percentage_used > 75 ? '#666666' :
+                  '#999999'
               }}
             />
           </div>
@@ -832,7 +832,9 @@ function App() {
           const file = getDisplayFiles()[focusedIndex];
           // Only allow preview of files, not directories
           if (!file.is_directory) {
-            // Preview the focused file directly without changing selection
+            // Clear selection and select only the focused file
+            setSelectedFiles(new Set([file.name]));
+            // Preview the focused file
             previewFileByName(file.name);
           }
         }
@@ -2239,6 +2241,7 @@ function App() {
       <header className="compact-header">
         <div className="header-row-1">
           <div className="header-controls">
+            <div>
             <select
               value={selectedDevice}
               onChange={(e) => setSelectedDevice(e.target.value)}
@@ -2252,10 +2255,10 @@ function App() {
                 </option>
               ))}
             </select>
-            <button onClick={loadDevices} className="control-btn">Refresh</button>
-            
+            <button onClick={loadDevices} className="control-btn device-refresh-btn" title="Refresh devices">↻</button>
+            </div>
             <div className="control-divider"></div>
-            
+            <div>
             <button
               onClick={() => setViewMode('table')}
               className={`control-btn ${viewMode === 'table' ? 'active' : ''}`}
@@ -2277,7 +2280,7 @@ function App() {
             >
               ▦
             </button>
-            
+            </div>
             {viewMode === 'grid' && (
               <>
                 <div className="control-divider"></div>
@@ -2463,13 +2466,6 @@ function App() {
                   />
                   All subdirectories
                 </label>
-                <button
-                  onClick={performSearch}
-                  className="search-btn"
-                  disabled={!searchQuery.trim() || searching}
-                >
-                  {searching ? "Searching..." : "Search"}
-                </button>
                 {searchMode && (
                   <button onClick={exitSearchMode} className="clear-search-btn">
                     Clear
@@ -2643,7 +2639,7 @@ function App() {
             className={`fab ${selectedFiles.size > 0 ? 'fab-raised' : ''}`}
             title="Upload file to current directory"
           >
-            {uploading ? "⏳" : "📤"}
+            {uploading ? "⋯" : "↑"}
           </button>
 
           {/* Contextual Action Bar for File Actions */}

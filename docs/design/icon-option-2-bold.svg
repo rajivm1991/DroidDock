@@ -1,0 +1,51 @@
+<!-- DroidDock Icon Option 2: Bold Line Drawing -->
+<!-- Thicker lines for better visibility at small sizes -->
+
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" rx="115" fill="#000000"/>
+  
+  <!-- Android phone -->
+  <g stroke="#ffffff" stroke-width="10" fill="none" stroke-linejoin="round">
+    <!-- Phone outline -->
+    <rect x="150" y="130" width="140" height="220" rx="15"/>
+    
+    <!-- Screen content lines -->
+    <line x1="170" y1="180" x2="270" y2="180"/>
+    <line x1="170" y1="200" x2="270" y2="200"/>
+    <line x1="170" y1="220" x2="240" y2="220"/>
+    
+    <!-- Speaker notch -->
+    <line x1="200" y1="150" x2="240" y2="150" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Android robot head (simplified) -->
+  <g stroke="#ffffff" stroke-width="8" fill="none">
+    <line x1="180" y1="125" x2="180" y2="105" stroke-linecap="round"/>
+    <line x1="260" y1="125" x2="260" y2="105" stroke-linecap="round"/>
+    <circle cx="180" cy="100" r="6" fill="#ffffff"/>
+    <circle cx="260" cy="100" r="6" fill="#ffffff"/>
+  </g>
+  
+  <!-- Dock -->
+  <g stroke="#ffffff" stroke-width="10" fill="none" stroke-linejoin="round">
+    <rect x="180" y="370" width="200" height="35" rx="8"/>
+    <line x1="190" y1="410" x2="370" y2="410" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Transfer arrow -->
+  <g stroke="#ffffff" stroke-width="8" fill="none">
+    <path d="M 220 350 L 220 370 L 290 380" stroke-linecap="round" stroke-linejoin="round"/>
+    <polyline points="275,375 290,380 285,392" stroke-linejoin="round"/>
+  </g>
+  
+  <!-- Files icon -->
+  <g transform="translate(310, 200)" stroke="#ffffff" stroke-width="8" fill="none">
+    <!-- Stack of files/papers -->
+    <rect x="5" y="15" width="65" height="80" rx="4"/>
+    <rect x="0" y="10" width="65" height="80" rx="4"/>
+    <line x1="15" y1="30" x2="50" y2="30" stroke-width="4"/>
+    <line x1="15" y1="45" x2="50" y2="45" stroke-width="4"/>
+    <line x1="15" y1="60" x2="45" y2="60" stroke-width="4"/>
+  </g>
+</svg>
