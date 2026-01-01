@@ -1,0 +1,19 @@
+procs:
+  dev:
+    shell: "npm run tauri dev"
+    stop: SIGINT
+
+  test:
+    shell: "cd src-tauri && cargo test"
+    autostart: false
+    stop: SIGINT
+
+  build:
+    shell: "npm run build && cd src-tauri && cargo build"
+    autostart: false
+    stop: SIGINT
+
+  docs:
+    shell: "cd docs && python3 -m http.server 8080"
+    autostart: false
+    stop: SIGINT
