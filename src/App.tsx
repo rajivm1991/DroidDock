@@ -2286,32 +2286,28 @@ function App() {
                 <div className="control-divider"></div>
                 <div>
                 <button
-                  onClick={() => setIconSize('small')}
-                  className={`control-btn ${iconSize === 'small' ? 'active' : ''}`}
-                  title="Small icons"
+                  onClick={() => {
+                    if (iconSize === 'xlarge') setIconSize('large');
+                    else if (iconSize === 'large') setIconSize('medium');
+                    else if (iconSize === 'medium') setIconSize('small');
+                  }}
+                  className="control-btn"
+                  title="Zoom out (Cmd+-)"
+                  disabled={iconSize === 'small'}
                 >
-                  ▫
+                  🔍−
                 </button>
                 <button
-                  onClick={() => setIconSize('medium')}
-                  className={`control-btn ${iconSize === 'medium' ? 'active' : ''}`}
-                  title="Medium icons"
+                  onClick={() => {
+                    if (iconSize === 'small') setIconSize('medium');
+                    else if (iconSize === 'medium') setIconSize('large');
+                    else if (iconSize === 'large') setIconSize('xlarge');
+                  }}
+                  className="control-btn"
+                  title="Zoom in (Cmd++)"
+                  disabled={iconSize === 'xlarge'}
                 >
-                  ▪
-                </button>
-                <button
-                  onClick={() => setIconSize('large')}
-                  className={`control-btn ${iconSize === 'large' ? 'active' : ''}`}
-                  title="Large icons"
-                >
-                  ◼
-                </button>
-                <button
-                  onClick={() => setIconSize('xlarge')}
-                  className={`control-btn ${iconSize === 'xlarge' ? 'active' : ''}`}
-                  title="Extra large icons"
-                >
-                  ⬛
+                  🔍+
                 </button>
                 </div>
               </>
