@@ -447,7 +447,7 @@ function App() {
   const [searchMode, setSearchMode] = useState<boolean>(false);
   const [searchRecursive, setSearchRecursive] = useState<boolean>(false);
   const [searchResults, setSearchResults] = useState<FileEntry[]>([]);
-  const [searching, setSearching] = useState<boolean>(false);
+  const [_searching, setSearching] = useState<boolean>(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Storage info state
