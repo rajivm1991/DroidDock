@@ -281,9 +281,11 @@ header {
 
 .sort-select {
   min-width: 90px;
-  padding: 6px 8px;
+  padding: 6px 10px;
+  height: 32px;
   border: 1px solid #ddd;
-  border-radius: 6px;
+  border-radius: 6px 0 0 6px;
+  border-right: none;
   font-size: 13px;
   background-color: white;
   cursor: pointer;
@@ -300,6 +302,14 @@ header {
 .sort-select:focus {
   outline: 2px solid #b0b0b0;
   outline-offset: 2px;
+}
+
+.sort-direction-btn {
+  border-radius: 0 6px 6px 0 !important;
+  border-left: none !important;
+  margin-left: -1px;
+  height: 32px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
 }
 
 .shortcuts-btn {

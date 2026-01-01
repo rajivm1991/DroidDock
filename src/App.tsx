@@ -2319,6 +2319,7 @@ function App() {
             
             <div className="control-divider"></div>
             
+            <div>
             <select
               value={sortColumn}
               onChange={(e) => setSortColumn(e.target.value as 'name' | 'size' | 'date')}
@@ -2329,14 +2330,14 @@ function App() {
               <option value="size">Size</option>
               <option value="date">Date</option>
             </select>
-            
             <button
               onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
-              className="control-btn"
+              className="control-btn sort-direction-btn"
               title={`Sort ${sortDirection === 'asc' ? 'descending' : 'ascending'}`}
             >
               {sortDirection === 'asc' ? '↑' : '↓'}
             </button>
+            </div>
             
             <div className="control-divider"></div>
             
