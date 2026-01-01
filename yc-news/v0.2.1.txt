@@ -13,12 +13,11 @@ DroidDock is essentially Finder for your Android device:
 * Browse files with Table, Grid, or Column (Miller) views
 * Preview images and text files without downloading (press Space!)
 * Navigate with keyboard shortcuts (arrow keys, Cmd+1/2/3)
-* Clickable column headers for sorting (Name, Size, Date)
+* Clickable column headers for sorting
 * Search files recursively across directories
 * Upload/download with drag-and-drop or file picker
 * Multi-select, delete, and manage files
-* Dark mode with minimalist grayscale design
-* Auto-updates built-in
+* Dark mode support
 
 Tech Stack
 
@@ -27,29 +26,24 @@ Built with Tauri (Rust backend) + React/TypeScript frontend. Why Tauri?
 * Good performance (Rust handles all ADB communication)
 * Small bundle size (~15MB DMG for universal binary)
 * Lower memory footprint than Electron
-* Built-in auto-updater with signature verification
+* Built-in auto-updater
 
-The entire file browsing logic and ADB interaction runs in Rust, while React handles the UI. Communication happens through Tauri's command system (like IPC but type-safe).
+The entire file browsing logic and ADB interaction runs in Rust, while React handles the UI.
 
-What's New in v0.2.1
+What's New in v0.2.x
 
-Just released today:
-
-* Minimalist UI redesign with 95% grayscale aesthetic
-* Clickable column headers for sorting (click Name/Size/Date columns)
-* Sort controls moved to main header (more discoverable)
-* Simplified zoom controls (2 buttons instead of 4, works with Cmd+/Cmd−)
-* New playful Android robot icon
-* Better date column readability (monospace font, wider width)
-* Clean Unicode symbols instead of emoji (↻ ↑ − + ⋯)
+* **File Previews**: Press Space to preview images/text without downloading
+* **Minimalist UI**: Clean 95% grayscale design with better readability
+* **Clickable Sorting**: Click column headers (Name, Size, Date) to sort
+* **Kind Column**: Shows file types at a glance (Image, Video, Document, etc.)
+* **Better Keyboard Navigation**: Arrow keys in preview, Cmd shortcuts for everything
 
 Challenges
 
-1. ADB Path Detection: Different package managers install ADB in different locations (Homebrew, MacPorts, Android Studio). Had to check 5+ common paths on startup.
-2. Thumbnail Generation: Android doesn't expose a thumbnail API via ADB. I pull the first N bytes of image files, decode them in Rust, and generate thumbnails on-the-fly with caching.
-3. File Preview: ADB doesn't stream files – you have to pull the entire file. For large images, I had to implement chunked reading to check dimensions/size before deciding whether to pull.
+1. ADB Path Detection: Different package managers install ADB in different locations. Had to check 5+ common paths on startup.
+2. Thumbnail Generation: Android doesn't expose a thumbnail API via ADB. I pull the first N bytes of image files and generate thumbnails on-the-fly with caching.
+3. File Preview: ADB doesn't stream files – you have to pull the entire file. For large images, I had to implement chunked reading to check dimensions first.
 4. Code Signing: Currently unsigned (requires $99/year Apple Developer membership). Users have to right-click → Open on first launch.
-5. WebView Limitations: Unlike a true native app (Swift/AppKit), I'm constrained by WebView capabilities. But for a file browser, it's been perfectly adequate and much faster to develop.
 
 Open Source & Free
 
@@ -61,19 +55,20 @@ GitHub: https://github.com/rajivm1991/DroidDock
 
 Download: https://github.com/rajivm1991/DroidDock/releases/latest
 
-Would love feedback! This is my first Tauri app after years of building Electron apps. The Rust learning curve was worth it – much smaller bundles and better performance for file I/O. Happy to answer questions!
+Would love feedback! This is my first Tauri app after years of building Electron apps. The Rust learning curve was worth it – much smaller bundles and better performance for file I/O.
 
 = = = = shorter version for updates
 
-DroidDock v0.2.1 is out! New in this release:
+DroidDock v0.2.1 is out! A minimalist macOS app for browsing Android files.
 
-* Minimalist UI redesign – 95% grayscale aesthetic, clean and professional
-* Clickable column headers for sorting (just click Name, Size, or Date)
-* Simplified zoom controls (2 buttons: − and +, works with Cmd+/Cmd−)
-* New playful Android robot app icon
-* Better table view with improved date column readability
+New in v0.2.x:
+* File previews (press Space)
+* Minimalist 95% grayscale UI
+* Clickable column headers for sorting
+* Kind column shows file types
+* Better keyboard navigation
 
-Still MIT licensed, free, no telemetry. Built with Tauri (Rust + React).
+Built with Tauri (Rust + React). MIT licensed, free, no telemetry.
 
 Download: https://github.com/rajivm1991/DroidDock/releases/tag/v0.2.1
 
@@ -81,12 +76,13 @@ Download: https://github.com/rajivm1991/DroidDock/releases/tag/v0.2.1
 
 Just released DroidDock v0.2.1! 🤖
 
-A minimalist macOS app for browsing Android files – think Finder, but for your phone.
+A minimalist macOS app for browsing Android files – think Finder for your phone.
 
-✨ New: Minimalist UI redesign (95% grayscale)
-🖱️ Clickable column headers for sorting
-📱 New Android robot icon
+✨ File previews (press Space)
+🎨 Clean minimalist UI
+🖱️ Clickable column sorting
 ⚡ Built with Tauri (Rust + React)
 
-Free, open source, no telemetry.
-https://github.com/rajivm1991/DroidDock/releases/tag/v0.2.1
+Free & open source.
+https://github.com/rajivm1991/DroidDock
+
