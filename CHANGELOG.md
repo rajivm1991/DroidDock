@@ -52,23 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cleaner component architecture with removed redundant code
 - Performance optimizations in preview rendering
 
-## [0.1.0] - 2025-11-08
-
-## [0.1.0] - 2025-11-08
-
-### Added
-- Complete distribution system with GitHub Pages landing page
-- Automated DMG releases via GitHub Actions
-- Auto-update functionality with Tauri updater
-- Version management script for streamlined releases
-- Custom app icon design (SVG source available)
-- Professional website at https://rajivm1991.github.io/DroidDock/
-
-### Changed
-- Updated installation instructions for DMG releases
-- Enhanced README with distribution and release information
-
-## [0.1.0] - 2024-11-05
+## [0.1.0] - 2025-10-19
 
 ### Added
 - Initial release of DroidDock
