@@ -1753,8 +1753,6 @@ function App() {
         setError(`Downloaded ${successCount} file(s), ${errorCount} failed`);
       } else {
         setSuccessMessage(`Successfully downloaded ${successCount} file(s)`);
-        // Clear success message after 5 seconds
-        setTimeout(() => setSuccessMessage(""), 5000);
       }
     } catch (err) {
       setDownloading(false);
@@ -2158,7 +2156,6 @@ function App() {
         setError(`Uploaded ${successCount} file(s), ${errorCount} failed`);
       } else {
         setSuccessMessage(`Successfully uploaded ${successCount} file(s)`);
-        setTimeout(() => setSuccessMessage(""), 5000);
       }
     }
 

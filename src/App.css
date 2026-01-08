@@ -1573,6 +1573,65 @@ tbody tr {
   font-size: 14px;
 }
 
+/* Message notifications */
+.error {
+  padding: 12px 20px;
+  background-color: #fee;
+  border-left: 4px solid #f44336;
+  color: #c62828;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.success {
+  padding: 12px 20px;
+  background-color: #e8f5e9;
+  border-left: 4px solid #4CAF50;
+  color: #2e7d32;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.info {
+  padding: 12px 20px;
+  background-color: #e3f2fd;
+  border-left: 4px solid #2196F3;
+  color: #1565c0;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.close-btn:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     color: #e0e0e0;
