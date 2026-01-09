@@ -73,10 +73,23 @@ DroidDock automatically checks these common ADB locations:
 
 2. **Install**: Open the DMG and drag DroidDock to your Applications folder.
 
-3. **Launch**: Since the app is currently unsigned, you need to:
-   - **Right-click** the app and select **"Open"**
-   - Click **"Open"** in the security dialog
-   - (Future releases will be code-signed to remove this step)
+3. **Launch**: 
+   
+   > ⚠️ **macOS Security Notice**: When downloading from GitHub, macOS may show a warning that DroidDock is "damaged" and can't be opened. This is due to Apple's Gatekeeper security for unsigned apps. The app is safe to use - choose one of these methods to open it:
+   
+   **Method 1 - Command Line (Fastest)**:
+   ```bash
+   xattr -cr /Applications/DroidDock.app
+   ```
+   Then launch the app normally.
+   
+   **Method 2 - GUI (No Terminal)**:
+   - Right-click on DroidDock.app
+   - Hold the **Option (⌥)** key
+   - Click **"Open"**
+   - Click **"Open"** again in the confirmation dialog
+   
+   This only needs to be done once. Future releases will be code-signed to eliminate this step.
 
 4. **Auto-Updates**: DroidDock will automatically check for updates on launch and notify you when new versions are available.
 
