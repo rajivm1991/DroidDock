@@ -75,19 +75,13 @@ DroidDock automatically checks these common ADB locations:
 
 3. **Launch**: 
    
-   > ⚠️ **macOS Security Notice**: When downloading from GitHub, macOS may show a warning that DroidDock is "damaged" and can't be opened. This is due to Apple's Gatekeeper security for unsigned apps. The app is safe to use - choose one of these methods to open it:
+   > ⚠️ **macOS Security Notice**: When downloading from GitHub, macOS may show a warning that DroidDock is "damaged" and can't be opened. This is due to Apple's Gatekeeper security for unsigned apps. The app is safe to use.
    
-   **Method 1 - Command Line (Fastest)**:
+   **To fix this, run this command in Terminal:**
    ```bash
    xattr -cr /Applications/DroidDock.app
    ```
    Then launch the app normally.
-   
-   **Method 2 - GUI (No Terminal)**:
-   - Right-click on DroidDock.app
-   - Hold the **Option (⌥)** key
-   - Click **"Open"**
-   - Click **"Open"** again in the confirmation dialog
    
    This only needs to be done once. Future releases will be code-signed to eliminate this step.
 
