@@ -1632,7 +1632,7 @@ tbody tr {
   background-color: rgba(0, 0, 0, 0.1);
 }
 
-@media (prefers-color-scheme: dark) {
+[data-theme="dark"] {
   :root {
     color: #e0e0e0;
     background-color: #1a1a1a;

@@ -427,6 +427,10 @@ function App() {
   const [thumbnailsEnabled, setThumbnailsEnabled] = useState<boolean>(false);
   const [thumbnailCache, setThumbnailCache] = useState<Map<string, string>>(new Map());
   const [settingsOpen, setSettingsOpen] = useState<boolean>(false);
+  const [darkMode, setDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('darkMode');
+    return saved !== null ? JSON.parse(saved) : false;
+  });
 
   // File selection and deletion state
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
@@ -496,6 +500,12 @@ function App() {
   useEffect(() => {
     checkAdb();
   }, []);
+
+  // Apply dark mode theme
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+    localStorage.setItem('darkMode', JSON.stringify(darkMode));
+  }, [darkMode]);
 
   // Load devices when ADB becomes available
   useEffect(() => {
@@ -2363,6 +2373,18 @@ function App() {
                         type="checkbox"
                         checked={showHiddenFiles}
                         onChange={(e) => setShowHiddenFiles(e.target.checked)}
+                        className="toggle-checkbox"
+                      />
+                      <span className="toggle-switch"></span>
+                    </label>
+                  </div>
+                  <div className="settings-item">
+                    <label className="toggle-label">
+                      <span>Dark Mode</span>
+                      <input
+                        type="checkbox"
+                        checked={darkMode}
+                        onChange={(e) => setDarkMode(e.target.checked)}
                         className="toggle-checkbox"
                       />
                       <span className="toggle-switch"></span>
