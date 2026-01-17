@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DroidDock v0.2.2 Release Notes</title>
+    <meta name="description" content="DroidDock v0.2.2 - Manual dark mode toggle, improved app icon, and progress display fixes">
+    <link rel="icon" type="image/svg+xml" href="../design/icon-design.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #ffffff;
+            color: #333;
+        }
+        .hero-bg {
+            background: #b0b0b0;
+        }
+    </style>
+</head>
+<body class="bg-white">
+    <!-- Header -->
+    <header class="hero-bg text-white py-12 px-4">
+        <div class="max-w-4xl mx-auto">
+            <a href="../" class="text-white hover:underline mb-4 inline-block">← Back to DroidDock</a>
+            <h1 class="text-4xl md:text-5xl font-bold mb-4">DroidDock v0.2.2</h1>
+            <p class="text-xl" style="color: rgba(255, 255, 255, 0.9);">Release Notes • January 17, 2026</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-12">
+        <!-- What's New -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">What's New in v0.2.2</h2>
+
+            <div class="space-y-6">
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Manual Dark Mode Toggle</h3>
+                    <p class="text-gray-700">New dark mode toggle in settings lets you manually switch between light and dark themes. Your preference is saved and persists across sessions. No longer auto-switches based on system theme.</p>
+                </div>
+
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Improved App Icon</h3>
+                    <p class="text-gray-700">Fixed app icon padding for better consistency in macOS Cmd+Tab app switcher and Dock.</p>
+                </div>
+
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Progress Display Fixes</h3>
+                    <p class="text-gray-700">Fixed download and upload progress indicators to correctly show transfer status and success messages.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Download -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Download</h2>
+            <div class="bg-gray-50 p-8 rounded-lg text-center">
+                <a href="https://github.com/rajivm1991/DroidDock/releases/tag/v0.2.2"
+                   class="inline-block px-8 py-4 rounded-lg text-lg font-semibold text-white transition shadow-lg"
+                   style="background-color: #b0b0b0;"
+                   onmouseover="this.style.backgroundColor='#666666'"
+                   onmouseout="this.style.backgroundColor='#b0b0b0'">
+                    Download DroidDock v0.2.2
+                </a>
+                <p class="mt-4 text-gray-600">macOS 10.13+ • Universal Binary (Apple Silicon + Intel)</p>
+            </div>
+        </section>
+
+        <!-- Full Changelog -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Full Changelog</h2>
+            <div class="bg-gray-50 p-6 rounded-lg">
+                <h3 class="text-xl font-semibold mb-4 text-gray-800">v0.2.2 - January 17, 2026</h3>
+
+                <h4 class="font-semibold text-gray-700 mb-2">Added</h4>
+                <ul class="list-disc list-inside mb-4 text-gray-600 space-y-1">
+                    <li>Manual dark mode toggle in settings menu</li>
+                    <li>Dark mode preference persists via localStorage</li>
+                </ul>
+
+                <h4 class="font-semibold text-gray-700 mb-2">Fixed</h4>
+                <ul class="list-disc list-inside mb-4 text-gray-600 space-y-1">
+                    <li>App icon padding for macOS Cmd+Tab consistency</li>
+                    <li>Download/upload progress indicator display</li>
+                    <li>Success message display after file transfers</li>
+                </ul>
+
+                <p class="mt-4">
+                    <a href="https://github.com/rajivm1991/DroidDock/blob/main/CHANGELOG.md"
+                       class="text-gray-700 hover:underline"
+                       style="color: #b0b0b0;">
+                        View complete changelog →
+                    </a>
+                </p>
+            </div>
+        </section>
+
+        <!-- Links -->
+        <section>
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Links</h2>
+            <div class="space-y-2 text-gray-700">
+                <p>
+                    <a href="https://github.com/rajivm1991/DroidDock" class="hover:underline" style="color: #b0b0b0;">
+                        GitHub Repository →
+                    </a>
+                </p>
+                <p>
+                    <a href="https://github.com/rajivm1991/DroidDock/releases/tag/v0.2.2" class="hover:underline" style="color: #b0b0b0;">
+                        Release on GitHub →
+                    </a>
+                </p>
+                <p>
+                    <a href="../" class="hover:underline" style="color: #b0b0b0;">
+                        DroidDock Website →
+                    </a>
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 px-4 mt-12">
+        <div class="max-w-4xl mx-auto text-center">
+            <p class="text-gray-400">Built with Tauri, Rust, React, and TypeScript</p>
+            <p class="text-gray-500 text-sm mt-2">
+                © 2025-2026 DroidDock •
+                <a href="https://github.com/rajivm1991/DroidDock/blob/main/LICENSE"
+                   style="color: #b0b0b0;"
+                   class="hover:underline">
+                    MIT License
+                </a>
+            </p>
+        </div>
+    </footer>
+</body>
+</html>
