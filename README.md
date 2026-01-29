@@ -67,23 +67,38 @@ DroidDock automatically checks these common ADB locations:
 
 ## Installation
 
-### Option 1: Download Pre-built App (Recommended)
+### Option 1: Install via Homebrew Cask (Recommended)
+
+```bash
+# Add the DroidDock tap
+brew tap rajivm1991/droiddock
+
+# Install DroidDock
+brew install --cask droiddock
+```
+
+**Benefits**:
+- Easy installation and updates via `brew upgrade --cask droiddock`
+- Automatic dependency management
+- Simple uninstallation with `brew uninstall --cask droiddock`
+
+### Option 2: Download Pre-built App
 
 1. **Download**: Get the latest `.dmg` file from the [Releases](https://github.com/rajivm1991/DroidDock/releases/latest) page or [DroidDock website](https://rajivm1991.github.io/DroidDock/).
 
 2. **Install**: Open the DMG and drag DroidDock to your Applications folder.
 
 3. **Launch**: 
-   
-   > ⚠️ **macOS Security Notice**: When downloading from GitHub, macOS may show a warning that DroidDock is "damaged" and can't be opened. This is due to Apple's Gatekeeper security for unsigned apps. The app is safe to use.
-   
-   **To fix this, run this command in Terminal:**
-   ```bash
-   xattr -cr /Applications/DroidDock.app
-   ```
-   Then launch the app normally.
-   
-   This only needs to be done once. Future releases will be code-signed to eliminate this step.
+    
+    > ⚠️ **macOS Security Notice**: When downloading from GitHub, macOS may show a warning that DroidDock is "damaged" and can't be opened. This is due to Apple's Gatekeeper security for unsigned apps. The app is safe to use.
+    
+    **To fix this, run this command in Terminal:**
+    ```bash
+    xattr -cr /Applications/DroidDock.app
+    ```
+    Then launch the app normally.
+    
+    This only needs to be done once. Future releases will be code-signed to eliminate this step.
 
 4. **Auto-Updates**: DroidDock will automatically check for updates on launch and notify you when new versions are available.
 
