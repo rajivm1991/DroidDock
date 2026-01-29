@@ -82,7 +82,7 @@ By default, the app will be installed to your Applications folder (or to the app
 brew upgrade --cask droiddock
 ```
 
-### Option 2: Download Pre-built App
+### Alternative: Download Pre-built App
 
 1. **Download**: Get the latest `.dmg` file from the [Releases](https://github.com/rajivm1991/DroidDock/releases/latest) page or [DroidDock website](https://rajivm1991.github.io/DroidDock/).
 
