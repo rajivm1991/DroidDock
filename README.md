@@ -67,7 +67,22 @@ DroidDock automatically checks these common ADB locations:
 
 ## Installation
 
-### Option 1: Download Pre-built App (Recommended)
+### Option 1: Install via Homebrew Cask (Recommended)
+
+```bash
+# Tap the custom repository
+brew tap rajivm1991/droiddock
+
+# Install DroidDock
+brew install --cask droiddock
+```
+
+The app will be installed to your Applications folder and can be updated with:
+```bash
+brew upgrade --cask droiddock
+```
+
+### Option 2: Download Pre-built App
 
 1. **Download**: Get the latest `.dmg` file from the [Releases](https://github.com/rajivm1991/DroidDock/releases/latest) page or [DroidDock website](https://rajivm1991.github.io/DroidDock/).
 
