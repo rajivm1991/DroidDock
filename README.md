@@ -77,7 +77,7 @@ brew tap rajivm1991/droiddock
 brew install --cask droiddock
 ```
 
-The app will be installed to your Applications folder and can be updated with:
+By default, the app will be installed to your Applications folder (or to the appdir you've configured for Homebrew Cask) and can be updated with:
 ```bash
 brew upgrade --cask droiddock
 ```
