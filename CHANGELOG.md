@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-02-13
+
 ### Added
 - **Skip Duplicate Downloads**: New settings toggle to skip downloading files that already exist locally
   - Enabled by default and saved in localStorage
