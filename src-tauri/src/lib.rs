@@ -788,7 +788,8 @@ async fn download_file(
     device_id: String,
     device_path: String,
     local_path: String,
-) -> Result<(), String> {
+    skip_existing: bool,
+) -> Result<String, String> {
     let shell = app.shell();
     let adb_cmd = get_adb_command();
 
@@ -811,6 +812,12 @@ async fn download_file(
                 .ok()
         });
 
+    // Skip transfer when duplicate handling is enabled and destination already exists.
+    let local_file_path = std::path::Path::new(&local_path);
+    if skip_existing && local_file_path.exists() {
+        return Ok("skipped".to_string());
+    }
+
     // Use adb pull to download the file
     let output = shell
         .command(&adb_cmd)
@@ -832,10 +839,9 @@ async fn download_file(
 
     // Set the modification time on the downloaded file to match the source
     if let Some(timestamp) = mtime {
-        let file_path = std::path::Path::new(&local_path);
-        if file_path.exists() {
+        if local_file_path.exists() {
             let mtime_system = UNIX_EPOCH + Duration::from_secs(timestamp);
-            let file = fs::File::open(&file_path)
+            let file = fs::File::open(local_file_path)
                 .map_err(|e| format!("Failed to open downloaded file: {}", e))?;
 
             file.set_modified(mtime_system)
@@ -843,7 +849,7 @@ async fn download_file(
         }
     }
 
-    Ok(())
+    Ok("downloaded".to_string())
 }
 
 // Upload a file from the local filesystem to the Android device

@@ -462,6 +462,10 @@ function App() {
   const [uploading, setUploading] = useState<boolean>(false);
   const [downloadProgress, setDownloadProgress] = useState<string>("");
   const [successMessage, setSuccessMessage] = useState<string>("");
+  const [skipDuplicateDownloads, setSkipDuplicateDownloads] = useState<boolean>(() => {
+    const saved = localStorage.getItem('droiddock-skip-duplicate-downloads');
+    return saved !== null ? JSON.parse(saved) : true;
+  });
 
   // Sort state
   const [sortColumn, setSortColumn] = useState<'name' | 'size' | 'date'>('name');
@@ -580,6 +584,11 @@ function App() {
   useEffect(() => {
     localStorage.setItem('droiddock-view-mode', viewMode);
   }, [viewMode]);
+
+  // Save duplicate download preference
+  useEffect(() => {
+    localStorage.setItem('droiddock-skip-duplicate-downloads', JSON.stringify(skipDuplicateDownloads));
+  }, [skipDuplicateDownloads]);
 
   // Reset orientation and dimensions when preview is closed
   useEffect(() => {
@@ -1718,6 +1727,7 @@ function App() {
       setSuccessMessage("");
 
       let successCount = 0;
+      let skippedCount = 0;
       let errorCount = 0;
       const totalFiles = filesToDownload.length;
 
@@ -1743,12 +1753,18 @@ function App() {
         const localPath = await join(downloadDir, fileName);
 
         try {
-          await invoke("download_file", {
+          const downloadResult = await invoke<string>("download_file", {
             deviceId: selectedDevice,
             devicePath: devicePath,
             localPath: localPath,
+            skipExisting: skipDuplicateDownloads,
           });
-          successCount++;
+
+          if (downloadResult === "skipped") {
+            skippedCount++;
+          } else {
+            successCount++;
+          }
         } catch (err) {
           errorCount++;
           console.error(`Download error for ${fileName}:`, err);
@@ -1760,9 +1776,14 @@ function App() {
       setSelectedFiles(new Set());
 
       if (errorCount > 0) {
-        setError(`Downloaded ${successCount} file(s), ${errorCount} failed`);
+        setError(
+          `Downloaded ${successCount} file(s), skipped ${skippedCount} duplicate(s), ${errorCount} failed`
+        );
+      } else if (successCount === 0 && skippedCount > 0) {
+        setSuccessMessage(`Skipped ${skippedCount} duplicate file(s). Nothing new to download.`);
       } else {
-        setSuccessMessage(`Successfully downloaded ${successCount} file(s)`);
+        const skippedText = skippedCount > 0 ? ` (skipped ${skippedCount} duplicate(s))` : "";
+        setSuccessMessage(`Successfully downloaded ${successCount} file(s)${skippedText}`);
       }
     } catch (err) {
       setDownloading(false);
@@ -2385,6 +2406,18 @@ function App() {
                         type="checkbox"
                         checked={darkMode}
                         onChange={(e) => setDarkMode(e.target.checked)}
+                        className="toggle-checkbox"
+                      />
+                      <span className="toggle-switch"></span>
+                    </label>
+                  </div>
+                  <div className="settings-item">
+                    <label className="toggle-label">
+                      <span>Skip Duplicate Downloads</span>
+                      <input
+                        type="checkbox"
+                        checked={skipDuplicateDownloads}
+                        onChange={(e) => setSkipDuplicateDownloads(e.target.checked)}
                         className="toggle-checkbox"
                       />
                       <span className="toggle-switch"></span>
