@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Skip Duplicate Downloads**: New settings toggle to skip downloading files that already exist locally
+  - Enabled by default and saved in localStorage
+  - Prevents unnecessary duplicate file transfers
+  - Shows skipped file count in download results
+- **Homebrew Cask Installation Option**: Added install path using `brew install --cask droiddock`
+  - Added to README installation instructions
+  - Added to GitHub Pages website download sections
+
+### Changed
+- **Download Result Messaging**: Success and error messages now distinguish downloaded files from skipped duplicates
+
 ## [0.2.1] - 2026-01-01
 
 ### Added
@@ -176,7 +188,8 @@ npm run release:prepare 0.2.0
 
 ---
 
-[Unreleased]: https://github.com/rajivm1991/DroidDock/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/rajivm1991/DroidDock/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/rajivm1991/DroidDock/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/rajivm1991/DroidDock/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/rajivm1991/DroidDock/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/rajivm1991/DroidDock/releases/tag/v0.1.0
