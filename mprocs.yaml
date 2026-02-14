@@ -14,6 +14,8 @@ procs:
     stop: SIGINT
 
   docs:
-    shell: "cd docs && python3 -m http.server 8080"
+    shell: "python3 -m http.server 8080"
     autostart: false
-    stop: SIGINT
+    stop: SIGTERM
+    cwd: docs
+    stop_timeout: 5
