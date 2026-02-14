@@ -286,6 +286,18 @@ If the app can't find ADB:
 - Try clicking the "Refresh" button in the app
 - You may need to accept the debugging authorization prompt on your device
 
+### "Not Supported on This Mac" Error
+
+DroidDock requires **macOS 10.15 (Catalina) or later** and supports both Intel and Apple Silicon Macs. If you see this error:
+
+1. **Verify your macOS version**: Go to Apple menu > About This Mac
+2. **Try the Gatekeeper workaround**: Right-click the app and choose "Open" instead of double-clicking
+3. **Clear quarantine attributes**:
+   ```bash
+   xattr -cr /Applications/DroidDock.app
+   ```
+4. If the issue persists, please [open an issue](https://github.com/rajivm1991/DroidDock/issues) with your Mac model and macOS version
+
 ### Permission Errors When Browsing
 
 - Some system directories require root access
