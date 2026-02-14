@@ -49,7 +49,7 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "minimumSystemVersion": "10.13"
+      "minimumSystemVersion": "10.15"
     }
   },
   "plugins": {
