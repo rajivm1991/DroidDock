@@ -31,18 +31,7 @@ cd src-tauri && cargo test # Run Rust tests
 - **Backend:** Tauri commands in `src-tauri/src/lib.rs` with `#[tauri::command]`
 - **Frontend:** React/TypeScript in `src/App.tsx`, calls backend via `invoke()` from `@tauri-apps/api/core`
 
-## Claude Code Workflow
-
-**For file reading and analysis:**
-- Use `cat README.md | opencode run -m github-copilot/claude-haiku-4.5 "Give me a summary of what this project is about"`
-
-**IMPORTANT: When user asks to fix or implement something:**
-1. **Step 1**: Create an implementation document in markdown format in `impl/` directory
-2. **Step 2**: Run: `opencode run -m github-copilot/claude-sonnet-4.5 "Attempt @impl/{task-name}.md"`
-
-This workflow applies to ALL code modifications and feature implementations - ALWAYS follow these two steps.
-
-**If opencode fails:** Immediately notify the user about the error and ask how to proceed. Do NOT proceed with direct code modifications without informing the user first.
+## Implementation Workflow
 
 **Note on impl/ directory:**
 - Implementation documents in `impl/` are **local-only planning files** and are not committed to git (added to `.gitignore`)

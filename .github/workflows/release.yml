@@ -82,6 +82,19 @@ jobs:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: --target universal-apple-darwin
 
+      - name: Verify universal binary
+        run: |
+          APP_PATH=$(find target/universal-apple-darwin/release/bundle -name "*.app" -type d | head -1)
+          if [ -n "$APP_PATH" ]; then
+            echo "Verifying universal binary architectures..."
+            lipo -info "$APP_PATH/Contents/MacOS/DroidDock"
+            lipo -info "$APP_PATH/Contents/MacOS/DroidDock" | grep -q "x86_64" || (echo "ERROR: Missing x86_64 architecture" && exit 1)
+            lipo -info "$APP_PATH/Contents/MacOS/DroidDock" | grep -q "arm64" || (echo "ERROR: Missing arm64 architecture" && exit 1)
+            echo "Universal binary verified: contains both x86_64 and arm64"
+          else
+            echo "WARNING: Could not find .app bundle to verify"
+          fi
+
   publish-release:
     permissions:
       contents: write
