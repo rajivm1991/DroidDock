@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "DroidDock",
-        "width": 1000,
-        "height": 700,
+        "width": 1100,
+        "height": 780,
         "dragDropEnabled": true
       }
     ],
