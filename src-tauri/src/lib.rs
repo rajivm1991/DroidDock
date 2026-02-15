@@ -15,6 +15,7 @@ static ADB_PATH: Mutex<Option<String>> = Mutex::new(None);
 pub struct AdbDevice {
     pub id: String,
     pub status: String,
+    pub model: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -291,7 +292,7 @@ async fn get_devices(app: tauri::AppHandle) -> Result<Vec<AdbDevice>, String> {
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let devices: Vec<AdbDevice> = stdout
+    let mut devices: Vec<AdbDevice> = stdout
         .lines()
         .skip(1) // Skip "List of devices attached" header
         .filter(|line| !line.trim().is_empty())
@@ -301,12 +302,45 @@ async fn get_devices(app: tauri::AppHandle) -> Result<Vec<AdbDevice>, String> {
                 Some(AdbDevice {
                     id: parts[0].to_string(),
                     status: parts[1].to_string(),
+                    model: String::new(),
                 })
             } else {
                 None
             }
         })
         .collect();
+
+    // Query each device for its friendly model name
+    for device in &mut devices {
+        if device.status != "device" {
+            continue;
+        }
+
+        let brand = shell
+            .command(&adb_cmd)
+            .args(["-s", &device.id, "shell", "getprop ro.product.brand"])
+            .output()
+            .await
+            .ok()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .unwrap_or_default();
+
+        let model = shell
+            .command(&adb_cmd)
+            .args(["-s", &device.id, "shell", "getprop ro.product.model"])
+            .output()
+            .await
+            .ok()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .unwrap_or_default();
+
+        device.model = match (brand.is_empty(), model.is_empty()) {
+            (false, false) => format!("{} {}", brand, model),
+            (false, true) => brand,
+            (true, false) => model,
+            (true, true) => String::new(),
+        };
+    }
 
     Ok(devices)
 }

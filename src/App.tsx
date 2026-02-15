@@ -8,6 +8,7 @@ import "./App.css";
 interface AdbDevice {
   id: string;
   status: string;
+  model: string;
 }
 
 interface FileEntry {
@@ -2428,6 +2429,20 @@ function App() {
           <div className="header-controls">
             <div>
             <select
+              ref={(el) => {
+                if (el) {
+                  // Auto-size select to fit selected option text
+                  const temp = document.createElement('span');
+                  temp.style.visibility = 'hidden';
+                  temp.style.position = 'absolute';
+                  temp.style.whiteSpace = 'nowrap';
+                  temp.style.font = window.getComputedStyle(el).font;
+                  temp.textContent = el.options[el.selectedIndex]?.text || '';
+                  document.body.appendChild(temp);
+                  el.style.width = (temp.offsetWidth + 40) + 'px'; // 40px for padding + dropdown arrow
+                  document.body.removeChild(temp);
+                }
+              }}
               value={selectedDevice}
               onChange={(e) => setSelectedDevice(e.target.value)}
               disabled={devices.length === 0}
@@ -2436,7 +2451,7 @@ function App() {
               <option value="">Select a device</option>
               {devices.map((device) => (
                 <option key={device.id} value={device.id}>
-                  {device.id} ({device.status})
+                  {device.model ? `${device.model} (${device.id})` : `${device.id} (${device.status})`}
                 </option>
               ))}
             </select>
@@ -3296,27 +3311,32 @@ function App() {
                     </div>
                   </div>
 
-                  <label className="sync-checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={syncRecursive}
-                      onChange={(e) => setSyncRecursive(e.target.checked)}
-                    />
-                    Include subfolders
-                  </label>
+                  <div className="sync-form-group">
+                    <label>Options</label>
+                    <div className="sync-options-group">
+                      <label className="sync-checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={syncRecursive}
+                          onChange={(e) => setSyncRecursive(e.target.checked)}
+                        />
+                        Include subfolders
+                      </label>
 
-                  <label className={`sync-checkbox-label ${syncDirection === "BothWays" ? "disabled" : ""}`}>
-                    <input
-                      type="checkbox"
-                      checked={syncDeleteMissing}
-                      disabled={syncDirection === "BothWays"}
-                      onChange={(e) => setSyncDeleteMissing(e.target.checked)}
-                    />
-                    Delete missing files
-                    {syncDirection === "BothWays" && (
-                      <span style={{ fontSize: 12, color: "#999" }}>(not available for Both Ways)</span>
-                    )}
-                  </label>
+                      <label className={`sync-checkbox-label ${syncDirection === "BothWays" ? "disabled" : ""}`}>
+                        <input
+                          type="checkbox"
+                          checked={syncDeleteMissing}
+                          disabled={syncDirection === "BothWays"}
+                          onChange={(e) => setSyncDeleteMissing(e.target.checked)}
+                        />
+                        Delete missing files
+                        {syncDirection === "BothWays" && (
+                          <span style={{ fontSize: 12, color: "#999" }}>(not available for Both Ways)</span>
+                        )}
+                      </label>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="modal-actions">

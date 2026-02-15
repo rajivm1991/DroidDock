@@ -1687,10 +1687,12 @@ tbody tr {
   background: #e8e8e8;
 }
 
-.sync-radio-group {
+.sync-radio-group,
+.sync-options-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding-left: 16px;
 }
 
 .sync-radio-label {
