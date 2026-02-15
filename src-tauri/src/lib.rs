@@ -1369,123 +1369,95 @@ async fn list_device_files_for_sync(
             eprintln!("[sync] file_patterns for filtering: {:?}", file_patterns);
         }
 
-        // Collect file paths from targeted directories using find
-        let mut file_paths: Vec<String> = Vec::new();
+        // Use find + stat in one command per scan_dir. Each output line is self-contained
+        // using '|' as delimiter: size|mtime|type|full_path
+        // This avoids the fragile batch-stat approach where one failed stat misaligns all subsequent entries.
         for scan_dir in &scan_dirs {
             let escaped_scan_dir = scan_dir.replace("'", "'\\''");
-            let find_command = format!(
-                "find '{}' -type f -o -type d 2>/dev/null",
+            let find_stat_command = format!(
+                "find '{}' -mindepth 1 \\( -type f -o -type d \\) -exec stat -c '%s|%Y|%F|%n' {{}} + 2>/dev/null",
                 escaped_scan_dir
             );
 
             let output = shell
                 .command(&adb_cmd)
-                .args(["-s", &device_id, "shell", &find_command])
+                .args(["-s", &device_id, "shell", &find_stat_command])
                 .output()
                 .await
                 .map_err(|e| format!("Failed to list device files: {}", e))?;
 
             let stdout = String::from_utf8_lossy(&output.stdout);
-            file_paths.extend(
-                stdout.lines()
-                    .filter(|l| !l.trim().is_empty())
-                    .map(|l| l.trim().to_string())
-                    .filter(|l| l != &path && l != &format!("{}/", path))
-            );
-        }
-        file_paths.sort();
-        file_paths.dedup();
 
-        // Pre-filter paths before stat: compute relative path and apply pattern + exclusion filters
-        let mut filtered_paths: Vec<(String, String)> = Vec::new(); // (full_path, rel_path)
-        for file_path in &file_paths {
-            let rel_path = if file_path.starts_with(&path) {
-                file_path[path.len()..].trim_start_matches('/').to_string()
-            } else {
-                file_path.clone()
-            };
+            #[cfg(debug_assertions)]
+            eprintln!("[sync] find+stat returned {} lines for {}", stdout.lines().count(), scan_dir);
 
-            if rel_path.is_empty() {
-                continue;
-            }
-
-            // Skip if any path component is excluded
-            if rel_path.split('/').any(|part| is_sync_excluded(part)) {
-                continue;
-            }
-
-            // We don't know if it's a dir yet, but pattern filtering on files
-            // will happen after stat. For now, keep all paths.
-            filtered_paths.push((file_path.clone(), rel_path));
-        }
-
-        // Batch stat: build a single shell command that stats all files at once
-        // Process in chunks to avoid command line length limits
-        let chunk_size = 200;
-        for chunk in filtered_paths.chunks(chunk_size) {
-            // Build a command like: stat -c '%s %Y %F' '/path1' '/path2' ... 2>/dev/null
-            let stat_args: Vec<String> = chunk.iter()
-                .map(|(fp, _)| format!("'{}'", fp.replace("'", "'\\''")))
-                .collect();
-            let stat_cmd = format!("stat -c '%s %Y %F' {} 2>/dev/null", stat_args.join(" "));
-
-            let stat_output = shell
-                .command(&adb_cmd)
-                .args(["-s", &device_id, "shell", &stat_cmd])
-                .output()
-                .await
-                .ok();
-
-            if let Some(stat_out) = stat_output {
-                let stat_str = String::from_utf8_lossy(&stat_out.stdout);
-                let stat_lines: Vec<&str> = stat_str.lines().collect();
-
-                for (i, (_, rel_path)) in chunk.iter().enumerate() {
-                    if i >= stat_lines.len() {
-                        break;
-                    }
-
-                    let parts: Vec<&str> = stat_lines[i].splitn(3, ' ').collect();
-                    if parts.len() < 3 {
-                        continue;
-                    }
-
-                    let size = parts[0].parse::<u64>().unwrap_or(0);
-                    let mtime = parts[1].parse::<u64>().unwrap_or(0);
-                    let is_dir = parts[2].contains("directory");
-
-                    // Apply glob pattern filtering (skip directories from filtering)
-                    if !is_dir && !matches_any_pattern(rel_path, &file_patterns) {
-                        continue;
-                    }
-
-                    let md5_hash = if match_mode == "content" && !is_dir {
-                        let escaped_file = chunk[i].0.replace("'", "'\\''");
-                        let md5_cmd = format!("md5sum '{}' 2>/dev/null", escaped_file);
-                        let md5_output = shell
-                            .command(&adb_cmd)
-                            .args(["-s", &device_id, "shell", &md5_cmd])
-                            .output()
-                            .await
-                            .ok();
-                        md5_output.and_then(|o| {
-                            let out = String::from_utf8_lossy(&o.stdout).trim().to_string();
-                            out.split_whitespace().next().map(|s| s.to_string())
-                        })
-                    } else {
-                        None
-                    };
-
-                    result.push(FileMetadata {
-                        relative_path: rel_path.clone(),
-                        size,
-                        modified_time: mtime,
-                        is_directory: is_dir,
-                        md5_hash,
-                    });
+            for line in stdout.lines() {
+                let line = line.trim();
+                if line.is_empty() {
+                    continue;
                 }
+
+                // Parse: size|mtime|type|full_path
+                let parts: Vec<&str> = line.splitn(4, '|').collect();
+                if parts.len() < 4 {
+                    continue;
+                }
+
+                let size = parts[0].parse::<u64>().unwrap_or(0);
+                let mtime = parts[1].parse::<u64>().unwrap_or(0);
+                let is_dir = parts[2].contains("directory");
+                let file_path = parts[3];
+
+                // Compute relative path
+                let rel_path = if file_path.starts_with(&path) {
+                    file_path[path.len()..].trim_start_matches('/').to_string()
+                } else {
+                    file_path.to_string()
+                };
+
+                if rel_path.is_empty() {
+                    continue;
+                }
+
+                // Skip if any path component is excluded
+                if rel_path.split('/').any(|part| is_sync_excluded(part)) {
+                    continue;
+                }
+
+                // Apply glob pattern filtering (skip directories from filtering)
+                if !is_dir && !matches_any_pattern(&rel_path, &file_patterns) {
+                    continue;
+                }
+
+                let md5_hash = if match_mode == "content" && !is_dir {
+                    let escaped_file = file_path.replace("'", "'\\''");
+                    let md5_cmd = format!("md5sum '{}' 2>/dev/null", escaped_file);
+                    let md5_output = shell
+                        .command(&adb_cmd)
+                        .args(["-s", &device_id, "shell", &md5_cmd])
+                        .output()
+                        .await
+                        .ok();
+                    md5_output.and_then(|o| {
+                        let out = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                        out.split_whitespace().next().map(|s| s.to_string())
+                    })
+                } else {
+                    None
+                };
+
+                result.push(FileMetadata {
+                    relative_path: rel_path,
+                    size,
+                    modified_time: mtime,
+                    is_directory: is_dir,
+                    md5_hash,
+                });
             }
         }
+        // Deduplicate results from overlapping scan_dirs
+        result.sort_by(|a, b| a.relative_path.cmp(&b.relative_path));
+        result.dedup_by(|a, b| a.relative_path == b.relative_path);
     } else {
         // Flat listing: use ls -la and stat for mtime
         let ls_command = format!("ls -la '{}'", escaped_path);
@@ -1992,6 +1964,18 @@ async fn preview_sync(
         patterns,
     ).await?;
 
+    #[cfg(debug_assertions)]
+    {
+        eprintln!("[sync] local_files count: {}", local_files.len());
+        eprintln!("[sync] device_files count: {}", device_files.len());
+        if !device_files.is_empty() {
+            eprintln!("[sync] first device file: {:?}", device_files[0].relative_path);
+        }
+        if !local_files.is_empty() {
+            eprintln!("[sync] first local file: {:?}", local_files[0].relative_path);
+        }
+    }
+
     let actions = compute_sync_actions(&local_files, &device_files, &options.direction, options.delete_missing, &options.match_mode);
 
     let mut total_transfer_bytes: u64 = 0;
@@ -2278,4 +2262,77 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_matches_any_pattern_with_spaces() {
+        // Pattern with space in directory name
+        let patterns = vec![
+            "Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Images/Sent/*".to_string(),
+        ];
+
+        // Should match a file directly in that directory
+        assert!(matches_any_pattern(
+            "Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Images/Sent/IMG_001.jpg",
+            &patterns,
+        ));
+
+        // Should NOT match a file in a different directory
+        assert!(!matches_any_pattern(
+            "Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Video/Sent/VID_001.mp4",
+            &patterns,
+        ));
+    }
+
+    #[test]
+    fn test_normalize_patterns_with_spaces() {
+        // Bare directory with spaces → should get /**/* appended
+        let patterns = vec![
+            "Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Images/Sent".to_string(),
+        ];
+        let normalized = normalize_patterns(&patterns, "/sdcard");
+        assert_eq!(
+            normalized,
+            vec!["Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Images/Sent/**/*"],
+        );
+
+        // Pattern with glob stays as-is
+        let patterns2 = vec![
+            "Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Images/Sent/*".to_string(),
+        ];
+        let normalized2 = normalize_patterns(&patterns2, "/sdcard");
+        assert_eq!(
+            normalized2,
+            vec!["Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Images/Sent/*"],
+        );
+    }
+
+    #[test]
+    fn test_matches_any_pattern_with_double_star_and_spaces() {
+        // Normalized pattern from bare directory input
+        let patterns = vec![
+            "Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Images/Sent/**/*".to_string(),
+        ];
+
+        // Should match a file in the directory
+        assert!(matches_any_pattern(
+            "Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Images/Sent/IMG_001.jpg",
+            &patterns,
+        ));
+
+        // Should match a file in a subdirectory
+        assert!(matches_any_pattern(
+            "Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Images/Sent/2024/IMG_001.jpg",
+            &patterns,
+        ));
+    }
+
+    #[test]
+    fn test_matches_empty_patterns_matches_all() {
+        assert!(matches_any_pattern("any/path/file.txt", &vec![]));
+    }
 }

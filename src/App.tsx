@@ -1170,7 +1170,7 @@ function App() {
         }
       }
       // Cmd/Ctrl + Delete: Delete selected or focused files
-      else if ((e.ctrlKey || e.metaKey) && (e.key === 'Delete' || e.key === 'Backspace')) {
+      else if (!isTyping && (e.ctrlKey || e.metaKey) && (e.key === 'Delete' || e.key === 'Backspace')) {
         e.preventDefault();
         if (selectedFiles.size > 0) {
           setShowDeleteConfirm(true);
