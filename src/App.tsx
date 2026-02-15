@@ -2480,28 +2480,28 @@ function App() {
                 </option>
               ))}
             </select>
-            <button onClick={loadDevices} className="control-btn device-refresh-btn" title="Refresh devices">↻</button>
+            <button onClick={loadDevices} className="control-btn device-refresh-btn" data-tooltip="Refresh devices">↻</button>
             </div>
             <div className="control-divider"></div>
             <div>
             <button
               onClick={() => setViewMode('table')}
-              className={`control-btn ${viewMode === 'table' ? 'active' : ''}`}
-              title="Table view (Cmd+1)"
+              className={`control-btn tooltip-bottom ${viewMode === 'table' ? 'active' : ''}`}
+              data-tooltip="List view (⌘1)"
             >
               ☰
             </button>
             <button
               onClick={() => setViewMode('grid')}
-              className={`control-btn ${viewMode === 'grid' ? 'active' : ''}`}
-              title="Grid view (Cmd+2)"
+              className={`control-btn tooltip-bottom ${viewMode === 'grid' ? 'active' : ''}`}
+              data-tooltip="Grid view (⌘2)"
             >
               ⊞
             </button>
             <button
               onClick={() => setViewMode('column')}
-              className={`control-btn ${viewMode === 'column' ? 'active' : ''}`}
-              title="Column view (Cmd+3)"
+              className={`control-btn tooltip-bottom ${viewMode === 'column' ? 'active' : ''}`}
+              data-tooltip="Column view (⌘3)"
             >
               ▦
             </button>
@@ -2517,7 +2517,7 @@ function App() {
                     else if (iconSize === 'medium') setIconSize('small');
                   }}
                   className="control-btn"
-                  title="Zoom out (Cmd+-)"
+                  data-tooltip="Zoom out (⌘-)"
                   disabled={iconSize === 'small'}
                 >
                   −
@@ -2529,7 +2529,7 @@ function App() {
                     else if (iconSize === 'large') setIconSize('xlarge');
                   }}
                   className="control-btn"
-                  title="Zoom in (Cmd++)"
+                  data-tooltip="Zoom in (⌘+)"
                   disabled={iconSize === 'xlarge'}
                 >
                   +
@@ -2545,7 +2545,7 @@ function App() {
               value={sortColumn}
               onChange={(e) => setSortColumn(e.target.value as 'name' | 'size' | 'date')}
               className="sort-select"
-              title="Sort by"
+              data-tooltip="Sort by"
             >
               <option value="name">Name</option>
               <option value="size">Size</option>
@@ -2554,7 +2554,7 @@ function App() {
             <button
               onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
               className="control-btn sort-direction-btn"
-              title={`Sort ${sortDirection === 'asc' ? 'descending' : 'ascending'}`}
+              data-tooltip={`Sort ${sortDirection === 'asc' ? 'descending' : 'ascending'}`}
             >
               {sortDirection === 'asc' ? '↑' : '↓'}
             </button>
@@ -2565,7 +2565,7 @@ function App() {
             <div className="settings-dropdown">
               <button
                 onClick={() => setSettingsOpen(!settingsOpen)}
-                title="Settings"
+                data-tooltip="Settings"
                 className="control-btn settings-btn"
               >
                 ⚙
@@ -2610,7 +2610,7 @@ function App() {
                   </div>
                   <div className="settings-item">
                     <label className="toggle-label">
-                      <span>Skip Duplicate Downloads</span>
+                      <span>Skip Duplicates</span>
                       <input
                         type="checkbox"
                         checked={skipDuplicateDownloads}
@@ -2921,7 +2921,7 @@ function App() {
             onClick={handleOpenSyncDialog}
             disabled={!selectedDevice}
             className={`sync-fab ${selectedFiles.size > 0 ? 'sync-fab-raised' : ''}`}
-            title="Sync folders"
+            data-tooltip="Sync folders"
           >
             ⇄
           </button>
@@ -2931,7 +2931,7 @@ function App() {
             onClick={handleUpload}
             disabled={uploading}
             className={`fab ${selectedFiles.size > 0 ? 'fab-raised' : ''}`}
-            title="Upload file to current directory"
+            data-tooltip="Upload file"
           >
             {uploading ? "⋯" : "↑"}
           </button>
