@@ -819,6 +819,12 @@ function App() {
       // Don't handle keyboard shortcuts when typing in input fields
       const isTyping = document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
 
+      // Block all shortcuts except Escape when a modal is open
+      const isModalOpen = showDeleteConfirm || showPreview || showShortcutsHelp || settingsOpen || syncDialogOpen || renamingIndex >= 0;
+      if (isModalOpen && e.key !== 'Escape') {
+        return;
+      }
+
       // Ctrl/Cmd + /: Show keyboard shortcuts
       if ((e.ctrlKey || e.metaKey) && e.key === '/') {
         e.preventDefault();
@@ -1201,7 +1207,11 @@ function App() {
       }
       // Escape: Close modals/popups first, then clear selection/focus
       else if (e.key === 'Escape') {
-        if (renamingIndex >= 0) {
+        if (syncDialogOpen) {
+          setSyncDialogOpen(false);
+        } else if (settingsOpen) {
+          setSettingsOpen(false);
+        } else if (renamingIndex >= 0) {
           cancelRename();
         } else if (showShortcutsHelp) {
           setShowShortcutsHelp(false);
@@ -1223,7 +1233,7 @@ function App() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedFiles, searchMode, focusedIndex, viewMode, iconSize, showHiddenFiles, thumbnailsEnabled, showShortcutsHelp, showDeleteConfirm, renamingIndex, loading, columnPath, columnFiles, columnSelected, activeColumnIndex, showPreview, previewLoading]);
+  }, [selectedFiles, searchMode, focusedIndex, viewMode, iconSize, showHiddenFiles, thumbnailsEnabled, showShortcutsHelp, showDeleteConfirm, renamingIndex, loading, columnPath, columnFiles, columnSelected, activeColumnIndex, showPreview, previewLoading, settingsOpen, syncDialogOpen]);
 
   async function checkAdb() {
     try {
