@@ -5,6 +5,8 @@ use std::sync::Mutex;
 use base64::{Engine as _, engine::general_purpose};
 use std::fs;
 use std::time::{UNIX_EPOCH, Duration};
+use std::collections::HashMap;
+use tauri::Emitter;
 
 // Global state to store custom ADB path
 static ADB_PATH: Mutex<Option<String>> = Mutex::new(None);
@@ -1043,6 +1045,638 @@ async fn preview_file(
     }
 }
 
+// ========================
+// Folder Sync Types
+// ========================
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum SyncDirection {
+    PhoneToComputer,
+    ComputerToPhone,
+    BothWays,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SyncOptions {
+    pub local_path: String,
+    pub device_path: String,
+    pub direction: SyncDirection,
+    pub recursive: bool,
+    pub delete_missing: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FileMetadata {
+    pub relative_path: String,
+    pub size: u64,
+    pub modified_time: u64,
+    pub is_directory: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SyncAction {
+    pub file_path: String,
+    pub action_type: String,
+    pub direction: String,
+    pub size: u64,
+    pub reason: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SyncPreview {
+    pub actions: Vec<SyncAction>,
+    pub total_transfer_bytes: u64,
+    pub copy_count: u32,
+    pub update_count: u32,
+    pub delete_count: u32,
+    pub skip_count: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SyncProgress {
+    pub current_file: String,
+    pub completed_count: u32,
+    pub total_count: u32,
+    pub completed_bytes: u64,
+    pub total_bytes: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SyncResult {
+    pub success_count: u32,
+    pub skip_count: u32,
+    pub error_count: u32,
+    pub errors: Vec<String>,
+}
+
+// List files on the local Mac filesystem for sync
+#[tauri::command]
+fn list_local_files(path: String, recursive: bool) -> Result<Vec<FileMetadata>, String> {
+    let root = PathBuf::from(&path);
+    if !root.exists() {
+        return Err(format!("Local path does not exist: {}", path));
+    }
+
+    let mut result = Vec::new();
+
+    if recursive {
+        for entry in walkdir::WalkDir::new(&root)
+            .min_depth(1)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let rel_path = entry.path().strip_prefix(&root)
+                .map_err(|e| format!("Path error: {}", e))?
+                .to_string_lossy()
+                .to_string();
+
+            if rel_path.is_empty() {
+                continue;
+            }
+
+            let metadata = entry.metadata()
+                .map_err(|e| format!("Failed to read metadata for {}: {}", rel_path, e))?;
+
+            let modified_time = metadata.modified()
+                .unwrap_or(UNIX_EPOCH)
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+
+            result.push(FileMetadata {
+                relative_path: rel_path,
+                size: metadata.len(),
+                modified_time,
+                is_directory: metadata.is_dir(),
+            });
+        }
+    } else {
+        let entries = fs::read_dir(&root)
+            .map_err(|e| format!("Failed to read directory {}: {}", path, e))?;
+
+        for entry in entries {
+            let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
+            let metadata = entry.metadata()
+                .map_err(|e| format!("Failed to read metadata: {}", e))?;
+            let name = entry.file_name().to_string_lossy().to_string();
+
+            let modified_time = metadata.modified()
+                .unwrap_or(UNIX_EPOCH)
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+
+            result.push(FileMetadata {
+                relative_path: name,
+                size: metadata.len(),
+                modified_time,
+                is_directory: metadata.is_dir(),
+            });
+        }
+    }
+
+    Ok(result)
+}
+
+// List files on the Android device for sync
+#[tauri::command]
+async fn list_device_files_for_sync(
+    app: tauri::AppHandle,
+    device_id: String,
+    path: String,
+    recursive: bool,
+) -> Result<Vec<FileMetadata>, String> {
+    let shell = app.shell();
+    let adb_cmd = get_adb_command();
+    let escaped_path = path.replace("'", "'\\''");
+
+    let mut result = Vec::new();
+
+    if recursive {
+        // Use find to get all files recursively
+        let find_command = format!(
+            "find '{}' -type f -o -type d 2>/dev/null | head -10000",
+            escaped_path
+        );
+
+        let output = shell
+            .command(&adb_cmd)
+            .args(["-s", &device_id, "shell", &find_command])
+            .output()
+            .await
+            .map_err(|e| format!("Failed to list device files: {}", e))?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let file_paths: Vec<String> = stdout
+            .lines()
+            .filter(|l| !l.trim().is_empty())
+            .map(|l| l.trim().to_string())
+            .filter(|l| l != &path && l != &format!("{}/", path))
+            .collect();
+
+        // Batch stat: get size and mtime for each file
+        for file_path in &file_paths {
+            let escaped_file = file_path.replace("'", "'\\''");
+            let stat_cmd = format!("stat -c '%s %Y %F' '{}' 2>/dev/null", escaped_file);
+
+            let stat_output = shell
+                .command(&adb_cmd)
+                .args(["-s", &device_id, "shell", &stat_cmd])
+                .output()
+                .await
+                .ok();
+
+            if let Some(stat_out) = stat_output {
+                let stat_str = String::from_utf8_lossy(&stat_out.stdout).trim().to_string();
+                let parts: Vec<&str> = stat_str.splitn(3, ' ').collect();
+                if parts.len() >= 3 {
+                    let size = parts[0].parse::<u64>().unwrap_or(0);
+                    let mtime = parts[1].parse::<u64>().unwrap_or(0);
+                    let is_dir = parts[2].contains("directory");
+
+                    // Compute relative path
+                    let rel_path = if file_path.starts_with(&path) {
+                        let stripped = &file_path[path.len()..];
+                        stripped.trim_start_matches('/').to_string()
+                    } else {
+                        file_path.clone()
+                    };
+
+                    if !rel_path.is_empty() {
+                        result.push(FileMetadata {
+                            relative_path: rel_path,
+                            size,
+                            modified_time: mtime,
+                            is_directory: is_dir,
+                        });
+                    }
+                }
+            }
+        }
+    } else {
+        // Flat listing: use ls -la and stat for mtime
+        let ls_command = format!("ls -la '{}'", escaped_path);
+
+        let output = shell
+            .command(&adb_cmd)
+            .args(["-s", &device_id, "shell", &ls_command])
+            .output()
+            .await
+            .map_err(|e| format!("Failed to list device files: {}", e))?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let entries: Vec<FileEntry> = stdout
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .filter(|line| !line.starts_with("total"))
+            .filter_map(|line| parse_ls_line(line))
+            .collect();
+
+        for entry in &entries {
+            let file_full_path = format!("{}/{}", path, entry.name);
+            let escaped_file = file_full_path.replace("'", "'\\''");
+            let stat_cmd = format!("stat -c '%s %Y' '{}' 2>/dev/null", escaped_file);
+
+            let stat_output = shell
+                .command(&adb_cmd)
+                .args(["-s", &device_id, "shell", &stat_cmd])
+                .output()
+                .await
+                .ok();
+
+            let (size, mtime) = if let Some(stat_out) = stat_output {
+                let stat_str = String::from_utf8_lossy(&stat_out.stdout).trim().to_string();
+                let parts: Vec<&str> = stat_str.split(' ').collect();
+                if parts.len() >= 2 {
+                    (
+                        parts[0].parse::<u64>().unwrap_or(0),
+                        parts[1].parse::<u64>().unwrap_or(0),
+                    )
+                } else {
+                    (entry.size.parse::<u64>().unwrap_or(0), 0)
+                }
+            } else {
+                (entry.size.parse::<u64>().unwrap_or(0), 0)
+            };
+
+            result.push(FileMetadata {
+                relative_path: entry.name.clone(),
+                size,
+                modified_time: mtime,
+                is_directory: entry.is_directory,
+            });
+        }
+    }
+
+    Ok(result)
+}
+
+// Compute sync actions from two file lists
+fn compute_sync_actions(
+    local_files: &[FileMetadata],
+    device_files: &[FileMetadata],
+    direction: &SyncDirection,
+    delete_missing: bool,
+) -> Vec<SyncAction> {
+    let local_map: HashMap<&str, &FileMetadata> = local_files
+        .iter()
+        .filter(|f| !f.is_directory)
+        .map(|f| (f.relative_path.as_str(), f))
+        .collect();
+
+    let device_map: HashMap<&str, &FileMetadata> = device_files
+        .iter()
+        .filter(|f| !f.is_directory)
+        .map(|f| (f.relative_path.as_str(), f))
+        .collect();
+
+    let mut actions = Vec::new();
+
+    match direction {
+        SyncDirection::PhoneToComputer => {
+            // Source = device, Dest = local
+            for (rel_path, dev_file) in &device_map {
+                if let Some(local_file) = local_map.get(rel_path) {
+                    if dev_file.size != local_file.size || dev_file.modified_time > local_file.modified_time {
+                        actions.push(SyncAction {
+                            file_path: rel_path.to_string(),
+                            action_type: "update".to_string(),
+                            direction: "\u{2192} Computer".to_string(),
+                            size: dev_file.size,
+                            reason: "Device file is newer or different size".to_string(),
+                        });
+                    }
+                } else {
+                    actions.push(SyncAction {
+                        file_path: rel_path.to_string(),
+                        action_type: "copy".to_string(),
+                        direction: "\u{2192} Computer".to_string(),
+                        size: dev_file.size,
+                        reason: "File only exists on device".to_string(),
+                    });
+                }
+            }
+            if delete_missing {
+                for (rel_path, local_file) in &local_map {
+                    if !device_map.contains_key(rel_path) {
+                        actions.push(SyncAction {
+                            file_path: rel_path.to_string(),
+                            action_type: "delete".to_string(),
+                            direction: "\u{2716} Computer".to_string(),
+                            size: local_file.size,
+                            reason: "File not on device, will be deleted locally".to_string(),
+                        });
+                    }
+                }
+            }
+        }
+        SyncDirection::ComputerToPhone => {
+            // Source = local, Dest = device
+            for (rel_path, local_file) in &local_map {
+                if let Some(dev_file) = device_map.get(rel_path) {
+                    if local_file.size != dev_file.size || local_file.modified_time > dev_file.modified_time {
+                        actions.push(SyncAction {
+                            file_path: rel_path.to_string(),
+                            action_type: "update".to_string(),
+                            direction: "\u{2192} Phone".to_string(),
+                            size: local_file.size,
+                            reason: "Local file is newer or different size".to_string(),
+                        });
+                    }
+                } else {
+                    actions.push(SyncAction {
+                        file_path: rel_path.to_string(),
+                        action_type: "copy".to_string(),
+                        direction: "\u{2192} Phone".to_string(),
+                        size: local_file.size,
+                        reason: "File only exists locally".to_string(),
+                    });
+                }
+            }
+            if delete_missing {
+                for (rel_path, dev_file) in &device_map {
+                    if !local_map.contains_key(rel_path) {
+                        actions.push(SyncAction {
+                            file_path: rel_path.to_string(),
+                            action_type: "delete".to_string(),
+                            direction: "\u{2716} Phone".to_string(),
+                            size: dev_file.size,
+                            reason: "File not on computer, will be deleted from device".to_string(),
+                        });
+                    }
+                }
+            }
+        }
+        SyncDirection::BothWays => {
+            // Merge: files unique to one side get copied, conflicts resolved by mtime
+            let mut all_paths: std::collections::HashSet<&str> = std::collections::HashSet::new();
+            all_paths.extend(local_map.keys());
+            all_paths.extend(device_map.keys());
+
+            for rel_path in all_paths {
+                match (local_map.get(rel_path), device_map.get(rel_path)) {
+                    (Some(_local_file), None) => {
+                        actions.push(SyncAction {
+                            file_path: rel_path.to_string(),
+                            action_type: "copy".to_string(),
+                            direction: "\u{2192} Phone".to_string(),
+                            size: _local_file.size,
+                            reason: "File only exists locally".to_string(),
+                        });
+                    }
+                    (None, Some(_dev_file)) => {
+                        actions.push(SyncAction {
+                            file_path: rel_path.to_string(),
+                            action_type: "copy".to_string(),
+                            direction: "\u{2192} Computer".to_string(),
+                            size: _dev_file.size,
+                            reason: "File only exists on device".to_string(),
+                        });
+                    }
+                    (Some(local_file), Some(dev_file)) => {
+                        if local_file.size != dev_file.size || local_file.modified_time != dev_file.modified_time {
+                            if local_file.modified_time >= dev_file.modified_time {
+                                actions.push(SyncAction {
+                                    file_path: rel_path.to_string(),
+                                    action_type: "update".to_string(),
+                                    direction: "\u{2192} Phone".to_string(),
+                                    size: local_file.size,
+                                    reason: "Local file is newer".to_string(),
+                                });
+                            } else {
+                                actions.push(SyncAction {
+                                    file_path: rel_path.to_string(),
+                                    action_type: "update".to_string(),
+                                    direction: "\u{2192} Computer".to_string(),
+                                    size: dev_file.size,
+                                    reason: "Device file is newer".to_string(),
+                                });
+                            }
+                        }
+                        // Same size and mtime → skip (no action needed)
+                    }
+                    (None, None) => {} // shouldn't happen
+                }
+            }
+        }
+    }
+
+    actions.sort_by(|a, b| a.file_path.cmp(&b.file_path));
+    actions
+}
+
+// Preview sync: compute what would happen without executing
+#[tauri::command]
+async fn preview_sync(
+    app: tauri::AppHandle,
+    device_id: String,
+    options: SyncOptions,
+) -> Result<SyncPreview, String> {
+    let local_files = list_local_files(options.local_path.clone(), options.recursive)?;
+    let device_files = list_device_files_for_sync(
+        app,
+        device_id,
+        options.device_path.clone(),
+        options.recursive,
+    ).await?;
+
+    let actions = compute_sync_actions(&local_files, &device_files, &options.direction, options.delete_missing);
+
+    let mut total_transfer_bytes: u64 = 0;
+    let mut copy_count: u32 = 0;
+    let mut update_count: u32 = 0;
+    let mut delete_count: u32 = 0;
+    let mut skip_count: u32 = 0;
+
+    for action in &actions {
+        match action.action_type.as_str() {
+            "copy" => {
+                copy_count += 1;
+                total_transfer_bytes += action.size;
+            }
+            "update" => {
+                update_count += 1;
+                total_transfer_bytes += action.size;
+            }
+            "delete" => {
+                delete_count += 1;
+            }
+            _ => {
+                skip_count += 1;
+            }
+        }
+    }
+
+    Ok(SyncPreview {
+        actions,
+        total_transfer_bytes,
+        copy_count,
+        update_count,
+        delete_count,
+        skip_count,
+    })
+}
+
+// Execute sync: perform the actual file transfers
+#[tauri::command]
+async fn execute_sync(
+    app: tauri::AppHandle,
+    window: tauri::Window,
+    device_id: String,
+    options: SyncOptions,
+) -> Result<SyncResult, String> {
+    let local_files = list_local_files(options.local_path.clone(), options.recursive)?;
+    let device_files = list_device_files_for_sync(
+        app.clone(),
+        device_id.clone(),
+        options.device_path.clone(),
+        options.recursive,
+    ).await?;
+
+    let actions = compute_sync_actions(&local_files, &device_files, &options.direction, options.delete_missing);
+
+    let total_count = actions.len() as u32;
+    let total_bytes: u64 = actions.iter().map(|a| a.size).sum();
+
+    let mut success_count: u32 = 0;
+    let mut skip_count: u32 = 0;
+    let mut error_count: u32 = 0;
+    let mut errors: Vec<String> = Vec::new();
+    let mut completed_bytes: u64 = 0;
+
+    let shell = app.shell();
+    let adb_cmd = get_adb_command();
+
+    for (i, action) in actions.iter().enumerate() {
+        // Emit progress
+        let _ = window.emit("sync-progress", SyncProgress {
+            current_file: action.file_path.clone(),
+            completed_count: i as u32,
+            total_count,
+            completed_bytes,
+            total_bytes,
+        });
+
+        let result = match action.action_type.as_str() {
+            "copy" | "update" => {
+                if action.direction.contains("Computer") {
+                    // Pull from device to local
+                    let device_file = format!("{}/{}", options.device_path, action.file_path);
+                    let local_file = PathBuf::from(&options.local_path).join(&action.file_path);
+
+                    // Create parent directories
+                    if let Some(parent) = local_file.parent() {
+                        let _ = fs::create_dir_all(parent);
+                    }
+
+                    let output = shell
+                        .command(&adb_cmd)
+                        .args(["-s", &device_id, "pull", &device_file, local_file.to_str().unwrap_or("")])
+                        .output()
+                        .await;
+
+                    match output {
+                        Ok(o) if o.status.success() => Ok(()),
+                        Ok(o) => Err(format!("Pull failed: {}", String::from_utf8_lossy(&o.stderr))),
+                        Err(e) => Err(format!("Pull error: {}", e)),
+                    }
+                } else if action.direction.contains("Phone") {
+                    // Push from local to device
+                    let local_file = PathBuf::from(&options.local_path).join(&action.file_path);
+                    let device_file = format!("{}/{}", options.device_path, action.file_path);
+
+                    // Create parent directory on device if needed
+                    if let Some(parent) = PathBuf::from(&action.file_path).parent() {
+                        let parent_str = parent.to_string_lossy();
+                        if !parent_str.is_empty() {
+                            let device_parent = format!("{}/{}", options.device_path, parent_str);
+                            let escaped = device_parent.replace("'", "'\\''");
+                            let mkdir_cmd = format!("mkdir -p '{}'", escaped);
+                            let _ = shell
+                                .command(&adb_cmd)
+                                .args(["-s", &device_id, "shell", &mkdir_cmd])
+                                .output()
+                                .await;
+                        }
+                    }
+
+                    let output = shell
+                        .command(&adb_cmd)
+                        .args(["-s", &device_id, "push", local_file.to_str().unwrap_or(""), &device_file])
+                        .output()
+                        .await;
+
+                    match output {
+                        Ok(o) if o.status.success() => Ok(()),
+                        Ok(o) => Err(format!("Push failed: {}", String::from_utf8_lossy(&o.stderr))),
+                        Err(e) => Err(format!("Push error: {}", e)),
+                    }
+                } else {
+                    Ok(()) // skip
+                }
+            }
+            "delete" => {
+                if action.direction.contains("Computer") {
+                    // Delete local file
+                    let local_file = PathBuf::from(&options.local_path).join(&action.file_path);
+                    fs::remove_file(&local_file)
+                        .map_err(|e| format!("Failed to delete local file: {}", e))
+                } else if action.direction.contains("Phone") {
+                    // Delete device file
+                    let device_file = format!("{}/{}", options.device_path, action.file_path);
+                    let escaped = device_file.replace("'", "'\\''");
+                    let rm_cmd = format!("rm '{}'", escaped);
+
+                    let output = shell
+                        .command(&adb_cmd)
+                        .args(["-s", &device_id, "shell", &rm_cmd])
+                        .output()
+                        .await;
+
+                    match output {
+                        Ok(o) if o.status.success() => Ok(()),
+                        Ok(o) => Err(format!("Delete failed: {}", String::from_utf8_lossy(&o.stderr))),
+                        Err(e) => Err(format!("Delete error: {}", e)),
+                    }
+                } else {
+                    Ok(())
+                }
+            }
+            _ => {
+                skip_count += 1;
+                continue;
+            }
+        };
+
+        match result {
+            Ok(()) => {
+                success_count += 1;
+                completed_bytes += action.size;
+            }
+            Err(e) => {
+                error_count += 1;
+                errors.push(format!("{}: {}", action.file_path, e));
+            }
+        }
+    }
+
+    // Emit final progress
+    let _ = window.emit("sync-progress", SyncProgress {
+        current_file: "Done".to_string(),
+        completed_count: total_count,
+        total_count,
+        completed_bytes,
+        total_bytes,
+    });
+
+    Ok(SyncResult {
+        success_count,
+        skip_count,
+        error_count,
+        errors,
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -1064,7 +1698,11 @@ pub fn run() {
             get_storage_info,
             download_file,
             upload_file,
-            preview_file
+            preview_file,
+            list_local_files,
+            list_device_files_for_sync,
+            preview_sync,
+            execute_sync
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

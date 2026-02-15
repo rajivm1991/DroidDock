@@ -939,6 +939,7 @@ dependencies = [
  "tauri-plugin-shell",
  "tauri-plugin-updater",
  "tempfile",
+ "walkdir",
 ]
 
 [[package]]

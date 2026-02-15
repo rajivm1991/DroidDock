@@ -29,4 +29,5 @@ image = "0.25"
 base64 = "0.22"
 tempfile = "3"
 md5 = "0.7"
+walkdir = "2"
 
