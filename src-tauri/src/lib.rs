@@ -923,6 +923,23 @@ async fn upload_file(
         }
     }
 
+    // Preserve the local file's modification time on the device
+    let local_path_obj = std::path::Path::new(&local_path);
+    if let Ok(metadata) = local_path_obj.metadata() {
+        if let Ok(modified) = metadata.modified() {
+            if let Ok(duration) = modified.duration_since(UNIX_EPOCH) {
+                let mtime = duration.as_secs();
+                let escaped_path = device_path.replace("'", "'\\''");
+                let touch_cmd = format!("touch -d @{} '{}'", mtime, escaped_path);
+                let _ = shell
+                    .command(&adb_cmd)
+                    .args(["-s", &device_id, "shell", &touch_cmd])
+                    .output()
+                    .await;
+            }
+        }
+    }
+
     Ok(())
 }
 
@@ -2042,6 +2059,14 @@ async fn execute_sync(
 
     let actions = compute_sync_actions(&local_files, &device_files, &options.direction, options.delete_missing, &options.match_mode);
 
+    // Build timestamp lookup maps for preserving file modification times
+    let device_mtime_map: HashMap<String, u64> = device_files.iter()
+        .map(|f| (f.relative_path.clone(), f.modified_time))
+        .collect();
+    let local_mtime_map: HashMap<String, u64> = local_files.iter()
+        .map(|f| (f.relative_path.clone(), f.modified_time))
+        .collect();
+
     let total_count = actions.len() as u32;
     let total_bytes: u64 = actions.iter().map(|a| a.size).sum();
 
@@ -2083,7 +2108,16 @@ async fn execute_sync(
                         .await;
 
                     match output {
-                        Ok(o) if o.status.success() => Ok(()),
+                        Ok(o) if o.status.success() => {
+                            // Restore the source file's modification time
+                            if let Some(&mtime) = device_mtime_map.get(&action.file_path) {
+                                let mtime_system = UNIX_EPOCH + Duration::from_secs(mtime);
+                                if let Ok(file) = fs::File::open(&local_file) {
+                                    let _ = file.set_modified(mtime_system);
+                                }
+                            }
+                            Ok(())
+                        }
                         Ok(o) => Err(format!("Pull failed: {}", String::from_utf8_lossy(&o.stderr))),
                         Err(e) => Err(format!("Pull error: {}", e)),
                     }
@@ -2114,7 +2148,19 @@ async fn execute_sync(
                         .await;
 
                     match output {
-                        Ok(o) if o.status.success() => Ok(()),
+                        Ok(o) if o.status.success() => {
+                            // Restore the source file's modification time on the device
+                            if let Some(&mtime) = local_mtime_map.get(&action.file_path) {
+                                let escaped_path = device_file.replace("'", "'\\''");
+                                let touch_cmd = format!("touch -d @{} '{}'", mtime, escaped_path);
+                                let _ = shell
+                                    .command(&adb_cmd)
+                                    .args(["-s", &device_id, "shell", &touch_cmd])
+                                    .output()
+                                    .await;
+                            }
+                            Ok(())
+                        }
                         Ok(o) => Err(format!("Push failed: {}", String::from_utf8_lossy(&o.stderr))),
                         Err(e) => Err(format!("Push error: {}", e)),
                     }
