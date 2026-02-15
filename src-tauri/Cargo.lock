@@ -928,6 +928,7 @@ name = "droiddock"
 version = "0.3.0"
 dependencies = [
  "base64 0.22.1",
+ "glob",
  "image",
  "md5",
  "serde",

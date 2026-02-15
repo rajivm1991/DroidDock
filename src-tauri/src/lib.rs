@@ -1098,6 +1098,8 @@ pub struct SyncOptions {
     pub recursive: bool,
     pub delete_missing: bool,
     pub match_mode: String,
+    #[serde(default)]
+    pub file_patterns: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1170,9 +1172,49 @@ fn is_sync_excluded(name: &str) -> bool {
     )
 }
 
+/// Normalize file patterns: strip device_path prefix and append /**/* for bare directories.
+fn normalize_patterns(patterns: &[String], device_path: &str) -> Vec<String> {
+    if patterns.is_empty() {
+        return Vec::new();
+    }
+    let prefix = device_path.trim_end_matches('/');
+    patterns.iter().map(|p| {
+        // Strip device path prefix if present (user may paste absolute paths)
+        let stripped = if p.starts_with(prefix) {
+            p[prefix.len()..].trim_start_matches('/').to_string()
+        } else {
+            p.trim_start_matches('/').to_string()
+        };
+        // Strip trailing slash
+        let stripped = stripped.trim_end_matches('/').to_string();
+        // If pattern has no glob characters, treat as directory: append /**/*
+        if !stripped.contains('*') && !stripped.contains('?') && !stripped.contains('[') {
+            format!("{}/**/*", stripped)
+        } else {
+            stripped
+        }
+    }).collect()
+}
+
+fn matches_any_pattern(rel_path: &str, patterns: &[String]) -> bool {
+    if patterns.is_empty() {
+        return true;
+    }
+    let options = glob::MatchOptions {
+        case_sensitive: true,
+        require_literal_separator: false,
+        require_literal_leading_dot: false,
+    };
+    patterns.iter().any(|p| {
+        glob::Pattern::new(p)
+            .map(|pat| pat.matches_with(rel_path, options))
+            .unwrap_or(false)
+    })
+}
+
 // List files on the local Mac filesystem for sync
 #[tauri::command]
-fn list_local_files(path: String, recursive: bool, match_mode: String) -> Result<Vec<FileMetadata>, String> {
+fn list_local_files(path: String, recursive: bool, match_mode: String, file_patterns: Vec<String>) -> Result<Vec<FileMetadata>, String> {
     let root = PathBuf::from(&path);
     if !root.exists() {
         return Err(format!("Local path does not exist: {}", path));
@@ -1201,6 +1243,11 @@ fn list_local_files(path: String, recursive: bool, match_mode: String) -> Result
 
             let metadata = entry.metadata()
                 .map_err(|e| format!("Failed to read metadata for {}: {}", rel_path, e))?;
+
+            // Skip directories when filtering by patterns (only match files)
+            if !metadata.is_dir() && !matches_any_pattern(&rel_path, &file_patterns) {
+                continue;
+            }
 
             let modified_time = metadata.modified()
                 .unwrap_or(UNIX_EPOCH)
@@ -1233,6 +1280,10 @@ fn list_local_files(path: String, recursive: bool, match_mode: String) -> Result
             let name = entry.file_name().to_string_lossy().to_string();
 
             if is_sync_excluded(&name) {
+                continue;
+            }
+
+            if !metadata.is_dir() && !matches_any_pattern(&name, &file_patterns) {
                 continue;
             }
 
@@ -1269,6 +1320,7 @@ async fn list_device_files_for_sync(
     path: String,
     recursive: bool,
     match_mode: String,
+    file_patterns: Vec<String>,
 ) -> Result<Vec<FileMetadata>, String> {
     let shell = app.shell();
     let adb_cmd = get_adb_command();
@@ -1277,31 +1329,105 @@ async fn list_device_files_for_sync(
     let mut result = Vec::new();
 
     if recursive {
-        // Use find to get all files recursively
-        let find_command = format!(
-            "find '{}' -type f -o -type d 2>/dev/null | head -10000",
-            escaped_path
-        );
+        // When patterns are provided, only scan targeted directories instead of the entire root
+        let scan_dirs: Vec<String> = if !file_patterns.is_empty() {
+            // Extract directory prefixes from patterns (everything before the first glob character)
+            let mut dirs: Vec<String> = file_patterns.iter().map(|p| {
+                // Find the directory portion before any glob characters
+                let glob_pos = p.find(|c: char| c == '*' || c == '?' || c == '[')
+                    .unwrap_or(p.len());
+                let dir_part = &p[..glob_pos];
+                // Trim to last slash to get the directory
+                let dir = if let Some(slash_pos) = dir_part.rfind('/') {
+                    &dir_part[..slash_pos]
+                } else {
+                    ""
+                };
+                if dir.is_empty() {
+                    path.clone()
+                } else {
+                    format!("{}/{}", path, dir)
+                }
+            }).collect();
+            dirs.sort();
+            dirs.dedup();
+            // Remove directories that are subdirectories of other entries
+            let mut filtered: Vec<String> = Vec::new();
+            for dir in &dirs {
+                if !filtered.iter().any(|parent| dir.starts_with(&format!("{}/", parent))) {
+                    filtered.push(dir.clone());
+                }
+            }
+            filtered
+        } else {
+            vec![path.clone()]
+        };
 
-        let output = shell
-            .command(&adb_cmd)
-            .args(["-s", &device_id, "shell", &find_command])
-            .output()
-            .await
-            .map_err(|e| format!("Failed to list device files: {}", e))?;
+        #[cfg(debug_assertions)]
+        {
+            eprintln!("[sync] scan_dirs: {:?}", scan_dirs);
+            eprintln!("[sync] file_patterns for filtering: {:?}", file_patterns);
+        }
 
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let file_paths: Vec<String> = stdout
-            .lines()
-            .filter(|l| !l.trim().is_empty())
-            .map(|l| l.trim().to_string())
-            .filter(|l| l != &path && l != &format!("{}/", path))
-            .collect();
+        // Collect file paths from targeted directories using find
+        let mut file_paths: Vec<String> = Vec::new();
+        for scan_dir in &scan_dirs {
+            let escaped_scan_dir = scan_dir.replace("'", "'\\''");
+            let find_command = format!(
+                "find '{}' -type f -o -type d 2>/dev/null",
+                escaped_scan_dir
+            );
 
-        // Batch stat: get size and mtime for each file
+            let output = shell
+                .command(&adb_cmd)
+                .args(["-s", &device_id, "shell", &find_command])
+                .output()
+                .await
+                .map_err(|e| format!("Failed to list device files: {}", e))?;
+
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            file_paths.extend(
+                stdout.lines()
+                    .filter(|l| !l.trim().is_empty())
+                    .map(|l| l.trim().to_string())
+                    .filter(|l| l != &path && l != &format!("{}/", path))
+            );
+        }
+        file_paths.sort();
+        file_paths.dedup();
+
+        // Pre-filter paths before stat: compute relative path and apply pattern + exclusion filters
+        let mut filtered_paths: Vec<(String, String)> = Vec::new(); // (full_path, rel_path)
         for file_path in &file_paths {
-            let escaped_file = file_path.replace("'", "'\\''");
-            let stat_cmd = format!("stat -c '%s %Y %F' '{}' 2>/dev/null", escaped_file);
+            let rel_path = if file_path.starts_with(&path) {
+                file_path[path.len()..].trim_start_matches('/').to_string()
+            } else {
+                file_path.clone()
+            };
+
+            if rel_path.is_empty() {
+                continue;
+            }
+
+            // Skip if any path component is excluded
+            if rel_path.split('/').any(|part| is_sync_excluded(part)) {
+                continue;
+            }
+
+            // We don't know if it's a dir yet, but pattern filtering on files
+            // will happen after stat. For now, keep all paths.
+            filtered_paths.push((file_path.clone(), rel_path));
+        }
+
+        // Batch stat: build a single shell command that stats all files at once
+        // Process in chunks to avoid command line length limits
+        let chunk_size = 200;
+        for chunk in filtered_paths.chunks(chunk_size) {
+            // Build a command like: stat -c '%s %Y %F' '/path1' '/path2' ... 2>/dev/null
+            let stat_args: Vec<String> = chunk.iter()
+                .map(|(fp, _)| format!("'{}'", fp.replace("'", "'\\''")))
+                .collect();
+            let stat_cmd = format!("stat -c '%s %Y %F' {} 2>/dev/null", stat_args.join(" "));
 
             let stat_output = shell
                 .command(&adb_cmd)
@@ -1311,51 +1437,52 @@ async fn list_device_files_for_sync(
                 .ok();
 
             if let Some(stat_out) = stat_output {
-                let stat_str = String::from_utf8_lossy(&stat_out.stdout).trim().to_string();
-                let parts: Vec<&str> = stat_str.splitn(3, ' ').collect();
-                if parts.len() >= 3 {
+                let stat_str = String::from_utf8_lossy(&stat_out.stdout);
+                let stat_lines: Vec<&str> = stat_str.lines().collect();
+
+                for (i, (_, rel_path)) in chunk.iter().enumerate() {
+                    if i >= stat_lines.len() {
+                        break;
+                    }
+
+                    let parts: Vec<&str> = stat_lines[i].splitn(3, ' ').collect();
+                    if parts.len() < 3 {
+                        continue;
+                    }
+
                     let size = parts[0].parse::<u64>().unwrap_or(0);
                     let mtime = parts[1].parse::<u64>().unwrap_or(0);
                     let is_dir = parts[2].contains("directory");
 
-                    // Compute relative path
-                    let rel_path = if file_path.starts_with(&path) {
-                        let stripped = &file_path[path.len()..];
-                        stripped.trim_start_matches('/').to_string()
-                    } else {
-                        file_path.clone()
-                    };
-
-                    // Skip if any path component is excluded (e.g. .thumbnails/.database_uuid)
-                    if rel_path.split('/').any(|part| is_sync_excluded(part)) {
+                    // Apply glob pattern filtering (skip directories from filtering)
+                    if !is_dir && !matches_any_pattern(rel_path, &file_patterns) {
                         continue;
                     }
 
-                    if !rel_path.is_empty() {
-                        let md5_hash = if match_mode == "content" && !is_dir {
-                            let md5_cmd = format!("md5sum '{}' 2>/dev/null", escaped_file);
-                            let md5_output = shell
-                                .command(&adb_cmd)
-                                .args(["-s", &device_id, "shell", &md5_cmd])
-                                .output()
-                                .await
-                                .ok();
-                            md5_output.and_then(|o| {
-                                let out = String::from_utf8_lossy(&o.stdout).trim().to_string();
-                                out.split_whitespace().next().map(|s| s.to_string())
-                            })
-                        } else {
-                            None
-                        };
+                    let md5_hash = if match_mode == "content" && !is_dir {
+                        let escaped_file = chunk[i].0.replace("'", "'\\''");
+                        let md5_cmd = format!("md5sum '{}' 2>/dev/null", escaped_file);
+                        let md5_output = shell
+                            .command(&adb_cmd)
+                            .args(["-s", &device_id, "shell", &md5_cmd])
+                            .output()
+                            .await
+                            .ok();
+                        md5_output.and_then(|o| {
+                            let out = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                            out.split_whitespace().next().map(|s| s.to_string())
+                        })
+                    } else {
+                        None
+                    };
 
-                        result.push(FileMetadata {
-                            relative_path: rel_path,
-                            size,
-                            modified_time: mtime,
-                            is_directory: is_dir,
-                            md5_hash,
-                        });
-                    }
+                    result.push(FileMetadata {
+                        relative_path: rel_path.clone(),
+                        size,
+                        modified_time: mtime,
+                        is_directory: is_dir,
+                        md5_hash,
+                    });
                 }
             }
         }
@@ -1380,6 +1507,10 @@ async fn list_device_files_for_sync(
 
         for entry in &entries {
             if is_sync_excluded(&entry.name) {
+                continue;
+            }
+
+            if !entry.is_directory && !matches_any_pattern(&entry.name, &file_patterns) {
                 continue;
             }
 
@@ -1840,13 +1971,25 @@ async fn preview_sync(
     device_id: String,
     options: SyncOptions,
 ) -> Result<SyncPreview, String> {
-    let local_files = list_local_files(options.local_path.clone(), options.recursive, options.match_mode.clone())?;
+    let patterns = normalize_patterns(&options.file_patterns, &options.device_path);
+    // Force recursive when patterns contain path separators
+    let recursive = options.recursive || patterns.iter().any(|p| p.contains('/'));
+
+    #[cfg(debug_assertions)]
+    {
+        eprintln!("[sync] raw file_patterns: {:?}", options.file_patterns);
+        eprintln!("[sync] normalized patterns: {:?}", patterns);
+        eprintln!("[sync] recursive: {}", recursive);
+    }
+
+    let local_files = list_local_files(options.local_path.clone(), recursive, options.match_mode.clone(), patterns.clone())?;
     let device_files = list_device_files_for_sync(
         app,
         device_id,
         options.device_path.clone(),
-        options.recursive,
+        recursive,
         options.match_mode.clone(),
+        patterns,
     ).await?;
 
     let actions = compute_sync_actions(&local_files, &device_files, &options.direction, options.delete_missing, &options.match_mode);
@@ -1899,13 +2042,18 @@ async fn execute_sync(
     device_id: String,
     options: SyncOptions,
 ) -> Result<SyncResult, String> {
-    let local_files = list_local_files(options.local_path.clone(), options.recursive, options.match_mode.clone())?;
+    let patterns = normalize_patterns(&options.file_patterns, &options.device_path);
+    // Force recursive when patterns contain path separators
+    let recursive = options.recursive || patterns.iter().any(|p| p.contains('/'));
+
+    let local_files = list_local_files(options.local_path.clone(), recursive, options.match_mode.clone(), patterns.clone())?;
     let device_files = list_device_files_for_sync(
         app.clone(),
         device_id.clone(),
         options.device_path.clone(),
-        options.recursive,
+        recursive,
         options.match_mode.clone(),
+        patterns,
     ).await?;
 
     let actions = compute_sync_actions(&local_files, &device_files, &options.direction, options.delete_missing, &options.match_mode);

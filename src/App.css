@@ -1687,6 +1687,41 @@ tbody tr {
   background: #e8e8e8;
 }
 
+.sync-pattern-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sync-pattern-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #e0e0e0;
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.sync-pattern-chip button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: 15px;
+  color: #666;
+  line-height: 1;
+}
+
+.sync-pattern-chip button:hover {
+  color: #333;
+}
+
+.sync-pattern-hint {
+  font-size: 12px;
+  color: #999;
+}
+
 .sync-radio-group,
 .sync-options-group {
   display: flex;

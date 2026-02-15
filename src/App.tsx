@@ -42,6 +42,7 @@ interface SyncOptions {
   recursive: boolean;
   delete_missing: boolean;
   match_mode: string;
+  file_patterns: string[];
 }
 
 interface SyncAction {
@@ -560,6 +561,8 @@ function App() {
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [syncStep, setSyncStep] = useState<"config" | "preview" | "progress" | "result">("config");
   const [syncMatchMode, setSyncMatchMode] = useState<"filename" | "content">("filename");
+  const [syncFilePatterns, setSyncFilePatterns] = useState<string[]>([]);
+  const [syncPatternInput, setSyncPatternInput] = useState("");
 
   // Check if ADB is available on startup
   useEffect(() => {
@@ -2167,6 +2170,14 @@ function App() {
     setSyncPreviewing(true);
     setError("");
     try {
+      // Include any pattern currently typed in the input field
+      const patterns = syncPatternInput.trim()
+        ? [...syncFilePatterns, syncPatternInput.trim()]
+        : syncFilePatterns;
+      if (syncPatternInput.trim()) {
+        setSyncFilePatterns(patterns);
+        setSyncPatternInput("");
+      }
       const options: SyncOptions = {
         local_path: syncLocalPath,
         device_path: syncDevicePath,
@@ -2174,6 +2185,7 @@ function App() {
         recursive: syncRecursive,
         delete_missing: syncDeleteMissing,
         match_mode: syncMatchMode,
+        file_patterns: patterns,
       };
       const preview = await invoke<SyncPreview>("preview_sync", {
         deviceId: selectedDevice,
@@ -2206,6 +2218,7 @@ function App() {
         recursive: syncRecursive,
         delete_missing: syncDeleteMissing,
         match_mode: syncMatchMode,
+        file_patterns: syncFilePatterns,
       };
       const result = await invoke<SyncResult>("execute_sync", {
         deviceId: selectedDevice,
@@ -2225,6 +2238,8 @@ function App() {
   function handleCloseSyncDialog() {
     if (syncing) return;
     setSyncDialogOpen(false);
+    setSyncFilePatterns([]);
+    setSyncPatternInput("");
     if (syncResult && syncResult.success_count > 0) {
       loadFiles();
     }
@@ -3226,7 +3241,7 @@ function App() {
                 <h3>Folder Sync</h3>
                 <div className="sync-form">
                   <div className="sync-form-group">
-                    <label>Local Folder (Mac)</label>
+                    <label>Computer Folder</label>
                     <div className="sync-path-input">
                       <input
                         type="text"
@@ -3240,7 +3255,7 @@ function App() {
                   </div>
 
                   <div className="sync-form-group">
-                    <label>Device Folder</label>
+                    <label>Phone Folder</label>
                     <div className="sync-path-input">
                       <input
                         type="text"
@@ -3336,6 +3351,52 @@ function App() {
                         )}
                       </label>
                     </div>
+                  </div>
+
+                  <div className="sync-form-group">
+                    <label>File Patterns</label>
+                    {syncFilePatterns.length > 0 && (
+                      <div className="sync-pattern-chips">
+                        {syncFilePatterns.map((pattern, idx) => (
+                          <span key={idx} className="sync-pattern-chip">
+                            {pattern}
+                            <button
+                              onClick={() => setSyncFilePatterns(syncFilePatterns.filter((_, i) => i !== idx))}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="sync-path-input">
+                      <input
+                        type="text"
+                        value={syncPatternInput}
+                        onChange={(e) => setSyncPatternInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && syncPatternInput.trim()) {
+                            e.preventDefault();
+                            setSyncFilePatterns([...syncFilePatterns, syncPatternInput.trim()]);
+                            setSyncPatternInput("");
+                          }
+                        }}
+                        placeholder="e.g. DCIM/Camera/*.jpg"
+                      />
+                      <button
+                        onClick={() => {
+                          if (syncPatternInput.trim()) {
+                            setSyncFilePatterns([...syncFilePatterns, syncPatternInput.trim()]);
+                            setSyncPatternInput("");
+                          }
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                    <span className="sync-pattern-hint">
+                      Leave empty to sync all files. Use * for any filename, ** for any subdirectories.
+                    </span>
                   </div>
                 </div>
 
