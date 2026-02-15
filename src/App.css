@@ -1771,6 +1771,7 @@ tbody tr {
 .sync-preview-table tr.action-copy { background-color: rgba(76, 175, 80, 0.08); }
 .sync-preview-table tr.action-update { background-color: rgba(255, 152, 0, 0.08); }
 .sync-preview-table tr.action-delete { background-color: rgba(244, 67, 54, 0.08); }
+.sync-preview-table tr.action-rename { background-color: rgba(33, 150, 243, 0.08); }
 
 .action-badge {
   display: inline-block;
@@ -1784,6 +1785,7 @@ tbody tr {
 .action-badge.update { background: #fff3e0; color: #e65100; }
 .action-badge.delete { background: #ffebee; color: #c62828; }
 .action-badge.skip { background: #f5f5f5; color: #999; }
+.action-badge.rename { background: #e3f2fd; color: #1565c0; }
 
 .sync-progress-container {
   display: flex;
@@ -2514,11 +2516,13 @@ tbody tr {
   .sync-preview-table tr.action-copy { background-color: rgba(76, 175, 80, 0.15); }
   .sync-preview-table tr.action-update { background-color: rgba(255, 152, 0, 0.15); }
   .sync-preview-table tr.action-delete { background-color: rgba(244, 67, 54, 0.15); }
+  .sync-preview-table tr.action-rename { background-color: rgba(33, 150, 243, 0.15); }
 
   .action-badge.copy { background: #1b3a1b; color: #6fbf73; }
   .action-badge.update { background: #3a2a1a; color: #ffb74d; }
   .action-badge.delete { background: #3a1a1a; color: #ef9a9a; }
   .action-badge.skip { background: #2a2a2a; color: #777; }
+  .action-badge.rename { background: #1a2a3a; color: #64b5f6; }
 
   .sync-progress-bar {
     background: #3a3a3a;

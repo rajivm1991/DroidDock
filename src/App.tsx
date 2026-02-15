@@ -40,6 +40,7 @@ interface SyncOptions {
   direction: SyncDirection;
   recursive: boolean;
   delete_missing: boolean;
+  match_mode: string;
 }
 
 interface SyncAction {
@@ -48,6 +49,7 @@ interface SyncAction {
   direction: string;
   size: number;
   reason: string;
+  rename_from: string | null;
 }
 
 interface SyncPreview {
@@ -57,6 +59,7 @@ interface SyncPreview {
   update_count: number;
   delete_count: number;
   skip_count: number;
+  rename_count: number;
 }
 
 interface SyncProgress {
@@ -555,6 +558,7 @@ function App() {
   const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [syncStep, setSyncStep] = useState<"config" | "preview" | "progress" | "result">("config");
+  const [syncMatchMode, setSyncMatchMode] = useState<"filename" | "content">("filename");
 
   // Check if ADB is available on startup
   useEffect(() => {
@@ -2139,6 +2143,7 @@ function App() {
     setSyncResult(null);
     setSyncProgress(null);
     setSyncStep("config");
+    setSyncMatchMode("filename");
     setSyncDialogOpen(true);
   }
 
@@ -2167,6 +2172,7 @@ function App() {
         direction: syncDirection,
         recursive: syncRecursive,
         delete_missing: syncDeleteMissing,
+        match_mode: syncMatchMode,
       };
       const preview = await invoke<SyncPreview>("preview_sync", {
         deviceId: selectedDevice,
@@ -2198,6 +2204,7 @@ function App() {
         direction: syncDirection,
         recursive: syncRecursive,
         delete_missing: syncDeleteMissing,
+        match_mode: syncMatchMode,
       };
       const result = await invoke<SyncResult>("execute_sync", {
         deviceId: selectedDevice,
@@ -3265,6 +3272,30 @@ function App() {
                     </div>
                   </div>
 
+                  <div className="sync-form-group">
+                    <label>Match by</label>
+                    <div className="sync-radio-group">
+                      <label className="sync-radio-label">
+                        <input
+                          type="radio"
+                          name="syncMatchMode"
+                          checked={syncMatchMode === "filename"}
+                          onChange={() => setSyncMatchMode("filename")}
+                        />
+                        Filename — match files by name and path
+                      </label>
+                      <label className="sync-radio-label">
+                        <input
+                          type="radio"
+                          name="syncMatchMode"
+                          checked={syncMatchMode === "content"}
+                          onChange={() => setSyncMatchMode("content")}
+                        />
+                        Content (MD5) — detect renamed files by content hash (slower)
+                      </label>
+                    </div>
+                  </div>
+
                   <label className="sync-checkbox-label">
                     <input
                       type="checkbox"
@@ -3328,6 +3359,11 @@ function App() {
                           <span className="action-badge delete">Delete</span> {syncPreview.delete_count}
                         </span>
                       )}
+                      {syncPreview.rename_count > 0 && (
+                        <span className="sync-preview-stat">
+                          <span className="action-badge rename">Rename</span> {syncPreview.rename_count}
+                        </span>
+                      )}
                       <span className="sync-preview-stat">
                         Transfer: {formatBytes(syncPreview.total_transfer_bytes)}
                       </span>
@@ -3346,7 +3382,11 @@ function App() {
                         <tbody>
                           {syncPreview.actions.map((action, i) => (
                             <tr key={i} className={`action-${action.action_type}`}>
-                              <td title={action.reason}>{action.file_path}</td>
+                              <td title={action.reason}>
+                                {action.action_type === "rename" && action.rename_from
+                                  ? <>{action.rename_from} → {action.file_path}</>
+                                  : action.file_path}
+                              </td>
                               <td>
                                 <span className={`action-badge ${action.action_type}`}>
                                   {action.action_type}

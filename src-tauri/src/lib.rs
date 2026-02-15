@@ -1063,6 +1063,7 @@ pub struct SyncOptions {
     pub direction: SyncDirection,
     pub recursive: bool,
     pub delete_missing: bool,
+    pub match_mode: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1071,6 +1072,7 @@ pub struct FileMetadata {
     pub size: u64,
     pub modified_time: u64,
     pub is_directory: bool,
+    pub md5_hash: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1080,6 +1082,7 @@ pub struct SyncAction {
     pub direction: String,
     pub size: u64,
     pub reason: String,
+    pub rename_from: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1090,6 +1093,7 @@ pub struct SyncPreview {
     pub update_count: u32,
     pub delete_count: u32,
     pub skip_count: u32,
+    pub rename_count: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1109,9 +1113,32 @@ pub struct SyncResult {
     pub errors: Vec<String>,
 }
 
+fn compute_local_md5(path: &std::path::Path) -> Option<String> {
+    let bytes = std::fs::read(path).ok()?;
+    Some(format!("{:x}", md5::compute(&bytes)))
+}
+
+/// Returns true if a file/directory should be excluded from sync operations.
+fn is_sync_excluded(name: &str) -> bool {
+    matches!(
+        name,
+        ".DS_Store"
+            | ".Spotlight-V100"
+            | ".Trashes"
+            | ".fseventsd"
+            | ".TemporaryItems"
+            | "Thumbs.db"
+            | "desktop.ini"
+            | ".thumbnails"
+            | ".thumbdata3"
+            | ".thumbdata4"
+            | ".nomedia"
+    )
+}
+
 // List files on the local Mac filesystem for sync
 #[tauri::command]
-fn list_local_files(path: String, recursive: bool) -> Result<Vec<FileMetadata>, String> {
+fn list_local_files(path: String, recursive: bool, match_mode: String) -> Result<Vec<FileMetadata>, String> {
     let root = PathBuf::from(&path);
     if !root.exists() {
         return Err(format!("Local path does not exist: {}", path));
@@ -1123,6 +1150,10 @@ fn list_local_files(path: String, recursive: bool) -> Result<Vec<FileMetadata>, 
         for entry in walkdir::WalkDir::new(&root)
             .min_depth(1)
             .into_iter()
+            .filter_entry(|e| {
+                let name = e.file_name().to_str().unwrap_or("");
+                !is_sync_excluded(name)
+            })
             .filter_map(|e| e.ok())
         {
             let rel_path = entry.path().strip_prefix(&root)
@@ -1143,11 +1174,18 @@ fn list_local_files(path: String, recursive: bool) -> Result<Vec<FileMetadata>, 
                 .unwrap_or_default()
                 .as_secs();
 
+            let md5_hash = if match_mode == "content" && !metadata.is_dir() {
+                compute_local_md5(entry.path())
+            } else {
+                None
+            };
+
             result.push(FileMetadata {
                 relative_path: rel_path,
                 size: metadata.len(),
                 modified_time,
                 is_directory: metadata.is_dir(),
+                md5_hash,
             });
         }
     } else {
@@ -1160,17 +1198,28 @@ fn list_local_files(path: String, recursive: bool) -> Result<Vec<FileMetadata>, 
                 .map_err(|e| format!("Failed to read metadata: {}", e))?;
             let name = entry.file_name().to_string_lossy().to_string();
 
+            if is_sync_excluded(&name) {
+                continue;
+            }
+
             let modified_time = metadata.modified()
                 .unwrap_or(UNIX_EPOCH)
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
                 .as_secs();
 
+            let md5_hash = if match_mode == "content" && !metadata.is_dir() {
+                compute_local_md5(&root.join(&name))
+            } else {
+                None
+            };
+
             result.push(FileMetadata {
                 relative_path: name,
                 size: metadata.len(),
                 modified_time,
                 is_directory: metadata.is_dir(),
+                md5_hash,
             });
         }
     }
@@ -1185,6 +1234,7 @@ async fn list_device_files_for_sync(
     device_id: String,
     path: String,
     recursive: bool,
+    match_mode: String,
 ) -> Result<Vec<FileMetadata>, String> {
     let shell = app.shell();
     let adb_cmd = get_adb_command();
@@ -1242,12 +1292,34 @@ async fn list_device_files_for_sync(
                         file_path.clone()
                     };
 
+                    // Skip if any path component is excluded (e.g. .thumbnails/.database_uuid)
+                    if rel_path.split('/').any(|part| is_sync_excluded(part)) {
+                        continue;
+                    }
+
                     if !rel_path.is_empty() {
+                        let md5_hash = if match_mode == "content" && !is_dir {
+                            let md5_cmd = format!("md5sum '{}' 2>/dev/null", escaped_file);
+                            let md5_output = shell
+                                .command(&adb_cmd)
+                                .args(["-s", &device_id, "shell", &md5_cmd])
+                                .output()
+                                .await
+                                .ok();
+                            md5_output.and_then(|o| {
+                                let out = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                                out.split_whitespace().next().map(|s| s.to_string())
+                            })
+                        } else {
+                            None
+                        };
+
                         result.push(FileMetadata {
                             relative_path: rel_path,
                             size,
                             modified_time: mtime,
                             is_directory: is_dir,
+                            md5_hash,
                         });
                     }
                 }
@@ -1273,6 +1345,10 @@ async fn list_device_files_for_sync(
             .collect();
 
         for entry in &entries {
+            if is_sync_excluded(&entry.name) {
+                continue;
+            }
+
             let file_full_path = format!("{}/{}", path, entry.name);
             let escaped_file = file_full_path.replace("'", "'\\''");
             let stat_cmd = format!("stat -c '%s %Y' '{}' 2>/dev/null", escaped_file);
@@ -1299,11 +1375,28 @@ async fn list_device_files_for_sync(
                 (entry.size.parse::<u64>().unwrap_or(0), 0)
             };
 
+            let md5_hash = if match_mode == "content" && !entry.is_directory {
+                let md5_cmd = format!("md5sum '{}' 2>/dev/null", escaped_file);
+                let md5_output = shell
+                    .command(&adb_cmd)
+                    .args(["-s", &device_id, "shell", &md5_cmd])
+                    .output()
+                    .await
+                    .ok();
+                md5_output.and_then(|o| {
+                    let out = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                    out.split_whitespace().next().map(|s| s.to_string())
+                })
+            } else {
+                None
+            };
+
             result.push(FileMetadata {
                 relative_path: entry.name.clone(),
                 size,
                 modified_time: mtime,
                 is_directory: entry.is_directory,
+                md5_hash,
             });
         }
     }
@@ -1317,7 +1410,12 @@ fn compute_sync_actions(
     device_files: &[FileMetadata],
     direction: &SyncDirection,
     delete_missing: bool,
+    match_mode: &str,
 ) -> Vec<SyncAction> {
+    if match_mode == "content" {
+        return compute_sync_actions_by_content(local_files, device_files, direction, delete_missing);
+    }
+
     let local_map: HashMap<&str, &FileMetadata> = local_files
         .iter()
         .filter(|f| !f.is_directory)
@@ -1344,6 +1442,7 @@ fn compute_sync_actions(
                             direction: "\u{2192} Computer".to_string(),
                             size: dev_file.size,
                             reason: "Device file is newer or different size".to_string(),
+                            rename_from: None,
                         });
                     }
                 } else {
@@ -1353,6 +1452,7 @@ fn compute_sync_actions(
                         direction: "\u{2192} Computer".to_string(),
                         size: dev_file.size,
                         reason: "File only exists on device".to_string(),
+                        rename_from: None,
                     });
                 }
             }
@@ -1365,6 +1465,7 @@ fn compute_sync_actions(
                             direction: "\u{2716} Computer".to_string(),
                             size: local_file.size,
                             reason: "File not on device, will be deleted locally".to_string(),
+                            rename_from: None,
                         });
                     }
                 }
@@ -1381,6 +1482,7 @@ fn compute_sync_actions(
                             direction: "\u{2192} Phone".to_string(),
                             size: local_file.size,
                             reason: "Local file is newer or different size".to_string(),
+                            rename_from: None,
                         });
                     }
                 } else {
@@ -1390,6 +1492,7 @@ fn compute_sync_actions(
                         direction: "\u{2192} Phone".to_string(),
                         size: local_file.size,
                         reason: "File only exists locally".to_string(),
+                        rename_from: None,
                     });
                 }
             }
@@ -1402,6 +1505,7 @@ fn compute_sync_actions(
                             direction: "\u{2716} Phone".to_string(),
                             size: dev_file.size,
                             reason: "File not on computer, will be deleted from device".to_string(),
+                            rename_from: None,
                         });
                     }
                 }
@@ -1422,6 +1526,7 @@ fn compute_sync_actions(
                             direction: "\u{2192} Phone".to_string(),
                             size: _local_file.size,
                             reason: "File only exists locally".to_string(),
+                            rename_from: None,
                         });
                     }
                     (None, Some(_dev_file)) => {
@@ -1431,6 +1536,7 @@ fn compute_sync_actions(
                             direction: "\u{2192} Computer".to_string(),
                             size: _dev_file.size,
                             reason: "File only exists on device".to_string(),
+                            rename_from: None,
                         });
                     }
                     (Some(local_file), Some(dev_file)) => {
@@ -1442,6 +1548,7 @@ fn compute_sync_actions(
                                     direction: "\u{2192} Phone".to_string(),
                                     size: local_file.size,
                                     reason: "Local file is newer".to_string(),
+                                    rename_from: None,
                                 });
                             } else {
                                 actions.push(SyncAction {
@@ -1450,12 +1557,239 @@ fn compute_sync_actions(
                                     direction: "\u{2192} Computer".to_string(),
                                     size: dev_file.size,
                                     reason: "Device file is newer".to_string(),
+                                    rename_from: None,
                                 });
                             }
                         }
                         // Same size and mtime → skip (no action needed)
                     }
                     (None, None) => {} // shouldn't happen
+                }
+            }
+        }
+    }
+
+    actions.sort_by(|a, b| a.file_path.cmp(&b.file_path));
+    actions
+}
+
+// Content-based (MD5) sync action computation
+fn compute_sync_actions_by_content(
+    local_files: &[FileMetadata],
+    device_files: &[FileMetadata],
+    direction: &SyncDirection,
+    delete_missing: bool,
+) -> Vec<SyncAction> {
+    use std::collections::HashSet;
+
+    let mut actions = Vec::new();
+
+    // Build hash -> files maps (only files with hashes)
+    let mut local_by_hash: HashMap<&str, Vec<&FileMetadata>> = HashMap::new();
+    for f in local_files.iter().filter(|f| !f.is_directory && f.md5_hash.is_some()) {
+        local_by_hash.entry(f.md5_hash.as_ref().unwrap().as_str())
+            .or_default().push(f);
+    }
+    let mut device_by_hash: HashMap<&str, Vec<&FileMetadata>> = HashMap::new();
+    for f in device_files.iter().filter(|f| !f.is_directory && f.md5_hash.is_some()) {
+        device_by_hash.entry(f.md5_hash.as_ref().unwrap().as_str())
+            .or_default().push(f);
+    }
+
+    // Also build path maps for update detection
+    let local_by_path: HashMap<&str, &FileMetadata> = local_files.iter()
+        .filter(|f| !f.is_directory && f.md5_hash.is_some())
+        .map(|f| (f.relative_path.as_str(), f))
+        .collect();
+    let device_by_path: HashMap<&str, &FileMetadata> = device_files.iter()
+        .filter(|f| !f.is_directory && f.md5_hash.is_some())
+        .map(|f| (f.relative_path.as_str(), f))
+        .collect();
+
+    let mut handled_local: HashSet<String> = HashSet::new();
+    let mut handled_device: HashSet<String> = HashSet::new();
+
+    // Collect all unique hashes
+    let mut all_hashes: HashSet<&str> = HashSet::new();
+    all_hashes.extend(local_by_hash.keys());
+    all_hashes.extend(device_by_hash.keys());
+
+    for hash in &all_hashes {
+        let local_for_hash = local_by_hash.get(hash).cloned().unwrap_or_default();
+        let device_for_hash = device_by_hash.get(hash).cloned().unwrap_or_default();
+
+        if !local_for_hash.is_empty() && !device_for_hash.is_empty() {
+            // Hash exists on both sides
+            let lf = local_for_hash[0];
+            let df = device_for_hash[0];
+            handled_local.insert(lf.relative_path.clone());
+            handled_device.insert(df.relative_path.clone());
+
+            if lf.relative_path != df.relative_path {
+                // Same content, different path → rename
+                match direction {
+                    SyncDirection::PhoneToComputer => {
+                        // Source is device, so rename local to match device name
+                        actions.push(SyncAction {
+                            file_path: df.relative_path.clone(),
+                            action_type: "rename".to_string(),
+                            direction: "\u{2192} Computer".to_string(),
+                            size: df.size,
+                            reason: format!("Renamed: {} \u{2192} {}", lf.relative_path, df.relative_path),
+                            rename_from: Some(lf.relative_path.clone()),
+                        });
+                    }
+                    SyncDirection::ComputerToPhone => {
+                        // Source is local, so rename device to match local name
+                        actions.push(SyncAction {
+                            file_path: lf.relative_path.clone(),
+                            action_type: "rename".to_string(),
+                            direction: "\u{2192} Phone".to_string(),
+                            size: lf.size,
+                            reason: format!("Renamed: {} \u{2192} {}", df.relative_path, lf.relative_path),
+                            rename_from: Some(df.relative_path.clone()),
+                        });
+                    }
+                    SyncDirection::BothWays => {
+                        // Rename the older side to match the newer
+                        if lf.modified_time >= df.modified_time {
+                            actions.push(SyncAction {
+                                file_path: lf.relative_path.clone(),
+                                action_type: "rename".to_string(),
+                                direction: "\u{2192} Phone".to_string(),
+                                size: lf.size,
+                                reason: format!("Renamed: {} \u{2192} {}", df.relative_path, lf.relative_path),
+                                rename_from: Some(df.relative_path.clone()),
+                            });
+                        } else {
+                            actions.push(SyncAction {
+                                file_path: df.relative_path.clone(),
+                                action_type: "rename".to_string(),
+                                direction: "\u{2192} Computer".to_string(),
+                                size: df.size,
+                                reason: format!("Renamed: {} \u{2192} {}", lf.relative_path, df.relative_path),
+                                rename_from: Some(lf.relative_path.clone()),
+                            });
+                        }
+                    }
+                }
+            }
+            // Same hash + same path → skip (identical, no action)
+
+            // Mark additional files with same hash as handled
+            for f in &local_for_hash { handled_local.insert(f.relative_path.clone()); }
+            for f in &device_for_hash { handled_device.insert(f.relative_path.clone()); }
+        } else if !local_for_hash.is_empty() {
+            // Hash only on local side
+            for lf in &local_for_hash {
+                handled_local.insert(lf.relative_path.clone());
+                match direction {
+                    SyncDirection::ComputerToPhone | SyncDirection::BothWays => {
+                        actions.push(SyncAction {
+                            file_path: lf.relative_path.clone(),
+                            action_type: "copy".to_string(),
+                            direction: "\u{2192} Phone".to_string(),
+                            size: lf.size,
+                            reason: "File only exists locally".to_string(),
+                            rename_from: None,
+                        });
+                    }
+                    SyncDirection::PhoneToComputer => {
+                        // Source is device, local-only file: delete if enabled
+                        if delete_missing {
+                            actions.push(SyncAction {
+                                file_path: lf.relative_path.clone(),
+                                action_type: "delete".to_string(),
+                                direction: "\u{2716} Computer".to_string(),
+                                size: lf.size,
+                                reason: "File not on device, will be deleted locally".to_string(),
+                                rename_from: None,
+                            });
+                        }
+                    }
+                }
+            }
+        } else {
+            // Hash only on device side
+            for df in &device_for_hash {
+                handled_device.insert(df.relative_path.clone());
+                match direction {
+                    SyncDirection::PhoneToComputer | SyncDirection::BothWays => {
+                        actions.push(SyncAction {
+                            file_path: df.relative_path.clone(),
+                            action_type: "copy".to_string(),
+                            direction: "\u{2192} Computer".to_string(),
+                            size: df.size,
+                            reason: "File only exists on device".to_string(),
+                            rename_from: None,
+                        });
+                    }
+                    SyncDirection::ComputerToPhone => {
+                        if delete_missing {
+                            actions.push(SyncAction {
+                                file_path: df.relative_path.clone(),
+                                action_type: "delete".to_string(),
+                                direction: "\u{2716} Phone".to_string(),
+                                size: df.size,
+                                reason: "File not on computer, will be deleted from device".to_string(),
+                                rename_from: None,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Handle files with same path but different hash (updates) that weren't matched above
+    for (path, lf) in &local_by_path {
+        if handled_local.contains(*path) { continue; }
+        if let Some(df) = device_by_path.get(path) {
+            if lf.md5_hash != df.md5_hash {
+                handled_local.insert(path.to_string());
+                handled_device.insert(path.to_string());
+                match direction {
+                    SyncDirection::PhoneToComputer => {
+                        actions.push(SyncAction {
+                            file_path: path.to_string(),
+                            action_type: "update".to_string(),
+                            direction: "\u{2192} Computer".to_string(),
+                            size: df.size,
+                            reason: "Device file has different content".to_string(),
+                            rename_from: None,
+                        });
+                    }
+                    SyncDirection::ComputerToPhone => {
+                        actions.push(SyncAction {
+                            file_path: path.to_string(),
+                            action_type: "update".to_string(),
+                            direction: "\u{2192} Phone".to_string(),
+                            size: lf.size,
+                            reason: "Local file has different content".to_string(),
+                            rename_from: None,
+                        });
+                    }
+                    SyncDirection::BothWays => {
+                        if lf.modified_time >= df.modified_time {
+                            actions.push(SyncAction {
+                                file_path: path.to_string(),
+                                action_type: "update".to_string(),
+                                direction: "\u{2192} Phone".to_string(),
+                                size: lf.size,
+                                reason: "Local file is newer".to_string(),
+                                rename_from: None,
+                            });
+                        } else {
+                            actions.push(SyncAction {
+                                file_path: path.to_string(),
+                                action_type: "update".to_string(),
+                                direction: "\u{2192} Computer".to_string(),
+                                size: df.size,
+                                reason: "Device file is newer".to_string(),
+                                rename_from: None,
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -1472,21 +1806,23 @@ async fn preview_sync(
     device_id: String,
     options: SyncOptions,
 ) -> Result<SyncPreview, String> {
-    let local_files = list_local_files(options.local_path.clone(), options.recursive)?;
+    let local_files = list_local_files(options.local_path.clone(), options.recursive, options.match_mode.clone())?;
     let device_files = list_device_files_for_sync(
         app,
         device_id,
         options.device_path.clone(),
         options.recursive,
+        options.match_mode.clone(),
     ).await?;
 
-    let actions = compute_sync_actions(&local_files, &device_files, &options.direction, options.delete_missing);
+    let actions = compute_sync_actions(&local_files, &device_files, &options.direction, options.delete_missing, &options.match_mode);
 
     let mut total_transfer_bytes: u64 = 0;
     let mut copy_count: u32 = 0;
     let mut update_count: u32 = 0;
     let mut delete_count: u32 = 0;
     let mut skip_count: u32 = 0;
+    let mut rename_count: u32 = 0;
 
     for action in &actions {
         match action.action_type.as_str() {
@@ -1501,6 +1837,9 @@ async fn preview_sync(
             "delete" => {
                 delete_count += 1;
             }
+            "rename" => {
+                rename_count += 1;
+            }
             _ => {
                 skip_count += 1;
             }
@@ -1514,6 +1853,7 @@ async fn preview_sync(
         update_count,
         delete_count,
         skip_count,
+        rename_count,
     })
 }
 
@@ -1525,15 +1865,16 @@ async fn execute_sync(
     device_id: String,
     options: SyncOptions,
 ) -> Result<SyncResult, String> {
-    let local_files = list_local_files(options.local_path.clone(), options.recursive)?;
+    let local_files = list_local_files(options.local_path.clone(), options.recursive, options.match_mode.clone())?;
     let device_files = list_device_files_for_sync(
         app.clone(),
         device_id.clone(),
         options.device_path.clone(),
         options.recursive,
+        options.match_mode.clone(),
     ).await?;
 
-    let actions = compute_sync_actions(&local_files, &device_files, &options.direction, options.delete_missing);
+    let actions = compute_sync_actions(&local_files, &device_files, &options.direction, options.delete_missing, &options.match_mode);
 
     let total_count = actions.len() as u32;
     let total_bytes: u64 = actions.iter().map(|a| a.size).sum();
@@ -1637,6 +1978,55 @@ async fn execute_sync(
                         Ok(o) if o.status.success() => Ok(()),
                         Ok(o) => Err(format!("Delete failed: {}", String::from_utf8_lossy(&o.stderr))),
                         Err(e) => Err(format!("Delete error: {}", e)),
+                    }
+                } else {
+                    Ok(())
+                }
+            }
+            "rename" => {
+                if let Some(ref old_rel_path) = action.rename_from {
+                    if action.direction.contains("Computer") {
+                        // Rename local file
+                        let old_local = PathBuf::from(&options.local_path).join(old_rel_path);
+                        let new_local = PathBuf::from(&options.local_path).join(&action.file_path);
+                        if let Some(parent) = new_local.parent() {
+                            let _ = fs::create_dir_all(parent);
+                        }
+                        fs::rename(&old_local, &new_local)
+                            .map_err(|e| format!("Rename failed: {}", e))
+                    } else if action.direction.contains("Phone") {
+                        // Rename on device
+                        let old_device = format!("{}/{}", options.device_path, old_rel_path);
+                        let new_device = format!("{}/{}", options.device_path, action.file_path);
+                        let escaped_old = old_device.replace("'", "'\\''");
+                        let escaped_new = new_device.replace("'", "'\\''");
+                        // Create parent dir on device if needed
+                        if let Some(parent) = PathBuf::from(&action.file_path).parent() {
+                            let parent_str = parent.to_string_lossy();
+                            if !parent_str.is_empty() {
+                                let device_parent = format!("{}/{}", options.device_path, parent_str);
+                                let escaped = device_parent.replace("'", "'\\''");
+                                let mkdir_cmd = format!("mkdir -p '{}'", escaped);
+                                let _ = shell
+                                    .command(&adb_cmd)
+                                    .args(["-s", &device_id, "shell", &mkdir_cmd])
+                                    .output()
+                                    .await;
+                            }
+                        }
+                        let mv_cmd = format!("mv '{}' '{}'", escaped_old, escaped_new);
+                        let output = shell
+                            .command(&adb_cmd)
+                            .args(["-s", &device_id, "shell", &mv_cmd])
+                            .output()
+                            .await;
+                        match output {
+                            Ok(o) if o.status.success() => Ok(()),
+                            Ok(o) => Err(format!("Rename failed: {}", String::from_utf8_lossy(&o.stderr))),
+                            Err(e) => Err(format!("Rename error: {}", e)),
+                        }
+                    } else {
+                        Ok(())
                     }
                 } else {
                     Ok(())
