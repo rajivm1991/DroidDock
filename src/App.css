@@ -577,13 +577,12 @@ td:first-child {
 
 .file-name.clickable {
   cursor: pointer;
-  color: #b0b0b0;
   text-decoration: none;
   transition: color 0.2s;
 }
 
 .file-name.clickable:hover {
-  color: #666666;
+  color: #555;
   text-decoration: underline;
 }
 
@@ -1596,7 +1595,7 @@ tbody tr {
 }
 
 .column-item.directory .column-item-name {
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .column-item-arrow {
@@ -2262,7 +2261,7 @@ tbody tr {
   }
 
   .file-name.clickable {
-    color: #9aa5b1;
+    color: #d1d5db;
   }
 
   .file-name.clickable:hover {
@@ -2325,6 +2324,10 @@ tbody tr {
 
   .column-item.selected {
     background-color: #2d3748;
+    color: #e5e7eb;
+  }
+
+  .column-item.directory .column-item-name {
     color: #e5e7eb;
   }
 
