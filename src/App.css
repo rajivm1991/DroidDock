@@ -42,6 +42,12 @@
   top: calc(100% + 6px);
 }
 
+[data-tooltip].tooltip-left::after {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
 * {
   margin: 0;
   padding: 0;

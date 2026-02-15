@@ -911,6 +911,20 @@ function App() {
         e.preventDefault();
         setThumbnailsEnabled(!thumbnailsEnabled);
       }
+      // Cmd/Ctrl + I: Open sync dialog
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+        e.preventDefault();
+        if (selectedDevice) {
+          handleOpenSyncDialog();
+        }
+      }
+      // Cmd/Ctrl + U: Upload file
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
+        e.preventDefault();
+        if (selectedDevice && !uploading) {
+          handleUpload();
+        }
+      }
       // Space: Toggle preview for focused file (files only, not folders)
       else if (!isTyping && e.key === ' ') {
         e.preventDefault();
@@ -1233,7 +1247,7 @@ function App() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedFiles, searchMode, focusedIndex, viewMode, iconSize, showHiddenFiles, thumbnailsEnabled, showShortcutsHelp, showDeleteConfirm, renamingIndex, loading, columnPath, columnFiles, columnSelected, activeColumnIndex, showPreview, previewLoading, settingsOpen, syncDialogOpen]);
+  }, [selectedFiles, searchMode, focusedIndex, viewMode, iconSize, showHiddenFiles, thumbnailsEnabled, showShortcutsHelp, showDeleteConfirm, renamingIndex, loading, columnPath, columnFiles, columnSelected, activeColumnIndex, showPreview, previewLoading, settingsOpen, syncDialogOpen, uploading, selectedDevice]);
 
   async function checkAdb() {
     try {
@@ -2920,8 +2934,8 @@ function App() {
           <button
             onClick={handleOpenSyncDialog}
             disabled={!selectedDevice}
-            className={`sync-fab ${selectedFiles.size > 0 ? 'sync-fab-raised' : ''}`}
-            data-tooltip="Sync folders"
+            className={`sync-fab ${selectedFiles.size > 0 ? 'sync-fab-raised' : ''} tooltip-left`}
+            data-tooltip="Sync folders (⌘I)"
           >
             ⇄
           </button>
@@ -2930,8 +2944,8 @@ function App() {
           <button
             onClick={handleUpload}
             disabled={uploading}
-            className={`fab ${selectedFiles.size > 0 ? 'fab-raised' : ''}`}
-            data-tooltip="Upload file"
+            className={`fab ${selectedFiles.size > 0 ? 'fab-raised' : ''} tooltip-left`}
+            data-tooltip="Upload file (⌘U)"
           >
             {uploading ? "⋯" : "↑"}
           </button>
@@ -3187,6 +3201,14 @@ function App() {
                 <div className="shortcut-item">
                   <span className="shortcut-keys">Cmd + Delete</span>
                   <span className="shortcut-desc">Delete selected/focused files</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + U</span>
+                  <span className="shortcut-desc">Upload file</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + I</span>
+                  <span className="shortcut-desc">Sync folders</span>
                 </div>
               </div>
 
