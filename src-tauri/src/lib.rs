@@ -88,6 +88,36 @@ fn get_adb_command() -> String {
     "adb".to_string()
 }
 
+fn is_critical_system_path(path: &str) -> bool {
+    const CRITICAL_PATHS: [&str; 8] = [
+        "/",
+        "/system",
+        "/data",
+        "/vendor",
+        "/boot",
+        "/proc",
+        "/sys",
+        "/dev",
+    ];
+
+    let mut normalized = path.trim().to_string();
+    while normalized.len() > 1 && normalized.ends_with('/') {
+        normalized.pop();
+    }
+
+    if normalized.is_empty() {
+        return false;
+    }
+
+    CRITICAL_PATHS.iter().any(|critical| {
+        if let Some(remainder) = normalized.strip_prefix(critical) {
+            remainder.is_empty() || remainder.starts_with('/')
+        } else {
+            false
+        }
+    })
+}
+
 // Helper function to check if a file extension is an image
 fn is_image_extension(ext: &str) -> bool {
     matches!(ext, "jpg" | "jpeg" | "png" | "gif" | "webp" | "bmp")
@@ -573,19 +603,7 @@ async fn delete_file(
     file_path: String,
     is_directory: bool,
 ) -> Result<(), String> {
-    // Safety check: prevent deletion of critical system directories
-    let critical_paths = vec![
-        "/",
-        "/system",
-        "/data",
-        "/vendor",
-        "/boot",
-        "/proc",
-        "/sys",
-        "/dev",
-    ];
-
-    if critical_paths.contains(&file_path.as_str()) {
+    if is_critical_system_path(&file_path) {
         return Err(format!("Cannot delete critical system path: {}", file_path));
     }
 
@@ -643,19 +661,7 @@ async fn rename_file(
         return Err("Invalid name: cannot be empty".to_string());
     }
 
-    // Safety check: prevent renaming critical system directories
-    let critical_paths = vec![
-        "/",
-        "/system",
-        "/data",
-        "/vendor",
-        "/boot",
-        "/proc",
-        "/sys",
-        "/dev",
-    ];
-
-    if critical_paths.contains(&old_path.as_str()) {
+    if is_critical_system_path(&old_path) {
         return Err(format!("Cannot rename critical system path: {}", old_path));
     }
 
@@ -2043,6 +2049,10 @@ async fn execute_sync(
     device_id: String,
     options: SyncOptions,
 ) -> Result<SyncResult, String> {
+    if is_critical_system_path(&options.device_path) {
+        return Err(format!("Cannot sync to critical system path: {}", options.device_path));
+    }
+
     let patterns = normalize_patterns(&options.file_patterns, &options.device_path);
     // Force recursive when patterns contain path separators
     let recursive = options.recursive || patterns.iter().any(|p| p.contains('/'));
@@ -2068,7 +2078,11 @@ async fn execute_sync(
         .collect();
 
     let total_count = actions.len() as u32;
-    let total_bytes: u64 = actions.iter().map(|a| a.size).sum();
+    let total_bytes: u64 = actions
+        .iter()
+        .filter(|a| a.action_type == "copy" || a.action_type == "update")
+        .map(|a| a.size)
+        .sum();
 
     let mut success_count: u32 = 0;
     let mut skip_count: u32 = 0;
@@ -2253,7 +2267,9 @@ async fn execute_sync(
         match result {
             Ok(()) => {
                 success_count += 1;
-                completed_bytes += action.size;
+                if action.action_type == "copy" || action.action_type == "update" {
+                    completed_bytes += action.size;
+                }
             }
             Err(e) => {
                 error_count += 1;

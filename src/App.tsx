@@ -1222,7 +1222,7 @@ function App() {
       // Escape: Close modals/popups first, then clear selection/focus
       else if (e.key === 'Escape') {
         if (syncDialogOpen) {
-          setSyncDialogOpen(false);
+          handleCloseSyncDialog();
         } else if (settingsOpen) {
           setSettingsOpen(false);
         } else if (renamingIndex >= 0) {
