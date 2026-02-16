@@ -500,6 +500,22 @@ function App() {
   const [searchResults, setSearchResults] = useState<FileEntry[]>([]);
   const [_searching, setSearching] = useState<boolean>(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const deviceSelectRef = useRef<HTMLSelectElement>(null);
+
+  // Auto-size device selector to fit selected option text
+  useEffect(() => {
+    const el = deviceSelectRef.current;
+    if (!el) return;
+    const temp = document.createElement('span');
+    temp.style.visibility = 'hidden';
+    temp.style.position = 'absolute';
+    temp.style.whiteSpace = 'nowrap';
+    temp.style.font = window.getComputedStyle(el).font;
+    temp.textContent = el.options[el.selectedIndex]?.text || '';
+    document.body.appendChild(temp);
+    el.style.width = (temp.offsetWidth + 40) + 'px';
+    document.body.removeChild(temp);
+  }, [selectedDevice, devices]);
 
   // Storage info state
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
@@ -2468,20 +2484,7 @@ function App() {
           <div className="header-controls">
             <div>
             <select
-              ref={(el) => {
-                if (el) {
-                  // Auto-size select to fit selected option text
-                  const temp = document.createElement('span');
-                  temp.style.visibility = 'hidden';
-                  temp.style.position = 'absolute';
-                  temp.style.whiteSpace = 'nowrap';
-                  temp.style.font = window.getComputedStyle(el).font;
-                  temp.textContent = el.options[el.selectedIndex]?.text || '';
-                  document.body.appendChild(temp);
-                  el.style.width = (temp.offsetWidth + 40) + 'px'; // 40px for padding + dropdown arrow
-                  document.body.removeChild(temp);
-                }
-              }}
+              ref={deviceSelectRef}
               value={selectedDevice}
               onChange={(e) => setSelectedDevice(e.target.value)}
               disabled={devices.length === 0}
@@ -2494,7 +2497,7 @@ function App() {
                 </option>
               ))}
             </select>
-            <button onClick={loadDevices} className="control-btn device-refresh-btn" data-tooltip="Refresh devices">↻</button>
+            <button onClick={loadDevices} className="control-btn device-refresh-btn" data-tooltip="Refresh devices" aria-label="Refresh devices">↻</button>
             </div>
             <div className="control-divider"></div>
             <div>
@@ -2502,6 +2505,7 @@ function App() {
               onClick={() => setViewMode('table')}
               className={`control-btn tooltip-bottom ${viewMode === 'table' ? 'active' : ''}`}
               data-tooltip="List view (⌘1)"
+              aria-label="List view"
             >
               ☰
             </button>
@@ -2509,6 +2513,7 @@ function App() {
               onClick={() => setViewMode('grid')}
               className={`control-btn tooltip-bottom ${viewMode === 'grid' ? 'active' : ''}`}
               data-tooltip="Grid view (⌘2)"
+              aria-label="Grid view"
             >
               ⊞
             </button>
@@ -2516,6 +2521,7 @@ function App() {
               onClick={() => setViewMode('column')}
               className={`control-btn tooltip-bottom ${viewMode === 'column' ? 'active' : ''}`}
               data-tooltip="Column view (⌘3)"
+              aria-label="Column view"
             >
               ▦
             </button>
@@ -2532,6 +2538,7 @@ function App() {
                   }}
                   className="control-btn"
                   data-tooltip="Zoom out (⌘-)"
+                  aria-label="Zoom out"
                   disabled={iconSize === 'small'}
                 >
                   −
@@ -2544,6 +2551,7 @@ function App() {
                   }}
                   className="control-btn"
                   data-tooltip="Zoom in (⌘+)"
+                  aria-label="Zoom in"
                   disabled={iconSize === 'xlarge'}
                 >
                   +
@@ -2560,6 +2568,7 @@ function App() {
               onChange={(e) => setSortColumn(e.target.value as 'name' | 'size' | 'date')}
               className="sort-select"
               data-tooltip="Sort by"
+              aria-label="Sort by"
             >
               <option value="name">Name</option>
               <option value="size">Size</option>
@@ -2569,6 +2578,7 @@ function App() {
               onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
               className="control-btn sort-direction-btn"
               data-tooltip={`Sort ${sortDirection === 'asc' ? 'descending' : 'ascending'}`}
+              aria-label={`Sort ${sortDirection === 'asc' ? 'descending' : 'ascending'}`}
             >
               {sortDirection === 'asc' ? '↑' : '↓'}
             </button>
@@ -2580,6 +2590,7 @@ function App() {
               <button
                 onClick={() => setSettingsOpen(!settingsOpen)}
                 data-tooltip="Settings"
+                aria-label="Settings"
                 className="control-btn settings-btn"
               >
                 ⚙
@@ -2936,6 +2947,7 @@ function App() {
             disabled={!selectedDevice}
             className={`sync-fab ${selectedFiles.size > 0 ? 'sync-fab-raised' : ''} tooltip-left`}
             data-tooltip="Sync folders (⌘I)"
+            aria-label="Sync folders"
           >
             ⇄
           </button>
@@ -2946,6 +2958,7 @@ function App() {
             disabled={uploading}
             className={`fab ${selectedFiles.size > 0 ? 'fab-raised' : ''} tooltip-left`}
             data-tooltip="Upload file (⌘U)"
+            aria-label="Upload file"
           >
             {uploading ? "⋯" : "↑"}
           </button>

@@ -1173,8 +1173,18 @@ pub struct SyncResult {
 }
 
 fn compute_local_md5(path: &std::path::Path) -> Option<String> {
-    let bytes = std::fs::read(path).ok()?;
-    Some(format!("{:x}", md5::compute(&bytes)))
+    use std::io::Read;
+    let mut file = std::fs::File::open(path).ok()?;
+    let mut context = md5::Context::new();
+    let mut buffer = [0u8; 8192];
+    loop {
+        let bytes_read = file.read(&mut buffer).ok()?;
+        if bytes_read == 0 {
+            break;
+        }
+        context.consume(&buffer[..bytes_read]);
+    }
+    Some(format!("{:x}", context.compute()))
 }
 
 /// Returns true if a file/directory should be excluded from sync operations.
@@ -2396,5 +2406,171 @@ mod tests {
     #[test]
     fn test_matches_empty_patterns_matches_all() {
         assert!(matches_any_pattern("any/path/file.txt", &vec![]));
+    }
+
+    // Helper to create a FileMetadata for testing
+    fn make_file(path: &str, size: u64, mtime: u64, md5: Option<&str>) -> FileMetadata {
+        FileMetadata {
+            relative_path: path.to_string(),
+            size,
+            modified_time: mtime,
+            is_directory: false,
+            md5_hash: md5.map(|s| s.to_string()),
+        }
+    }
+
+    // ========================
+    // compute_sync_actions tests (filename-based)
+    // ========================
+
+    #[test]
+    fn test_sync_phone_to_computer_copy_new_file() {
+        let local = vec![];
+        let device = vec![make_file("photo.jpg", 1000, 100, None)];
+        let actions = compute_sync_actions(&local, &device, &SyncDirection::PhoneToComputer, false, "filename");
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].action_type, "copy");
+        assert_eq!(actions[0].file_path, "photo.jpg");
+        assert!(actions[0].direction.contains("Computer"));
+    }
+
+    #[test]
+    fn test_sync_computer_to_phone_copy_new_file() {
+        let local = vec![make_file("doc.pdf", 2000, 200, None)];
+        let device = vec![];
+        let actions = compute_sync_actions(&local, &device, &SyncDirection::ComputerToPhone, false, "filename");
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].action_type, "copy");
+        assert_eq!(actions[0].file_path, "doc.pdf");
+        assert!(actions[0].direction.contains("Phone"));
+    }
+
+    #[test]
+    fn test_sync_update_newer_file() {
+        let local = vec![make_file("file.txt", 100, 50, None)];
+        let device = vec![make_file("file.txt", 200, 100, None)];
+        let actions = compute_sync_actions(&local, &device, &SyncDirection::PhoneToComputer, false, "filename");
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].action_type, "update");
+    }
+
+    #[test]
+    fn test_sync_no_action_when_identical() {
+        let local = vec![make_file("file.txt", 100, 100, None)];
+        let device = vec![make_file("file.txt", 100, 100, None)];
+        let actions = compute_sync_actions(&local, &device, &SyncDirection::PhoneToComputer, false, "filename");
+        assert_eq!(actions.len(), 0);
+    }
+
+    #[test]
+    fn test_sync_delete_missing_phone_to_computer() {
+        let local = vec![make_file("old.txt", 100, 50, None)];
+        let device = vec![];
+        // delete_missing=true: local file not on device → delete locally
+        let actions = compute_sync_actions(&local, &device, &SyncDirection::PhoneToComputer, true, "filename");
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].action_type, "delete");
+        assert!(actions[0].direction.contains("Computer"));
+    }
+
+    #[test]
+    fn test_sync_no_delete_when_flag_off() {
+        let local = vec![make_file("old.txt", 100, 50, None)];
+        let device = vec![];
+        let actions = compute_sync_actions(&local, &device, &SyncDirection::PhoneToComputer, false, "filename");
+        assert_eq!(actions.len(), 0);
+    }
+
+    #[test]
+    fn test_sync_delete_missing_computer_to_phone() {
+        let local = vec![];
+        let device = vec![make_file("orphan.txt", 100, 50, None)];
+        let actions = compute_sync_actions(&local, &device, &SyncDirection::ComputerToPhone, true, "filename");
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].action_type, "delete");
+        assert!(actions[0].direction.contains("Phone"));
+    }
+
+    #[test]
+    fn test_sync_both_ways_copies_unique_files() {
+        let local = vec![make_file("local_only.txt", 100, 50, None)];
+        let device = vec![make_file("device_only.txt", 200, 60, None)];
+        let actions = compute_sync_actions(&local, &device, &SyncDirection::BothWays, false, "filename");
+        assert_eq!(actions.len(), 2);
+        let types: Vec<&str> = actions.iter().map(|a| a.action_type.as_str()).collect();
+        assert!(types.contains(&"copy"));
+    }
+
+    #[test]
+    fn test_sync_both_ways_conflict_newer_wins() {
+        let local = vec![make_file("file.txt", 100, 200, None)];
+        let device = vec![make_file("file.txt", 200, 100, None)];
+        let actions = compute_sync_actions(&local, &device, &SyncDirection::BothWays, false, "filename");
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].action_type, "update");
+        // Local is newer (mtime 200 > 100), should push to phone
+        assert!(actions[0].direction.contains("Phone"));
+    }
+
+    // ========================
+    // compute_sync_actions_by_content tests (MD5-based)
+    // ========================
+
+    #[test]
+    fn test_content_sync_identical_files_no_action() {
+        let local = vec![make_file("file.txt", 100, 50, Some("abc123"))];
+        let device = vec![make_file("file.txt", 100, 50, Some("abc123"))];
+        let actions = compute_sync_actions_by_content(&local, &device, &SyncDirection::PhoneToComputer, false);
+        assert_eq!(actions.len(), 0);
+    }
+
+    #[test]
+    fn test_content_sync_rename_detection() {
+        // Same hash, different path → rename
+        let local = vec![make_file("old_name.txt", 100, 50, Some("abc123"))];
+        let device = vec![make_file("new_name.txt", 100, 60, Some("abc123"))];
+        let actions = compute_sync_actions_by_content(&local, &device, &SyncDirection::PhoneToComputer, false);
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].action_type, "rename");
+        assert!(actions[0].rename_from.is_some());
+    }
+
+    #[test]
+    fn test_content_sync_copy_unique_file() {
+        let local = vec![];
+        let device = vec![make_file("new.txt", 100, 50, Some("abc123"))];
+        let actions = compute_sync_actions_by_content(&local, &device, &SyncDirection::PhoneToComputer, false);
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].action_type, "copy");
+        assert!(actions[0].direction.contains("Computer"));
+    }
+
+    #[test]
+    fn test_content_sync_delete_missing() {
+        let local = vec![make_file("orphan.txt", 100, 50, Some("abc123"))];
+        let device = vec![];
+        let actions = compute_sync_actions_by_content(&local, &device, &SyncDirection::PhoneToComputer, true);
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].action_type, "delete");
+    }
+
+    #[test]
+    fn test_content_sync_no_delete_when_flag_off() {
+        let local = vec![make_file("orphan.txt", 100, 50, Some("abc123"))];
+        let device = vec![];
+        let actions = compute_sync_actions_by_content(&local, &device, &SyncDirection::PhoneToComputer, false);
+        assert_eq!(actions.len(), 0);
+    }
+
+    #[test]
+    fn test_content_sync_both_ways_rename_uses_newer() {
+        let local = vec![make_file("a.txt", 100, 200, Some("abc123"))];
+        let device = vec![make_file("b.txt", 100, 100, Some("abc123"))];
+        let actions = compute_sync_actions_by_content(&local, &device, &SyncDirection::BothWays, false);
+        assert_eq!(actions.len(), 1);
+        assert_eq!(actions[0].action_type, "rename");
+        // Local is newer, so device should be renamed to match local
+        assert!(actions[0].direction.contains("Phone"));
+        assert_eq!(actions[0].file_path, "a.txt");
     }
 }
