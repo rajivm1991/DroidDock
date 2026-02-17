@@ -1263,7 +1263,7 @@ function App() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedFiles, searchMode, focusedIndex, viewMode, iconSize, showHiddenFiles, thumbnailsEnabled, showShortcutsHelp, showDeleteConfirm, renamingIndex, loading, columnPath, columnFiles, columnSelected, activeColumnIndex, showPreview, previewLoading, settingsOpen, syncDialogOpen, uploading, selectedDevice]);
+  }, [selectedFiles, searchMode, focusedIndex, viewMode, iconSize, showHiddenFiles, thumbnailsEnabled, showShortcutsHelp, showDeleteConfirm, renamingIndex, loading, columnPath, columnFiles, columnSelected, activeColumnIndex, showPreview, previewLoading, settingsOpen, syncDialogOpen, syncing, syncPreviewing, uploading, selectedDevice]);
 
   async function checkAdb() {
     try {
@@ -2276,7 +2276,7 @@ function App() {
   }
 
   function handleCloseSyncDialog() {
-    if (syncing) return;
+    if (syncing || syncPreviewing) return;
     setSyncDialogOpen(false);
     setSyncFilePatterns([]);
     setSyncPatternInput("");
@@ -2536,7 +2536,7 @@ function App() {
                     else if (iconSize === 'large') setIconSize('medium');
                     else if (iconSize === 'medium') setIconSize('small');
                   }}
-                  className="control-btn"
+                  className="control-btn tooltip-bottom"
                   data-tooltip="Zoom out (⌘-)"
                   aria-label="Zoom out"
                   disabled={iconSize === 'small'}
@@ -2549,7 +2549,7 @@ function App() {
                     else if (iconSize === 'medium') setIconSize('large');
                     else if (iconSize === 'large') setIconSize('xlarge');
                   }}
-                  className="control-btn"
+                  className="control-btn tooltip-bottom"
                   data-tooltip="Zoom in (⌘+)"
                   aria-label="Zoom in"
                   disabled={iconSize === 'xlarge'}
@@ -2566,7 +2566,7 @@ function App() {
             <select
               value={sortColumn}
               onChange={(e) => setSortColumn(e.target.value as 'name' | 'size' | 'date')}
-              className="sort-select"
+              className="sort-select tooltip-bottom"
               data-tooltip="Sort by"
               aria-label="Sort by"
             >
@@ -2576,7 +2576,7 @@ function App() {
             </select>
             <button
               onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
-              className="control-btn sort-direction-btn"
+              className="control-btn sort-direction-btn tooltip-bottom"
               data-tooltip={`Sort ${sortDirection === 'asc' ? 'descending' : 'ascending'}`}
               aria-label={`Sort ${sortDirection === 'asc' ? 'descending' : 'ascending'}`}
             >
@@ -2591,7 +2591,7 @@ function App() {
                 onClick={() => setSettingsOpen(!settingsOpen)}
                 data-tooltip="Settings"
                 aria-label="Settings"
-                className="control-btn settings-btn"
+                className="control-btn settings-btn tooltip-bottom"
               >
                 ⚙
               </button>
