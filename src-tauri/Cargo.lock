@@ -930,6 +930,7 @@ dependencies = [
  "base64 0.22.1",
  "glob",
  "image",
+ "libc",
  "md5",
  "serde",
  "serde_json",
