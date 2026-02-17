@@ -1189,6 +1189,10 @@ fn compute_local_md5(path: &std::path::Path) -> Option<String> {
 
 /// Returns true if a file/directory should be excluded from sync operations.
 fn is_sync_excluded(name: &str) -> bool {
+    // macOS AppleDouble resource fork files (e.g. "._IMG001.jpg")
+    if name.starts_with("._") {
+        return true;
+    }
     matches!(
         name,
         ".DS_Store"
