@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build and release (e.g. v0.3.0)'
+        required: true
 
 env:
   TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -19,13 +24,32 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
-      - name: Create release
+      - name: Create or get release
         id: create-release
         uses: actions/github-script@v7
         with:
           script: |
-            const tag = context.ref.replace('refs/tags/', '')
+            const tag = context.eventName === 'workflow_dispatch'
+              ? context.payload.inputs.tag
+              : context.ref.replace('refs/tags/', '')
+
+            // Check if release already exists
+            try {
+              const { data } = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tag
+              })
+              console.log(`Found existing release for ${tag}: ${data.id}`)
+              return data.id
+            } catch (e) {
+              if (e.status !== 404) throw e
+            }
+
+            // Create new draft release
             const { data } = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -49,6 +73,8 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
