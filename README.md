@@ -6,10 +6,11 @@ A sleek macOS desktop application for browsing Android device files via ADB (And
 
 ## Features
 
-- **📱 Device Detection**: Automatically detects connected Android devices
+- **📱 Device Detection**: Automatically detects connected Android devices and shows their model name
 - **📂 File Browsing**: Navigate through your Android device's file system with an intuitive interface
 - **👁️ Multiple View Modes**: Choose between Table, Grid, or Column (Miller) view with keyboard shortcuts
 - **🖼️ File Preview**: View images and text files without downloading - press Space for quick preview or double-click
+- **🔁 Folder Sync**: Sync entire folders between Mac and Android — filter by file pattern, exclude system files, preserve timestamps
 - **🔍 File Search**: Search for files by name with case-insensitive matching and recursive search
 - **🗑️ File Deletion**: Delete files and folders with confirmation dialogs and safety checks
 - **📥 File Download**: Download files from device to Mac with save dialog
@@ -28,13 +29,17 @@ A sleek macOS desktop application for browsing Android device files via ADB (And
 
 ## Screenshots
 
-![File Preview](screenshots/droiddock-2026-01-01-file-preview.png)
+![Folder Sync](docs/screenshots/droiddock-2026-02-15-folder-sync.png)
+
+*Folder sync between Mac and Android with filtering options*
+
+![Sync Preview](docs/screenshots/droiddock-2026-02-15-sync-preview.png)
+
+*Preview what will change before running the sync*
+
+![File Preview](docs/screenshots/droiddock-2026-01-01-preview-model.png)
 
 *Preview images directly in DroidDock with metadata panel and keyboard navigation*
-
-![Table View with Kind Column](screenshots/droiddock-2026-01-01-table-view-with-kind-column.png)
-
-*Table view with new "Kind" column showing file types*
 
 ## Prerequisites
 
@@ -235,6 +240,8 @@ DroidDock supports these keyboard shortcuts for faster navigation and file manag
 | `Ctrl/Cmd + 2` | Switch to Grid view |
 | `Ctrl/Cmd + 3` | Switch to Column view |
 | `Ctrl/Cmd + =/-` | Zoom in/out (Grid view only) |
+| `Cmd + I` | Open folder sync dialog |
+| `Cmd + U` | Open upload file picker |
 | `Arrow Keys` | Navigate between files (Up/Down in table, all directions in grid) |
 | `Space` | Quick-preview focused file (or close preview) |
 | `Enter` | Open focused folder or execute search |
@@ -365,11 +372,9 @@ Potential features for future releases:
 
 - 💾 **Drag & Drop** - Drag files to/from the app
 - 📱 **Multiple Devices** - View multiple devices simultaneously
-- ⏱️ **File Sync** - Sync files between Mac and Android
 - 📊 **Sortable Columns** - Sort files by name, size, date, etc.
-- 📈 **Transfer Progress** - Show progress bars for file transfers
-- 📁 **Folder Download/Upload** - Support for transferring entire directories
 - 🎬 **Video Preview** - Preview video files in-app
+- 🔄 **Two-Way Sync** - Bidirectional sync with conflict resolution
 
 ## Contributing
 
