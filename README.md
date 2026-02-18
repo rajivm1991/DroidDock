@@ -31,15 +31,15 @@ A sleek macOS desktop application for browsing Android device files via ADB (And
 
 ![Folder Sync](docs/screenshots/droiddock-2026-02-15-folder-sync.png)
 
-*Folder sync between Mac and Android with filtering options*
+_Folder sync between Mac and Android with filtering options_
 
 ![Sync Preview](docs/screenshots/droiddock-2026-02-15-sync-preview.png)
 
-*Preview what will change before running the sync*
+_Preview what will change before running the sync_
 
 ![File Preview](docs/screenshots/droiddock-2026-01-01-preview-model.png)
 
-*Preview images directly in DroidDock with metadata panel and keyboard navigation*
+_Preview images directly in DroidDock with metadata panel and keyboard navigation_
 
 ## Prerequisites
 
@@ -48,14 +48,17 @@ Before running DroidDock, you need to have:
 ### 1. ADB (Android Debug Bridge)
 
 **Install via Homebrew (Recommended)**:
+
 ```bash
 brew install android-platform-tools
 ```
 
 **Or download manually**:
+
 - Download from: [Android Platform Tools](https://developer.android.com/tools/releases/platform-tools)
 
 DroidDock automatically checks these common ADB locations:
+
 - `/opt/homebrew/bin/adb` (Apple Silicon Homebrew)
 - `/usr/local/bin/adb` (Intel Mac Homebrew)
 - `/opt/local/bin/adb` (MacPorts)
@@ -83,6 +86,7 @@ brew install --cask droiddock
 ```
 
 By default, the app will be installed to your Applications folder (or to the appdir you've configured for Homebrew Cask) and can be updated with:
+
 ```bash
 brew upgrade --cask droiddock
 ```
@@ -93,50 +97,57 @@ brew upgrade --cask droiddock
 
 2. **Install**: Open the DMG and drag DroidDock to your Applications folder.
 
-3. **Launch**: 
-   
-   > ⚠️ **macOS Security Notice**: When downloading from GitHub, macOS may show a warning that DroidDock is "damaged" and can't be opened. This is due to Apple's Gatekeeper security for unsigned apps. The app is safe to use.
-   
-   **To fix this, run this command in Terminal:**
-   ```bash
-   xattr -cr /Applications/DroidDock.app
-   ```
-   Then launch the app normally.
-   
-   This only needs to be done once. Future releases will be code-signed to eliminate this step.
+3. **Launch**:
+
+    > ⚠️ **macOS Security Notice**: When downloading from GitHub, macOS may show a warning that DroidDock is "damaged" and can't be opened. This is due to Apple's Gatekeeper security for unsigned apps. The app is safe to use.
+
+    **To fix this, run this command in Terminal:**
+
+    ```bash
+    xattr -cr /Applications/DroidDock.app
+    ```
+
+    Then launch the app normally.
+
+    This only needs to be done once. Future releases will be code-signed to eliminate this step.
 
 4. **Auto-Updates**: DroidDock will automatically check for updates on launch and notify you when new versions are available.
 
 ### Option 2: Build from Source
 
 1. Clone the repository:
-   ```bash
-   git clone https://github.com/rajivm1991/DroidDock.git
-   cd droiddock
-   ```
+
+    ```bash
+    git clone https://github.com/rajivm1991/DroidDock.git
+    cd droiddock
+    ```
 
 2. Install dependencies:
-   ```bash
-   npm install
-   ```
+
+    ```bash
+    npm install
+    ```
 
 3. Run in development mode:
-   ```bash
-   npm run tauri dev
-   ```
+
+    ```bash
+    npm run tauri dev
+    ```
 
 4. Or build for production:
-   ```bash
-   npm run tauri build
-   ```
 
-   The compiled app will be in `src-tauri/target/release/bundle/`.
+    ```bash
+    npm run tauri build
+    ```
+
+    The compiled app will be in `src-tauri/target/release/bundle/`.
 
 ## Usage
 
 ### 1. Connect Your Android Device
 
 Enable USB debugging on your Android device:
+
 1. Go to **Settings** → **About Phone**
 2. Tap **Build Number** 7 times to enable Developer Options
 3. Go to **Settings** → **Developer Options**
@@ -232,24 +243,24 @@ The app implements these Tauri commands:
 
 DroidDock supports these keyboard shortcuts for faster navigation and file management:
 
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl/Cmd + F` | Focus search bar |
-| `Ctrl/Cmd + A` | Select all visible files |
-| `Ctrl/Cmd + 1` | Switch to Table view |
-| `Ctrl/Cmd + 2` | Switch to Grid view |
-| `Ctrl/Cmd + 3` | Switch to Column view |
-| `Ctrl/Cmd + =/-` | Zoom in/out (Grid view only) |
-| `Cmd + I` | Open folder sync dialog |
-| `Cmd + U` | Open upload file picker |
-| `Arrow Keys` | Navigate between files (Up/Down in table, all directions in grid) |
-| `Space` | Quick-preview focused file (or close preview) |
-| `Enter` | Open focused folder or execute search |
-| `Delete` or `Backspace` | Delete selected files (shows confirmation dialog) |
-| `Escape` | Clear selection or close dialogs |
-| **In Preview Mode** | |
-| `Arrow Keys` | Navigate to next/previous file |
-| `Escape` or `Space` | Close preview |
+| Shortcut                | Action                                                            |
+| ----------------------- | ----------------------------------------------------------------- |
+| `Ctrl/Cmd + F`          | Focus search bar                                                  |
+| `Ctrl/Cmd + A`          | Select all visible files                                          |
+| `Ctrl/Cmd + 1`          | Switch to Table view                                              |
+| `Ctrl/Cmd + 2`          | Switch to Grid view                                               |
+| `Ctrl/Cmd + 3`          | Switch to Column view                                             |
+| `Ctrl/Cmd + =/-`        | Zoom in/out (Grid view only)                                      |
+| `Cmd + I`               | Open folder sync dialog                                           |
+| `Cmd + U`               | Open upload file picker                                           |
+| `Arrow Keys`            | Navigate between files (Up/Down in table, all directions in grid) |
+| `Space`                 | Quick-preview focused file (or close preview)                     |
+| `Enter`                 | Open focused folder or execute search                             |
+| `Delete` or `Backspace` | Delete selected files (shows confirmation dialog)                 |
+| `Escape`                | Clear selection or close dialogs                                  |
+| **In Preview Mode**     |                                                                   |
+| `Arrow Keys`            | Navigate to next/previous file                                    |
+| `Escape` or `Space`     | Close preview                                                     |
 
 ## Troubleshooting
 
@@ -258,14 +269,15 @@ DroidDock supports these keyboard shortcuts for faster navigation and file manag
 If the app can't find ADB:
 
 1. **Install ADB** via Homebrew:
-   ```bash
-   brew install android-platform-tools
-   ```
+
+    ```bash
+    brew install android-platform-tools
+    ```
 
 2. **Or set a custom path**:
-   - The app will show a setup screen
-   - Enter the full path to your ADB executable (e.g., `/opt/homebrew/bin/adb`)
-   - Click "Set Path"
+    - The app will show a setup screen
+    - Enter the full path to your ADB executable (e.g., `/opt/homebrew/bin/adb`)
+    - Click "Set Path"
 
 ### Device Not Showing Up
 
@@ -334,21 +346,23 @@ To stop the server: Press `Ctrl+C` or run `pkill -f "python3 -m http.server 8080
 DroidDock uses an automated release workflow:
 
 1. **Prepare the release** (updates versions and creates git tag):
-   ```bash
-   npm run release:prepare 0.2.0
-   ```
+
+    ```bash
+    npm run release:prepare 0.2.0
+    ```
 
 2. **Push the changes and tag**:
-   ```bash
-   git push origin <branch-name>
-   git push origin v0.2.0
-   ```
+
+    ```bash
+    git push origin <branch-name>
+    git push origin v0.2.0
+    ```
 
 3. **Automated build**: GitHub Actions will:
-   - Build a universal macOS binary (Apple Silicon + Intel)
-   - Create a DMG installer
-   - Generate updater manifest with signature
-   - Create a GitHub Release with the DMG attached
+    - Build a universal macOS binary (Apple Silicon + Intel)
+    - Create a DMG installer
+    - Generate updater manifest with signature
+    - Create a GitHub Release with the DMG attached
 
 4. **Auto-update**: Users with existing installations will be notified of the update.
 
@@ -362,6 +376,7 @@ DroidDock uses an automated release workflow:
 ### Code Signing (Future)
 
 To remove macOS security warnings, code signing requires:
+
 - Apple Developer Program membership ($99/year)
 - Code signing certificate
 - Notarization workflow
@@ -399,6 +414,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## Support
 
 If you encounter any issues or have questions:
+
 - Open an issue on [GitHub Issues](https://github.com/rajivm1991/DroidDock/issues)
 - Check the [Troubleshooting](#troubleshooting) section above
 
