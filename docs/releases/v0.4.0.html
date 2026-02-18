@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DroidDock v0.4.0 Release Notes</title>
+    <meta name="description" content="DroidDock v0.4.0 - Folder Sync between Mac and Android device">
+    <link rel="icon" type="image/svg+xml" href="../design/icon-design.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #ffffff;
+            color: #333;
+        }
+        .hero-bg {
+            background: #b0b0b0;
+        }
+        .screenshot {
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-white">
+    <!-- Header -->
+    <header class="hero-bg text-white py-12 px-4">
+        <div class="max-w-4xl mx-auto">
+            <a href="../" class="text-white hover:underline mb-4 inline-block">← Back to DroidDock</a>
+            <h1 class="text-4xl md:text-5xl font-bold mb-4">DroidDock v0.4.0</h1>
+            <p class="text-xl" style="color: rgba(255, 255, 255, 0.9);">Release Notes • February 2026</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-12">
+
+        <!-- What's New -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">What's New in v0.4.0</h2>
+
+            <div class="space-y-6">
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Folder Sync</h3>
+                    <p class="text-gray-700 mb-3">The headline feature of this release. Sync entire folders between your Mac and Android device in either direction. The sync dialog lets you configure exactly how the sync runs — choose what to exclude, filter by file pattern, and preview what will change before committing.</p>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1 text-sm">
+                        <li>Exclude system and metadata files automatically (e.g. <code class="bg-white px-1 rounded">.DS_Store</code>, <code class="bg-white px-1 rounded">Thumbs.db</code>)</li>
+                        <li>Exclude macOS AppleDouble resource fork files (<code class="bg-white px-1 rounded">._*</code>)</li>
+                        <li>Filter by custom file patterns (include or exclude)</li>
+                        <li>Preserve file timestamps, including created timestamps</li>
+                        <li>Progress tracking with per-file status</li>
+                    </ul>
+                </div>
+
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Device Model Name in Selector</h3>
+                    <p class="text-gray-700">The device selector now shows the actual device model name (e.g. "Pixel 8 Pro") instead of just the ADB serial, making it easier to identify devices when multiple are connected.</p>
+                </div>
+
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">New Keyboard Shortcuts</h3>
+                    <p class="text-gray-700"><strong>Cmd+I</strong> opens the sync dialog and <strong>Cmd+U</strong> opens the upload picker. All file browser shortcuts are now correctly disabled when a modal is open, preventing accidental navigation.</p>
+                </div>
+
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">UI Improvements</h3>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1">
+                        <li>Improved dark mode breadcrumb colors</li>
+                        <li>Custom tooltips with better visibility across light and dark mode</li>
+                        <li>Consistent filename styling across table, grid, and column views</li>
+                        <li>Larger default window size</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screenshots -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Screenshots</h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <img src="../screenshots/droiddock-2026-02-15-folder-sync.png" alt="DroidDock Folder Sync" class="screenshot w-full">
+                    <p class="text-center mt-3 text-gray-600 font-semibold">Folder Sync</p>
+                    <p class="text-center text-sm text-gray-500">Configure and run folder sync between Mac and Android</p>
+                </div>
+                <div>
+                    <img src="../screenshots/droiddock-2026-02-15-sync-preview.png" alt="DroidDock Sync Preview Modal" class="screenshot w-full">
+                    <p class="text-center mt-3 text-gray-600 font-semibold">Sync Preview</p>
+                    <p class="text-center text-sm text-gray-500">Preview what will change before running the sync</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Download -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Download</h2>
+            <div class="bg-gray-50 p-8 rounded-lg text-center">
+                <a href="https://github.com/rajivm1991/DroidDock/releases/tag/v0.4.0"
+                   class="inline-block px-8 py-4 rounded-lg text-lg font-semibold text-white transition shadow-lg"
+                   style="background-color: #b0b0b0;"
+                   onmouseover="this.style.backgroundColor='#666666'"
+                   onmouseout="this.style.backgroundColor='#b0b0b0'">
+                    Download DroidDock v0.4.0
+                </a>
+                <p class="mt-4 text-gray-600">macOS 10.13+ • Universal Binary (Apple Silicon + Intel)</p>
+                <p class="mt-2 text-gray-600">
+                    Or install via Homebrew:
+                    <code class="bg-white px-2 py-1 rounded text-sm">brew tap rajivm1991/droiddock &amp;&amp; brew install --cask droiddock</code>
+                </p>
+            </div>
+        </section>
+
+        <!-- Full Changelog -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Full Changelog</h2>
+            <div class="bg-gray-50 p-6 rounded-lg">
+                <h3 class="text-xl font-semibold mb-4 text-gray-800">v0.4.0 - February 2026</h3>
+
+                <h4 class="font-semibold text-gray-700 mb-2">Added</h4>
+                <ul class="list-disc list-inside mb-4 text-gray-600 space-y-1">
+                    <li>Folder sync between Mac and Android device</li>
+                    <li>File pattern filtering for sync (include/exclude patterns)</li>
+                    <li>Exclude system and metadata files from sync</li>
+                    <li>Exclude macOS AppleDouble resource fork files from sync</li>
+                    <li>Preserve file timestamps (created and modified) during sync and upload</li>
+                    <li>Device model name displayed in device selector</li>
+                    <li>Cmd+I shortcut for sync, Cmd+U shortcut for upload</li>
+                </ul>
+
+                <h4 class="font-semibold text-gray-700 mb-2">Changed</h4>
+                <ul class="list-disc list-inside mb-4 text-gray-600 space-y-1">
+                    <li>Reorganized sync options UI for clarity</li>
+                    <li>Increased default window size</li>
+                    <li>File browser shortcuts disabled when a modal is open</li>
+                </ul>
+
+                <h4 class="font-semibold text-gray-700 mb-2">Fixed</h4>
+                <ul class="list-disc list-inside mb-4 text-gray-600 space-y-1">
+                    <li>Dark mode breadcrumb colors</li>
+                    <li>Tooltip visibility in light and dark mode</li>
+                    <li>Consistent filename styling across table, grid, and column views</li>
+                    <li>Cmd+Delete behavior in text inputs</li>
+                    <li>Unreliable device file listing during sync</li>
+                </ul>
+
+                <p class="mt-4">
+                    <a href="https://github.com/rajivm1991/DroidDock/blob/main/CHANGELOG.md"
+                       class="hover:underline"
+                       style="color: #b0b0b0;">
+                        View complete changelog →
+                    </a>
+                </p>
+            </div>
+        </section>
+
+        <!-- Links -->
+        <section>
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Links</h2>
+            <div class="space-y-2 text-gray-700">
+                <p>
+                    <a href="https://github.com/rajivm1991/DroidDock" class="hover:underline" style="color: #b0b0b0;">
+                        GitHub Repository →
+                    </a>
+                </p>
+                <p>
+                    <a href="https://github.com/rajivm1991/DroidDock/releases/tag/v0.4.0" class="hover:underline" style="color: #b0b0b0;">
+                        Release on GitHub →
+                    </a>
+                </p>
+                <p>
+                    <a href="../" class="hover:underline" style="color: #b0b0b0;">
+                        DroidDock Website →
+                    </a>
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 px-4 mt-12">
+        <div class="max-w-4xl mx-auto text-center">
+            <p class="text-gray-400">Built with Tauri, Rust, React, and TypeScript</p>
+            <p class="text-gray-500 text-sm mt-2">
+                © 2025-2026 DroidDock •
+                <a href="https://github.com/rajivm1991/DroidDock/blob/main/LICENSE"
+                   style="color: #b0b0b0;"
+                   class="hover:underline">
+                    MIT License
+                </a>
+            </p>
+        </div>
+    </footer>
+</body>
+</html>

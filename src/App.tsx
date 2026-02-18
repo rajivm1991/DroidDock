@@ -8,6 +8,7 @@ import "./App.css";
 interface AdbDevice {
   id: string;
   status: string;
+  model: string;
 }
 
 interface FileEntry {
@@ -30,6 +31,52 @@ interface FilePreview {
   file_type: string;  // "image", "text", or "unsupported"
   content: string;    // base64 for images, text content for text files
   size: number;       // file size in bytes
+}
+
+type SyncDirection = "PhoneToComputer" | "ComputerToPhone" | "BothWays";
+
+interface SyncOptions {
+  local_path: string;
+  device_path: string;
+  direction: SyncDirection;
+  recursive: boolean;
+  delete_missing: boolean;
+  match_mode: string;
+  file_patterns: string[];
+}
+
+interface SyncAction {
+  file_path: string;
+  action_type: string;
+  direction: string;
+  size: number;
+  reason: string;
+  rename_from: string | null;
+}
+
+interface SyncPreview {
+  actions: SyncAction[];
+  total_transfer_bytes: number;
+  copy_count: number;
+  update_count: number;
+  delete_count: number;
+  skip_count: number;
+  rename_count: number;
+}
+
+interface SyncProgress {
+  current_file: string;
+  completed_count: number;
+  total_count: number;
+  completed_bytes: number;
+  total_bytes: number;
+}
+
+interface SyncResult {
+  success_count: number;
+  skip_count: number;
+  error_count: number;
+  errors: string[];
 }
 
 interface FileRowProps {
@@ -453,6 +500,22 @@ function App() {
   const [searchResults, setSearchResults] = useState<FileEntry[]>([]);
   const [_searching, setSearching] = useState<boolean>(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const deviceSelectRef = useRef<HTMLSelectElement>(null);
+
+  // Auto-size device selector to fit selected option text
+  useEffect(() => {
+    const el = deviceSelectRef.current;
+    if (!el) return;
+    const temp = document.createElement('span');
+    temp.style.visibility = 'hidden';
+    temp.style.position = 'absolute';
+    temp.style.whiteSpace = 'nowrap';
+    temp.style.font = window.getComputedStyle(el).font;
+    temp.textContent = el.options[el.selectedIndex]?.text || '';
+    document.body.appendChild(temp);
+    el.style.width = (temp.offsetWidth + 40) + 'px';
+    document.body.removeChild(temp);
+  }, [selectedDevice, devices]);
 
   // Storage info state
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
@@ -499,6 +562,23 @@ function App() {
   const [renameValue, setRenameValue] = useState<string>("");
   const renameInputRef = useRef<HTMLInputElement>(null);
   const justRenamedFile = useRef<string | null>(null);
+
+  // Sync state
+  const [syncDialogOpen, setSyncDialogOpen] = useState(false);
+  const [syncLocalPath, setSyncLocalPath] = useState("");
+  const [syncDevicePath, setSyncDevicePath] = useState("");
+  const [syncDirection, setSyncDirection] = useState<SyncDirection>("PhoneToComputer");
+  const [syncRecursive, setSyncRecursive] = useState(false);
+  const [syncDeleteMissing, setSyncDeleteMissing] = useState(false);
+  const [syncPreview, setSyncPreview] = useState<SyncPreview | null>(null);
+  const [syncPreviewing, setSyncPreviewing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+  const [syncStep, setSyncStep] = useState<"config" | "preview" | "progress" | "result">("config");
+  const [syncMatchMode, setSyncMatchMode] = useState<"filename" | "content">("filename");
+  const [syncFilePatterns, setSyncFilePatterns] = useState<string[]>([]);
+  const [syncPatternInput, setSyncPatternInput] = useState("");
 
   // Check if ADB is available on startup
   useEffect(() => {
@@ -755,6 +835,12 @@ function App() {
       // Don't handle keyboard shortcuts when typing in input fields
       const isTyping = document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA';
 
+      // Block all shortcuts except Escape when a modal is open
+      const isModalOpen = showDeleteConfirm || showPreview || showShortcutsHelp || settingsOpen || syncDialogOpen || renamingIndex >= 0;
+      if (isModalOpen && e.key !== 'Escape') {
+        return;
+      }
+
       // Ctrl/Cmd + /: Show keyboard shortcuts
       if ((e.ctrlKey || e.metaKey) && e.key === '/') {
         e.preventDefault();
@@ -840,6 +926,20 @@ function App() {
       else if ((e.ctrlKey || e.metaKey) && e.key === 't') {
         e.preventDefault();
         setThumbnailsEnabled(!thumbnailsEnabled);
+      }
+      // Cmd/Ctrl + I: Open sync dialog
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+        e.preventDefault();
+        if (selectedDevice) {
+          handleOpenSyncDialog();
+        }
+      }
+      // Cmd/Ctrl + U: Upload file
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
+        e.preventDefault();
+        if (selectedDevice && !uploading) {
+          handleUpload();
+        }
       }
       // Space: Toggle preview for focused file (files only, not folders)
       else if (!isTyping && e.key === ' ') {
@@ -1106,7 +1206,7 @@ function App() {
         }
       }
       // Cmd/Ctrl + Delete: Delete selected or focused files
-      else if ((e.ctrlKey || e.metaKey) && (e.key === 'Delete' || e.key === 'Backspace')) {
+      else if (!isTyping && (e.ctrlKey || e.metaKey) && (e.key === 'Delete' || e.key === 'Backspace')) {
         e.preventDefault();
         if (selectedFiles.size > 0) {
           setShowDeleteConfirm(true);
@@ -1137,7 +1237,11 @@ function App() {
       }
       // Escape: Close modals/popups first, then clear selection/focus
       else if (e.key === 'Escape') {
-        if (renamingIndex >= 0) {
+        if (syncDialogOpen) {
+          handleCloseSyncDialog();
+        } else if (settingsOpen) {
+          setSettingsOpen(false);
+        } else if (renamingIndex >= 0) {
           cancelRename();
         } else if (showShortcutsHelp) {
           setShowShortcutsHelp(false);
@@ -1159,7 +1263,7 @@ function App() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedFiles, searchMode, focusedIndex, viewMode, iconSize, showHiddenFiles, thumbnailsEnabled, showShortcutsHelp, showDeleteConfirm, renamingIndex, loading, columnPath, columnFiles, columnSelected, activeColumnIndex, showPreview, previewLoading]);
+  }, [selectedFiles, searchMode, focusedIndex, viewMode, iconSize, showHiddenFiles, thumbnailsEnabled, showShortcutsHelp, showDeleteConfirm, renamingIndex, loading, columnPath, columnFiles, columnSelected, activeColumnIndex, showPreview, previewLoading, settingsOpen, syncDialogOpen, syncing, syncPreviewing, uploading, selectedDevice]);
 
   async function checkAdb() {
     try {
@@ -2072,6 +2176,115 @@ function App() {
     }
   }
 
+  // Sync handlers
+  function handleOpenSyncDialog() {
+    setSyncDevicePath(currentPath);
+    setSyncLocalPath("");
+    setSyncDirection("PhoneToComputer");
+    setSyncRecursive(false);
+    setSyncDeleteMissing(false);
+    setSyncPreview(null);
+    setSyncResult(null);
+    setSyncProgress(null);
+    setSyncStep("config");
+    setSyncMatchMode("filename");
+    setSyncDialogOpen(true);
+  }
+
+  async function handleSelectSyncLocalFolder() {
+    try {
+      const selected = await open({
+        directory: true,
+        title: "Select local folder to sync",
+      });
+      if (selected && typeof selected === "string") {
+        setSyncLocalPath(selected);
+      }
+    } catch (err) {
+      console.error("Failed to select folder:", err);
+    }
+  }
+
+  async function handlePreviewSync() {
+    if (!syncLocalPath || !syncDevicePath || !selectedDevice) return;
+    setSyncPreviewing(true);
+    setError("");
+    try {
+      // Include any pattern currently typed in the input field
+      const patterns = syncPatternInput.trim()
+        ? [...syncFilePatterns, syncPatternInput.trim()]
+        : syncFilePatterns;
+      if (syncPatternInput.trim()) {
+        setSyncFilePatterns(patterns);
+        setSyncPatternInput("");
+      }
+      const options: SyncOptions = {
+        local_path: syncLocalPath,
+        device_path: syncDevicePath,
+        direction: syncDirection,
+        recursive: syncRecursive,
+        delete_missing: syncDeleteMissing,
+        match_mode: syncMatchMode,
+        file_patterns: patterns,
+      };
+      const preview = await invoke<SyncPreview>("preview_sync", {
+        deviceId: selectedDevice,
+        options,
+      });
+      setSyncPreview(preview);
+      setSyncStep("preview");
+    } catch (err) {
+      setError(`Sync preview failed: ${err}`);
+    } finally {
+      setSyncPreviewing(false);
+    }
+  }
+
+  async function handleExecuteSync() {
+    if (!syncLocalPath || !syncDevicePath || !selectedDevice) return;
+    setSyncing(true);
+    setSyncStep("progress");
+    setSyncProgress(null);
+
+    const unlisten = await listen<SyncProgress>("sync-progress", (event) => {
+      setSyncProgress(event.payload);
+    });
+
+    try {
+      const options: SyncOptions = {
+        local_path: syncLocalPath,
+        device_path: syncDevicePath,
+        direction: syncDirection,
+        recursive: syncRecursive,
+        delete_missing: syncDeleteMissing,
+        match_mode: syncMatchMode,
+        file_patterns: syncFilePatterns,
+      };
+      const result = await invoke<SyncResult>("execute_sync", {
+        deviceId: selectedDevice,
+        options,
+      });
+      setSyncResult(result);
+      setSyncStep("result");
+    } catch (err) {
+      setError(`Sync failed: ${err}`);
+      setSyncStep("config");
+    } finally {
+      setSyncing(false);
+      unlisten();
+    }
+  }
+
+  function handleCloseSyncDialog() {
+    if (syncing || syncPreviewing) return;
+    setSyncDialogOpen(false);
+    setSyncFilePatterns([]);
+    setSyncPatternInput("");
+    if (syncResult && syncResult.success_count > 0) {
+      loadFiles();
+    }
+  }
+
   // Drag and drop handlers
   function handleDragOver(e: React.DragEvent) {
     e.preventDefault();
@@ -2271,6 +2484,7 @@ function App() {
           <div className="header-controls">
             <div>
             <select
+              ref={deviceSelectRef}
               value={selectedDevice}
               onChange={(e) => setSelectedDevice(e.target.value)}
               disabled={devices.length === 0}
@@ -2279,32 +2493,35 @@ function App() {
               <option value="">Select a device</option>
               {devices.map((device) => (
                 <option key={device.id} value={device.id}>
-                  {device.id} ({device.status})
+                  {device.model ? `${device.model} (${device.id})` : `${device.id} (${device.status})`}
                 </option>
               ))}
             </select>
-            <button onClick={loadDevices} className="control-btn device-refresh-btn" title="Refresh devices">↻</button>
+            <button onClick={loadDevices} className="control-btn device-refresh-btn" data-tooltip="Refresh devices" aria-label="Refresh devices">↻</button>
             </div>
             <div className="control-divider"></div>
             <div>
             <button
               onClick={() => setViewMode('table')}
-              className={`control-btn ${viewMode === 'table' ? 'active' : ''}`}
-              title="Table view (Cmd+1)"
+              className={`control-btn tooltip-bottom ${viewMode === 'table' ? 'active' : ''}`}
+              data-tooltip="List view (⌘1)"
+              aria-label="List view"
             >
               ☰
             </button>
             <button
               onClick={() => setViewMode('grid')}
-              className={`control-btn ${viewMode === 'grid' ? 'active' : ''}`}
-              title="Grid view (Cmd+2)"
+              className={`control-btn tooltip-bottom ${viewMode === 'grid' ? 'active' : ''}`}
+              data-tooltip="Grid view (⌘2)"
+              aria-label="Grid view"
             >
               ⊞
             </button>
             <button
               onClick={() => setViewMode('column')}
-              className={`control-btn ${viewMode === 'column' ? 'active' : ''}`}
-              title="Column view (Cmd+3)"
+              className={`control-btn tooltip-bottom ${viewMode === 'column' ? 'active' : ''}`}
+              data-tooltip="Column view (⌘3)"
+              aria-label="Column view"
             >
               ▦
             </button>
@@ -2319,8 +2536,9 @@ function App() {
                     else if (iconSize === 'large') setIconSize('medium');
                     else if (iconSize === 'medium') setIconSize('small');
                   }}
-                  className="control-btn"
-                  title="Zoom out (Cmd+-)"
+                  className="control-btn tooltip-bottom"
+                  data-tooltip="Zoom out (⌘-)"
+                  aria-label="Zoom out"
                   disabled={iconSize === 'small'}
                 >
                   −
@@ -2331,8 +2549,9 @@ function App() {
                     else if (iconSize === 'medium') setIconSize('large');
                     else if (iconSize === 'large') setIconSize('xlarge');
                   }}
-                  className="control-btn"
-                  title="Zoom in (Cmd++)"
+                  className="control-btn tooltip-bottom"
+                  data-tooltip="Zoom in (⌘+)"
+                  aria-label="Zoom in"
                   disabled={iconSize === 'xlarge'}
                 >
                   +
@@ -2347,8 +2566,9 @@ function App() {
             <select
               value={sortColumn}
               onChange={(e) => setSortColumn(e.target.value as 'name' | 'size' | 'date')}
-              className="sort-select"
-              title="Sort by"
+              className="sort-select tooltip-bottom"
+              data-tooltip="Sort by"
+              aria-label="Sort by"
             >
               <option value="name">Name</option>
               <option value="size">Size</option>
@@ -2356,8 +2576,9 @@ function App() {
             </select>
             <button
               onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
-              className="control-btn sort-direction-btn"
-              title={`Sort ${sortDirection === 'asc' ? 'descending' : 'ascending'}`}
+              className="control-btn sort-direction-btn tooltip-bottom"
+              data-tooltip={`Sort ${sortDirection === 'asc' ? 'descending' : 'ascending'}`}
+              aria-label={`Sort ${sortDirection === 'asc' ? 'descending' : 'ascending'}`}
             >
               {sortDirection === 'asc' ? '↑' : '↓'}
             </button>
@@ -2368,8 +2589,9 @@ function App() {
             <div className="settings-dropdown">
               <button
                 onClick={() => setSettingsOpen(!settingsOpen)}
-                title="Settings"
-                className="control-btn settings-btn"
+                data-tooltip="Settings"
+                aria-label="Settings"
+                className="control-btn settings-btn tooltip-bottom"
               >
                 ⚙
               </button>
@@ -2413,7 +2635,7 @@ function App() {
                   </div>
                   <div className="settings-item">
                     <label className="toggle-label">
-                      <span>Skip Duplicate Downloads</span>
+                      <span>Skip Duplicates</span>
                       <input
                         type="checkbox"
                         checked={skipDuplicateDownloads}
@@ -2719,12 +2941,24 @@ function App() {
             selectedCount={selectedFiles.size}
           />
 
+          {/* Floating Action Button for Sync */}
+          <button
+            onClick={handleOpenSyncDialog}
+            disabled={!selectedDevice}
+            className={`sync-fab ${selectedFiles.size > 0 ? 'sync-fab-raised' : ''} tooltip-left`}
+            data-tooltip="Sync folders (⌘I)"
+            aria-label="Sync folders"
+          >
+            ⇄
+          </button>
+
           {/* Floating Action Button for Upload */}
           <button
             onClick={handleUpload}
             disabled={uploading}
-            className={`fab ${selectedFiles.size > 0 ? 'fab-raised' : ''}`}
-            title="Upload file to current directory"
+            className={`fab ${selectedFiles.size > 0 ? 'fab-raised' : ''} tooltip-left`}
+            data-tooltip="Upload file (⌘U)"
+            aria-label="Upload file"
           >
             {uploading ? "⋯" : "↑"}
           </button>
@@ -2981,6 +3215,14 @@ function App() {
                   <span className="shortcut-keys">Cmd + Delete</span>
                   <span className="shortcut-desc">Delete selected/focused files</span>
                 </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + U</span>
+                  <span className="shortcut-desc">Upload file</span>
+                </div>
+                <div className="shortcut-item">
+                  <span className="shortcut-keys">Cmd + I</span>
+                  <span className="shortcut-desc">Sync folders</span>
+                </div>
               </div>
 
               <div className="shortcuts-section">
@@ -3031,6 +3273,339 @@ function App() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sync Dialog */}
+      {syncDialogOpen && (
+        <div className="modal-overlay" onClick={handleCloseSyncDialog}>
+          <div className="modal-dialog sync-dialog" onClick={(e) => e.stopPropagation()}>
+            {syncStep === "config" && (
+              <>
+                <h3>Folder Sync</h3>
+                <div className="sync-form">
+                  <div className="sync-form-group">
+                    <label>Computer Folder</label>
+                    <div className="sync-path-input">
+                      <input
+                        type="text"
+                        value={syncLocalPath}
+                        onChange={(e) => setSyncLocalPath(e.target.value)}
+                        placeholder="Select a local folder..."
+                        readOnly
+                      />
+                      <button onClick={handleSelectSyncLocalFolder}>Browse</button>
+                    </div>
+                  </div>
+
+                  <div className="sync-form-group">
+                    <label>Phone Folder</label>
+                    <div className="sync-path-input">
+                      <input
+                        type="text"
+                        value={syncDevicePath}
+                        onChange={(e) => setSyncDevicePath(e.target.value)}
+                        placeholder="/storage/emulated/0/Music"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="sync-form-group">
+                    <label>Sync Direction</label>
+                    <div className="sync-radio-group">
+                      <label className="sync-radio-label">
+                        <input
+                          type="radio"
+                          name="syncDirection"
+                          checked={syncDirection === "PhoneToComputer"}
+                          onChange={() => setSyncDirection("PhoneToComputer")}
+                        />
+                        Phone → Computer
+                      </label>
+                      <label className="sync-radio-label">
+                        <input
+                          type="radio"
+                          name="syncDirection"
+                          checked={syncDirection === "ComputerToPhone"}
+                          onChange={() => setSyncDirection("ComputerToPhone")}
+                        />
+                        Computer → Phone
+                      </label>
+                      <label className="sync-radio-label">
+                        <input
+                          type="radio"
+                          name="syncDirection"
+                          checked={syncDirection === "BothWays"}
+                          onChange={() => {
+                            setSyncDirection("BothWays");
+                            setSyncDeleteMissing(false);
+                          }}
+                        />
+                        Both Ways
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="sync-form-group">
+                    <label>Match by</label>
+                    <div className="sync-radio-group">
+                      <label className="sync-radio-label">
+                        <input
+                          type="radio"
+                          name="syncMatchMode"
+                          checked={syncMatchMode === "filename"}
+                          onChange={() => setSyncMatchMode("filename")}
+                        />
+                        Filename — match files by name and path
+                      </label>
+                      <label className="sync-radio-label">
+                        <input
+                          type="radio"
+                          name="syncMatchMode"
+                          checked={syncMatchMode === "content"}
+                          onChange={() => setSyncMatchMode("content")}
+                        />
+                        Content (MD5) — detect renamed files by content hash (slower)
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="sync-form-group">
+                    <label>Options</label>
+                    <div className="sync-options-group">
+                      <label className="sync-checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={syncRecursive}
+                          onChange={(e) => setSyncRecursive(e.target.checked)}
+                        />
+                        Include subfolders
+                      </label>
+
+                      <label className={`sync-checkbox-label ${syncDirection === "BothWays" ? "disabled" : ""}`}>
+                        <input
+                          type="checkbox"
+                          checked={syncDeleteMissing}
+                          disabled={syncDirection === "BothWays"}
+                          onChange={(e) => setSyncDeleteMissing(e.target.checked)}
+                        />
+                        Delete missing files
+                        {syncDirection === "BothWays" && (
+                          <span style={{ fontSize: 12, color: "#999" }}>(not available for Both Ways)</span>
+                        )}
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="sync-form-group">
+                    <label>File Patterns</label>
+                    {syncFilePatterns.length > 0 && (
+                      <div className="sync-pattern-chips">
+                        {syncFilePatterns.map((pattern, idx) => (
+                          <span key={idx} className="sync-pattern-chip">
+                            {pattern}
+                            <button
+                              onClick={() => setSyncFilePatterns(syncFilePatterns.filter((_, i) => i !== idx))}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="sync-path-input">
+                      <input
+                        type="text"
+                        value={syncPatternInput}
+                        onChange={(e) => setSyncPatternInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && syncPatternInput.trim()) {
+                            e.preventDefault();
+                            setSyncFilePatterns([...syncFilePatterns, syncPatternInput.trim()]);
+                            setSyncPatternInput("");
+                          }
+                        }}
+                        placeholder="e.g. DCIM/Camera/*.jpg"
+                      />
+                      <button
+                        onClick={() => {
+                          if (syncPatternInput.trim()) {
+                            setSyncFilePatterns([...syncFilePatterns, syncPatternInput.trim()]);
+                            setSyncPatternInput("");
+                          }
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                    <span className="sync-pattern-hint">
+                      Leave empty to sync all files. Use * for any filename, ** for any subdirectories.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="modal-actions">
+                  <button onClick={handleCloseSyncDialog} className="cancel-btn">
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handlePreviewSync}
+                    disabled={!syncLocalPath || !syncDevicePath || syncPreviewing}
+                    className="sync-confirm-btn"
+                  >
+                    {syncPreviewing ? "Scanning..." : "Preview"}
+                  </button>
+                </div>
+              </>
+            )}
+
+            {syncStep === "preview" && syncPreview && (
+              <>
+                <h3>Sync Preview</h3>
+                {syncPreview.actions.length === 0 ? (
+                  <div className="sync-in-sync-message">
+                    Everything is already in sync.
+                  </div>
+                ) : (
+                  <>
+                    <div className="sync-preview-summary">
+                      {syncPreview.copy_count > 0 && (
+                        <span className="sync-preview-stat">
+                          <span className="action-badge copy">Copy</span> {syncPreview.copy_count}
+                        </span>
+                      )}
+                      {syncPreview.update_count > 0 && (
+                        <span className="sync-preview-stat">
+                          <span className="action-badge update">Update</span> {syncPreview.update_count}
+                        </span>
+                      )}
+                      {syncPreview.delete_count > 0 && (
+                        <span className="sync-preview-stat">
+                          <span className="action-badge delete">Delete</span> {syncPreview.delete_count}
+                        </span>
+                      )}
+                      {syncPreview.rename_count > 0 && (
+                        <span className="sync-preview-stat">
+                          <span className="action-badge rename">Rename</span> {syncPreview.rename_count}
+                        </span>
+                      )}
+                      <span className="sync-preview-stat">
+                        Transfer: {formatBytes(syncPreview.total_transfer_bytes)}
+                      </span>
+                    </div>
+
+                    <div className="sync-preview-table-container">
+                      <table className="sync-preview-table">
+                        <thead>
+                          <tr>
+                            <th>File</th>
+                            <th>Action</th>
+                            <th>Direction</th>
+                            <th>Size</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {syncPreview.actions.map((action, i) => (
+                            <tr key={i} className={`action-${action.action_type}`}>
+                              <td title={action.reason}>
+                                {action.action_type === "rename" && action.rename_from
+                                  ? <>{action.rename_from} → {action.file_path}</>
+                                  : action.file_path}
+                              </td>
+                              <td>
+                                <span className={`action-badge ${action.action_type}`}>
+                                  {action.action_type}
+                                </span>
+                              </td>
+                              <td>{action.direction}</td>
+                              <td>{formatBytes(action.size)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+
+                <div className="modal-actions">
+                  <button onClick={() => setSyncStep("config")} className="cancel-btn">
+                    Back
+                  </button>
+                  {syncPreview.actions.length > 0 && (
+                    <button onClick={handleExecuteSync} className="sync-confirm-btn">
+                      Start Sync
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+
+            {syncStep === "progress" && (
+              <>
+                <h3>Syncing...</h3>
+                <div className="sync-progress-container">
+                  {syncProgress && (
+                    <>
+                      <div className="sync-progress-file">
+                        {syncProgress.current_file}
+                      </div>
+                      <div className="sync-progress-bar">
+                        <div
+                          className="sync-progress-bar-fill"
+                          style={{
+                            width: `${syncProgress.total_count > 0
+                              ? (syncProgress.completed_count / syncProgress.total_count) * 100
+                              : 0}%`
+                          }}
+                        />
+                      </div>
+                      <div className="sync-progress-stats">
+                        <span>{syncProgress.completed_count} / {syncProgress.total_count} files</span>
+                        <span>{formatBytes(syncProgress.completed_bytes)} / {formatBytes(syncProgress.total_bytes)}</span>
+                      </div>
+                    </>
+                  )}
+                  {!syncProgress && <p>Starting sync...</p>}
+                </div>
+              </>
+            )}
+
+            {syncStep === "result" && syncResult && (
+              <>
+                <h3>Sync Complete</h3>
+                <div className="sync-result-summary">
+                  <div className="sync-result-stat">
+                    <span>Successful</span>
+                    <span>{syncResult.success_count}</span>
+                  </div>
+                  {syncResult.skip_count > 0 && (
+                    <div className="sync-result-stat">
+                      <span>Skipped</span>
+                      <span>{syncResult.skip_count}</span>
+                    </div>
+                  )}
+                  {syncResult.error_count > 0 && (
+                    <div className="sync-result-stat">
+                      <span>Errors</span>
+                      <span>{syncResult.error_count}</span>
+                    </div>
+                  )}
+                  {syncResult.errors.length > 0 && (
+                    <div className="sync-errors-list">
+                      {syncResult.errors.map((err, i) => (
+                        <p key={i}>{err}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="modal-actions">
+                  <button onClick={handleCloseSyncDialog} className="sync-confirm-btn">
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
