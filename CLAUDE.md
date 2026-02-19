@@ -20,10 +20,11 @@ cd src-tauri && cargo test # Run Rust tests
 **Branch naming:** `fix/`, `feature/`, `hotfix/`, `refactor/` prefix with descriptive name
 
 **Standard workflow:**
+
 1. **ALWAYS create a new branch from main when starting work on a fresh GitHub issue**: `git checkout main && git pull && git checkout -b feature/issue-description`
 2. Make changes and test: `npm run build` and `cargo build`
 3. Commit with issue reference: `Fixes #N`
-4. Create PR: `gh pr create --title "Title" --body "Description" --reviewer rajivm1991 --reviewer copilot`
+4. Create PR: `gh pr create --title "Title" --body "Description" --reviewer rajivm1991`
 5. After merge: delete branch locally and remotely, pull main
 
 ## Architecture
@@ -34,9 +35,11 @@ cd src-tauri && cargo test # Run Rust tests
 ## Claude Code Workflow
 
 **For file reading and analysis:**
+
 - Use `cat README.md | opencode run -m github-copilot/claude-haiku-4.5 "Give me a summary of what this project is about"`
 
 **IMPORTANT: When user asks to fix or implement something:**
+
 1. **Step 1**: Create an implementation document in markdown format in `impl/` directory
 2. **Step 2**: Run: `opencode run -m github-copilot/claude-sonnet-4.5 "Attempt @impl/{task-name}.md"`
 
@@ -45,6 +48,77 @@ This workflow applies to ALL code modifications and feature implementations - AL
 **If opencode fails:** Immediately notify the user about the error and ask how to proceed. Do NOT proceed with direct code modifications without informing the user first.
 
 **Note on impl/ directory:**
+
 - Implementation documents in `impl/` are **local-only planning files** and are not committed to git (added to `.gitignore`)
 - They serve as temporary planning artifacts during development
 - Important architectural decisions should be documented in commit messages, PR descriptions, or permanent documentation files
+
+## Release Checklist
+
+Follow every step in order for each release.
+
+### 1. Prepare versions
+
+```bash
+npm run release:prepare <version>
+```
+
+This bumps `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, and moves the `[Unreleased]` section in `CHANGELOG.md`.
+
+### 2. Ask about screenshots
+
+**Always ask the user:** "Do you have new screenshots to include for this release?"
+
+- If yes: add PNGs to `docs/screenshots/` (naming: `droiddock-YYYY-MM-DD-<feature>.png`)
+- Update `README.md` screenshot references
+- Update `docs/index.html` screenshot section
+
+### 3. Update README.md
+
+- Add new features to the Features section
+- Update keyboard shortcuts table if changed
+- Update screenshot references
+- Update version references if any
+
+### 4. Update GitHub Pages (`docs/`)
+
+Two files to update:
+
+- **Create** `docs/releases/vX.Y.Z.html` — release notes page for the new version (follow the pattern of existing files like `docs/releases/v0.4.0.html`)
+- **Update** `docs/index.html` — bump version shown, add new release card in the release notes section, link to new release HTML, update screenshots section if needed
+
+### 5. Commit, tag, push
+
+```bash
+git add -A
+git commit -m "chore: release vX.Y.Z"
+git tag vX.Y.Z
+git push origin main
+git push origin vX.Y.Z
+```
+
+The tag push triggers the GitHub Actions release workflow automatically.
+
+### 6. Verify CI
+
+- Watch the Release workflow at GitHub Actions
+- Confirm all 3 jobs pass: `create-release`, `build-tauri`, `publish-release`
+- Confirm `universal.dmg` + `.tar.gz` assets are attached to the release
+
+### 7. Update Homebrew cask
+
+File: `homebrew-droiddock/Casks/droiddock.rb`
+
+- Download the new `universal.dmg` asset and compute sha256: `shasum -a 256 DroidDock_X.Y.Z_universal.dmg`
+- Update `version`, `sha256`, and `url` (use `universal.dmg`, not `aarch64.dmg`)
+- Cask URL pattern: `https://github.com/rajivm1991/DroidDock/releases/download/v#{version}/DroidDock_#{version}_universal.dmg`
+- Commit and push the homebrew-droiddock repo
+
+### Verification
+
+```bash
+gh release view vX.Y.Z          # confirm assets and release notes
+brew update && brew upgrade --cask droiddock  # confirm Homebrew installs new version
+```
+
+Also visit the GitHub Pages site to confirm new version and release notes appear.
