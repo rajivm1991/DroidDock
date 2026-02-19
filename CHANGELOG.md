@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Release Checklist**: Added explicit step to review and update `CHANGELOG.md` before each release
+
 ## [0.3.0] - 2026-02-13
 
 ### Added

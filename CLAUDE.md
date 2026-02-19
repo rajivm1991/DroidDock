@@ -65,7 +65,13 @@ npm run release:prepare <version>
 
 This bumps `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, and moves the `[Unreleased]` section in `CHANGELOG.md`.
 
-### 2. Ask about screenshots
+### 2. Update CHANGELOG.md
+
+- Ensure the `[Unreleased]` section has been moved to a versioned section (e.g., `## [X.Y.Z] - YYYY-MM-DD`) by `release:prepare`
+- Review the new versioned section and make sure all notable changes are listed under the correct categories (`Added`, `Changed`, `Fixed`, `Removed`, etc.)
+- Add any missing entries for changes made since the last release
+
+### 3. Ask about screenshots
 
 **Always ask the user:** "Do you have new screenshots to include for this release?"
 
@@ -73,21 +79,21 @@ This bumps `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, 
 - Update `README.md` screenshot references
 - Update `docs/index.html` screenshot section
 
-### 3. Update README.md
+### 4. Update README.md
 
 - Add new features to the Features section
 - Update keyboard shortcuts table if changed
 - Update screenshot references
 - Update version references if any
 
-### 4. Update GitHub Pages (`docs/`)
+### 5. Update GitHub Pages (`docs/`)
 
 Two files to update:
 
 - **Create** `docs/releases/vX.Y.Z.html` — release notes page for the new version (follow the pattern of existing files like `docs/releases/v0.4.0.html`)
 - **Update** `docs/index.html` — bump version shown, add new release card in the release notes section, link to new release HTML, update screenshots section if needed
 
-### 5. Commit, tag, push
+### 6. Commit, tag, push
 
 ```bash
 git add -A
@@ -99,13 +105,13 @@ git push origin vX.Y.Z
 
 The tag push triggers the GitHub Actions release workflow automatically.
 
-### 6. Verify CI
+### 7. Verify CI
 
 - Watch the Release workflow at GitHub Actions
 - Confirm all 3 jobs pass: `create-release`, `build-tauri`, `publish-release`
 - Confirm `universal.dmg` + `.tar.gz` assets are attached to the release
 
-### 7. Update Homebrew cask
+### 8. Update Homebrew cask
 
 File: `homebrew-droiddock/Casks/droiddock.rb`
 
