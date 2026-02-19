@@ -10,6 +10,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Release Checklist**: Added explicit step to review and update `CHANGELOG.md` before each release
 
+## [0.4.0] - 2026-02-18
+
+### Added
+- **Folder Sync**: Sync entire folders between Mac and Android device
+  - Configure include/exclude patterns and preview changes before committing
+  - Excludes system and metadata files automatically (`.DS_Store`, `Thumbs.db`, etc.)
+  - Excludes macOS AppleDouble resource fork files (`._*`)
+  - Filter by custom file patterns (include or exclude)
+  - Preserves file timestamps including created timestamps
+  - Per-file progress tracking
+- **Device Model Name in Selector**: Device selector now shows actual model name (e.g. "Pixel 8 Pro") instead of ADB serial
+- **New Keyboard Shortcuts**:
+  - `Cmd+I` — open sync dialog
+  - `Cmd+U` — open upload picker
+  - File browser shortcuts are disabled when a modal is open
+
+### Changed
+- **UI Improvements**: Improved dark mode breadcrumb colors
+- **Custom Tooltips**: Better visibility in light and dark mode
+- **Consistent Filename Styling**: Unified across table, grid, and column views
+- **Larger Default Window Size**
+
 ## [0.3.0] - 2026-02-13
 
 ### Added
@@ -23,6 +45,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Download Result Messaging**: Success and error messages now distinguish downloaded files from skipped duplicates
+
+## [0.2.2] - 2026-01-29
+
+### Added
+- **Manual Dark Mode Toggle**: New settings option to manually switch dark mode independent of system preference
+- **Homebrew Cask Support**: Initial Homebrew Cask release for easy installation via `brew install --cask droiddock`
+
+### Fixed
+- Download/upload progress and success message display
+- App icon padding for macOS Cmd+Tab consistency
 
 ## [0.2.1] - 2026-01-01
 
@@ -193,7 +225,8 @@ npm run release:prepare 0.2.0
 
 ---
 
-[Unreleased]: https://github.com/rajivm1991/DroidDock/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/rajivm1991/DroidDock/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/rajivm1991/DroidDock/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/rajivm1991/DroidDock/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/rajivm1991/DroidDock/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/rajivm1991/DroidDock/compare/v0.2.0...v0.2.1
