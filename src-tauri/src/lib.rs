@@ -1281,17 +1281,23 @@ async fn save_sync_config(
     name: String,
     options: SyncOptions,
 ) -> Result<SavedSync, String> {
+    let trimmed_name = name.trim().to_string();
+    if trimmed_name.is_empty() {
+        return Err("Sync name cannot be empty".to_string());
+    }
     let mut syncs = read_saved_syncs_file(&app)?;
+    static ID_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let saved_id = id.unwrap_or_else(|| {
-        std::time::SystemTime::now()
+        let ms = std::time::SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
-            .as_millis()
-            .to_string()
+            .as_millis();
+        let seq = ID_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        format!("{}-{}", ms, seq)
     });
     let saved = SavedSync {
         id: saved_id.clone(),
-        name,
+        name: trimmed_name,
         options,
     };
     if let Some(pos) = syncs.iter().position(|s| s.id == saved_id) {
@@ -1307,19 +1313,6 @@ async fn save_sync_config(
 async fn delete_saved_sync(app: tauri::AppHandle, id: String) -> Result<(), String> {
     let mut syncs = read_saved_syncs_file(&app)?;
     syncs.retain(|s| s.id != id);
-    write_saved_syncs_file(&app, &syncs)
-}
-
-#[tauri::command]
-async fn rename_saved_sync(
-    app: tauri::AppHandle,
-    id: String,
-    new_name: String,
-) -> Result<(), String> {
-    let mut syncs = read_saved_syncs_file(&app)?;
-    if let Some(s) = syncs.iter_mut().find(|s| s.id == id) {
-        s.name = new_name;
-    }
     write_saved_syncs_file(&app, &syncs)
 }
 
@@ -2490,8 +2483,7 @@ pub fn run() {
             execute_sync,
             list_saved_syncs,
             save_sync_config,
-            delete_saved_sync,
-            rename_saved_sync
+            delete_saved_sync
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

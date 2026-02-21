@@ -2202,7 +2202,9 @@ function App() {
     setActiveSavedSyncId(null);
     setShowSaveSyncInput(false);
     setSaveSyncName("");
-    invoke<SavedSync[]>("list_saved_syncs").then(setSavedSyncs).catch(console.error);
+    invoke<SavedSync[]>("list_saved_syncs")
+      .then(setSavedSyncs)
+      .catch((err) => setError(`Failed to load saved syncs: ${err}`));
     setSyncDialogOpen(true);
   }
 
@@ -2338,7 +2340,7 @@ function App() {
       setShowSaveSyncInput(false);
       setSaveSyncName("");
     } catch (err) {
-      console.error("Failed to save sync config:", err);
+      setError(`Failed to save sync: ${err}`);
     }
   }
 
@@ -2348,7 +2350,7 @@ function App() {
       setSavedSyncs((prev) => prev.filter((s) => s.id !== id));
       if (activeSavedSyncId === id) setActiveSavedSyncId(null);
     } catch (err) {
-      console.error("Failed to delete saved sync:", err);
+      setError(`Failed to delete saved sync: ${err}`);
     }
   }
 
