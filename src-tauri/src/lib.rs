@@ -7,6 +7,7 @@ use std::fs;
 use std::time::{UNIX_EPOCH, Duration};
 use std::collections::HashMap;
 use tauri::Emitter;
+use tauri::Manager;
 
 /// Sets the creation/birth time of a file on macOS using `setattrlist`.
 #[cfg(target_os = "macos")]
@@ -1176,7 +1177,7 @@ pub enum SyncDirection {
     BothWays,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SyncOptions {
     pub local_path: String,
     pub device_path: String,
@@ -1233,6 +1234,93 @@ pub struct SyncResult {
     pub skip_count: u32,
     pub error_count: u32,
     pub errors: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SavedSync {
+    pub id: String,
+    pub name: String,
+    pub options: SyncOptions,
+}
+
+fn saved_syncs_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let data_dir = app.path().app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+    fs::create_dir_all(&data_dir).map_err(|e| format!("Failed to create app data dir: {}", e))?;
+    Ok(data_dir.join("saved_syncs.json"))
+}
+
+fn read_saved_syncs_file(app: &tauri::AppHandle) -> Result<Vec<SavedSync>, String> {
+    let path = saved_syncs_path(app)?;
+    if !path.exists() {
+        return Ok(vec![]);
+    }
+    let content = fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read saved syncs: {}", e))?;
+    serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse saved syncs: {}", e))
+}
+
+fn write_saved_syncs_file(app: &tauri::AppHandle, syncs: &[SavedSync]) -> Result<(), String> {
+    let path = saved_syncs_path(app)?;
+    let content = serde_json::to_string_pretty(syncs)
+        .map_err(|e| format!("Failed to serialize saved syncs: {}", e))?;
+    fs::write(&path, content)
+        .map_err(|e| format!("Failed to write saved syncs: {}", e))
+}
+
+#[tauri::command]
+async fn list_saved_syncs(app: tauri::AppHandle) -> Result<Vec<SavedSync>, String> {
+    read_saved_syncs_file(&app)
+}
+
+#[tauri::command]
+async fn save_sync_config(
+    app: tauri::AppHandle,
+    id: Option<String>,
+    name: String,
+    options: SyncOptions,
+) -> Result<SavedSync, String> {
+    let mut syncs = read_saved_syncs_file(&app)?;
+    let saved_id = id.unwrap_or_else(|| {
+        std::time::SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()
+            .to_string()
+    });
+    let saved = SavedSync {
+        id: saved_id.clone(),
+        name,
+        options,
+    };
+    if let Some(pos) = syncs.iter().position(|s| s.id == saved_id) {
+        syncs[pos] = saved.clone();
+    } else {
+        syncs.push(saved.clone());
+    }
+    write_saved_syncs_file(&app, &syncs)?;
+    Ok(saved)
+}
+
+#[tauri::command]
+async fn delete_saved_sync(app: tauri::AppHandle, id: String) -> Result<(), String> {
+    let mut syncs = read_saved_syncs_file(&app)?;
+    syncs.retain(|s| s.id != id);
+    write_saved_syncs_file(&app, &syncs)
+}
+
+#[tauri::command]
+async fn rename_saved_sync(
+    app: tauri::AppHandle,
+    id: String,
+    new_name: String,
+) -> Result<(), String> {
+    let mut syncs = read_saved_syncs_file(&app)?;
+    if let Some(s) = syncs.iter_mut().find(|s| s.id == id) {
+        s.name = new_name;
+    }
+    write_saved_syncs_file(&app, &syncs)
 }
 
 fn compute_local_md5(path: &std::path::Path) -> Option<String> {
@@ -2399,7 +2487,11 @@ pub fn run() {
             list_local_files,
             list_device_files_for_sync,
             preview_sync,
-            execute_sync
+            execute_sync,
+            list_saved_syncs,
+            save_sync_config,
+            delete_saved_sync,
+            rename_saved_sync
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
