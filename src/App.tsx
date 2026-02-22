@@ -79,6 +79,12 @@ interface SyncResult {
   errors: string[];
 }
 
+interface SavedSync {
+  id: string;
+  name: string;
+  options: SyncOptions;
+}
+
 interface FileRowProps {
   file: FileEntry;
   fileIndex: number;
@@ -579,6 +585,10 @@ function App() {
   const [syncMatchMode, setSyncMatchMode] = useState<"filename" | "content">("filename");
   const [syncFilePatterns, setSyncFilePatterns] = useState<string[]>([]);
   const [syncPatternInput, setSyncPatternInput] = useState("");
+  const [savedSyncs, setSavedSyncs] = useState<SavedSync[]>([]);
+  const [activeSavedSyncId, setActiveSavedSyncId] = useState<string | null>(null);
+  const [showSaveSyncInput, setShowSaveSyncInput] = useState(false);
+  const [saveSyncName, setSaveSyncName] = useState("");
 
   // Check if ADB is available on startup
   useEffect(() => {
@@ -2188,6 +2198,13 @@ function App() {
     setSyncProgress(null);
     setSyncStep("config");
     setSyncMatchMode("filename");
+    setSyncFilePatterns([]);
+    setActiveSavedSyncId(null);
+    setShowSaveSyncInput(false);
+    setSaveSyncName("");
+    invoke<SavedSync[]>("list_saved_syncs")
+      .then(setSavedSyncs)
+      .catch((err) => setError(`Failed to load saved syncs: ${err}`));
     setSyncDialogOpen(true);
   }
 
@@ -2282,6 +2299,58 @@ function App() {
     setSyncPatternInput("");
     if (syncResult && syncResult.success_count > 0) {
       loadFiles();
+    }
+  }
+
+  function handleLoadSavedSync(saved: SavedSync) {
+    setSyncLocalPath(saved.options.local_path);
+    setSyncDevicePath(saved.options.device_path);
+    setSyncDirection(saved.options.direction);
+    setSyncRecursive(saved.options.recursive);
+    setSyncDeleteMissing(saved.options.delete_missing);
+    setSyncMatchMode(saved.options.match_mode as "filename" | "content");
+    setSyncFilePatterns(saved.options.file_patterns);
+    setSyncPatternInput("");
+    setActiveSavedSyncId(saved.id);
+    setShowSaveSyncInput(false);
+  }
+
+  async function handleSaveSyncConfig() {
+    if (!saveSyncName.trim()) return;
+    const options: SyncOptions = {
+      local_path: syncLocalPath,
+      device_path: syncDevicePath,
+      direction: syncDirection,
+      recursive: syncRecursive,
+      delete_missing: syncDeleteMissing,
+      match_mode: syncMatchMode,
+      file_patterns: syncFilePatterns,
+    };
+    try {
+      const saved = await invoke<SavedSync>("save_sync_config", {
+        id: activeSavedSyncId ?? undefined,
+        name: saveSyncName.trim(),
+        options,
+      });
+      setSavedSyncs((prev) => {
+        const filtered = prev.filter((s) => s.id !== saved.id);
+        return [...filtered, saved];
+      });
+      setActiveSavedSyncId(saved.id);
+      setShowSaveSyncInput(false);
+      setSaveSyncName("");
+    } catch (err) {
+      setError(`Failed to save sync: ${err}`);
+    }
+  }
+
+  async function handleDeleteSavedSync(id: string) {
+    try {
+      await invoke("delete_saved_sync", { id });
+      setSavedSyncs((prev) => prev.filter((s) => s.id !== id));
+      if (activeSavedSyncId === id) setActiveSavedSyncId(null);
+    } catch (err) {
+      setError(`Failed to delete saved sync: ${err}`);
     }
   }
 
@@ -3284,6 +3353,33 @@ function App() {
             {syncStep === "config" && (
               <>
                 <h3>Folder Sync</h3>
+
+                {savedSyncs.length > 0 && (
+                  <div className="sync-saved-row">
+                    <select
+                      value={activeSavedSyncId ?? ""}
+                      onChange={(e) => {
+                        const found = savedSyncs.find((s) => s.id === e.target.value);
+                        if (found) handleLoadSavedSync(found);
+                      }}
+                    >
+                      <option value="">— Load saved sync —</option>
+                      {savedSyncs.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                    {activeSavedSyncId && (
+                      <button
+                        className="sync-delete-saved-btn"
+                        title="Delete this saved sync"
+                        onClick={() => handleDeleteSavedSync(activeSavedSyncId)}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 <div className="sync-form">
                   <div className="sync-form-group">
                     <label>Computer Folder</label>
@@ -3450,6 +3546,19 @@ function App() {
                     Cancel
                   </button>
                   <button
+                    className="sync-save-btn"
+                    disabled={!syncLocalPath || !syncDevicePath}
+                    onClick={() => {
+                      const existing = activeSavedSyncId
+                        ? savedSyncs.find((s) => s.id === activeSavedSyncId)?.name ?? ""
+                        : "";
+                      setSaveSyncName(existing);
+                      setShowSaveSyncInput(true);
+                    }}
+                  >
+                    Save
+                  </button>
+                  <button
                     onClick={handlePreviewSync}
                     disabled={!syncLocalPath || !syncDevicePath || syncPreviewing}
                     className="sync-confirm-btn"
@@ -3457,6 +3566,35 @@ function App() {
                     {syncPreviewing ? "Scanning..." : "Preview"}
                   </button>
                 </div>
+
+                {showSaveSyncInput && (
+                  <div className="sync-save-input-row">
+                    <input
+                      type="text"
+                      value={saveSyncName}
+                      onChange={(e) => setSaveSyncName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveSyncConfig();
+                        if (e.key === "Escape") setShowSaveSyncInput(false);
+                      }}
+                      placeholder="Name this sync (e.g. Photos backup)"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleSaveSyncConfig}
+                      disabled={!saveSyncName.trim()}
+                      className="sync-save-confirm-btn"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setShowSaveSyncInput(false)}
+                      className="sync-save-cancel-btn"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
               </>
             )}
 
