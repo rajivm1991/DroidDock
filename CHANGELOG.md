@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-02-23
+
+### Added
+- **Saved Sync Configurations**: Name and save sync setups for quick reuse — pick a saved sync from a dropdown to instantly reload its source folder, destination, direction, and filter settings without reconfiguring from scratch
+- **Root `/` button in breadcrumb**: List and grid views now show a `/` button at the start of the breadcrumb for one-click access to filesystem root, matching the existing column view behavior
+
+### Fixed
+- **Internal storage button**: Breadcrumb "Internal storage" button now navigates to the device's actual detected storage root instead of always hardcoding `/storage/emulated/0`
+- **Storage detection for MIUI/Android 12**: Added `/mnt/user/0/primary` as a fallback candidate path, improving detection on Xiaomi/Redmi devices
+- **Inaccessible storage feedback**: When the detected internal storage path is empty or inaccessible (e.g. wrong USB mode or ADB permissions), a clear error message is now shown instead of a silent empty file list
+- **Sync dialog UX**: Improved sync dialog layout and layout consistency
+- **Intel Mac compatibility**: Improved Intel Mac compatibility with build verification
+
 ### Changed
 - **Release Checklist**: Added explicit step to review and update `CHANGELOG.md` before each release
 
