@@ -581,7 +581,7 @@ async fn detect_storage_path(app: tauri::AppHandle, device_id: String) -> Result
     }
 
     // Try 2: Check common symlinks (/sdcard usually points to the right place)
-    let sdcard_paths = vec!["/sdcard", "/mnt/sdcard", "/storage/self/primary"];
+    let sdcard_paths = vec!["/sdcard", "/mnt/sdcard", "/storage/self/primary", "/mnt/user/0/primary"];
 
     for sdcard_path in sdcard_paths {
         let output = shell

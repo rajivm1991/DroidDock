@@ -471,6 +471,7 @@ function App() {
   const [devices, setDevices] = useState<AdbDevice[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<string>("");
   const [currentPath, setCurrentPath] = useState<string>("/storage/emulated/0");
+  const [detectedStoragePath, setDetectedStoragePath] = useState<string>("/storage/emulated/0");
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
@@ -1308,10 +1309,12 @@ function App() {
       const detectedPath = await invoke<string>("detect_storage_path", {
         deviceId: selectedDevice,
       });
+      setDetectedStoragePath(detectedPath);
       setCurrentPath(detectedPath);
     } catch (err) {
       console.error(`Failed to detect storage path: ${err}`);
       // Fall back to default path on error
+      setDetectedStoragePath("/storage/emulated/0");
       setCurrentPath("/storage/emulated/0");
     }
   }
@@ -1340,6 +1343,13 @@ function App() {
         path: currentPath,
       });
       setFiles(fileList);
+      if (fileList.length === 0 && currentPath === detectedStoragePath) {
+        setError(
+          `Storage at "${currentPath}" appears empty or inaccessible. ` +
+          `On some devices (e.g. MIUI/Android 12), try setting USB mode to "File Transfer" ` +
+          `and ensuring ADB file access is granted.`
+        );
+      }
     } catch (err) {
       setError(`Failed to list files: ${err}`);
       setFiles([]);
@@ -1421,7 +1431,10 @@ function App() {
 
   // Storage detection helpers
   function isInternalStorage(path: string): boolean {
-    return path.startsWith("/storage/emulated/0") || path === "/storage/emulated/0";
+    return path.startsWith("/storage/emulated/0") ||
+      path === "/storage/emulated/0" ||
+      path.startsWith(detectedStoragePath) ||
+      path === detectedStoragePath;
   }
 
   function isExternalSD(path: string): boolean {
@@ -1474,10 +1487,7 @@ function App() {
     if (focusedIndex >= 0) {
       focusedIndexHistory.current.set(currentPath, focusedIndex);
     }
-    // Navigate to the detected storage path (or fall back to /storage/emulated/0)
-    setCurrentPath(currentPath.startsWith("/storage/emulated/0")
-      ? "/storage/emulated/0"
-      : "/storage/emulated/0");
+    setCurrentPath(detectedStoragePath);
   }
 
   function getTruncatedBreadcrumb(): { label: string; isStorage: boolean; actualIndex: number; isEllipsis?: boolean }[] {
@@ -2762,28 +2772,38 @@ function App() {
                     ))}
                   </>
                 ) : (
-                  // In other views, use truncated breadcrumb
-                  getTruncatedBreadcrumb().map((segment, index) => (
-                    <span key={index}>
-                      {index > 0 && <span className="separator">→</span>}
-                      {segment.isEllipsis ? (
-                        <span className="breadcrumb-ellipsis">{segment.label}</span>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            if (segment.isStorage) {
-                              navigateToHome();
-                            } else {
-                              navigateToSegment(segment.actualIndex);
-                            }
-                          }}
-                          className="breadcrumb-btn"
-                        >
-                          {segment.label}
-                        </button>
-                      )}
+                  // In other views, use truncated breadcrumb with a leading / root button
+                  <>
+                    <span>
+                      <button
+                        onClick={() => setCurrentPath('/')}
+                        className="breadcrumb-btn"
+                      >
+                        /
+                      </button>
                     </span>
-                  ))
+                    {getTruncatedBreadcrumb().map((segment, index) => (
+                      <span key={index}>
+                        <span className="separator">→</span>
+                        {segment.isEllipsis ? (
+                          <span className="breadcrumb-ellipsis">{segment.label}</span>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              if (segment.isStorage) {
+                                navigateToHome();
+                              } else {
+                                navigateToSegment(segment.actualIndex);
+                              }
+                            }}
+                            className="breadcrumb-btn"
+                          >
+                            {segment.label}
+                          </button>
+                        )}
+                      </span>
+                    ))}
+                  </>
                 )}
               </div>
             </div>

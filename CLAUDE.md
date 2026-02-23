@@ -78,7 +78,7 @@ This bumps `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, 
 Two files to update:
 
 - **Create** `docs/releases/vX.Y.Z.html` — release notes page for the new version (follow the pattern of existing files like `docs/releases/v0.4.0.html`)
-- **Update** `docs/index.html` — bump version shown, add new release card in the release notes section, link to new release HTML, update screenshots section if needed
+- **Update** `docs/index.html` — bump the hero version text (`Version X.Y.Z`), add new release card in the release notes section, link to new release HTML, update screenshots section if needed
 
 ### 6. Commit, tag, push
 

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DroidDock v0.4.1 Release Notes</title>
+    <meta name="description" content="DroidDock v0.4.1 - Saved sync configurations, breadcrumb improvements, and storage detection fixes">
+    <link rel="icon" type="image/svg+xml" href="../design/icon-design.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #ffffff;
+            color: #333;
+        }
+        .hero-bg {
+            background: #b0b0b0;
+        }
+        .screenshot {
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-white">
+    <!-- Header -->
+    <header class="hero-bg text-white py-12 px-4">
+        <div class="max-w-4xl mx-auto">
+            <a href="../" class="text-white hover:underline mb-4 inline-block">← Back to DroidDock</a>
+            <h1 class="text-4xl md:text-5xl font-bold mb-4">DroidDock v0.4.1</h1>
+            <p class="text-xl" style="color: rgba(255, 255, 255, 0.9);">Release Notes • February 2026</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-12">
+
+        <!-- What's New -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">What's New in v0.4.1</h2>
+
+            <div class="space-y-6">
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Saved Sync Configurations</h3>
+                    <p class="text-gray-700">Name and save your sync setups so you never have to reconfigure from scratch. Pick a saved sync from the dropdown and your source folder, destination, direction, and filter settings are instantly restored. Perfect for recurring backups like "Photos to Mac" or "Music to Device".</p>
+                </div>
+
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Root <code class="bg-white px-1 rounded">/</code> Button in Breadcrumb</h3>
+                    <p class="text-gray-700">List and grid views now show a <code class="bg-white px-1 rounded">/</code> button at the start of the breadcrumb, matching the existing column view behavior. One click takes you to the raw filesystem root — useful for exploring outside internal storage.</p>
+                </div>
+
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Internal Storage Detection Fixes</h3>
+                    <p class="text-gray-700 mb-3">Several improvements for devices where internal storage wasn't correctly detected:</p>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1 text-sm">
+                        <li>The "Internal storage" breadcrumb button now navigates to the device's actual detected storage root instead of always assuming <code class="bg-white px-1 rounded">/storage/emulated/0</code></li>
+                        <li>Added <code class="bg-white px-1 rounded">/mnt/user/0/primary</code> as a fallback detection path for MIUI and Android 12+ devices</li>
+                        <li>When internal storage is detected but inaccessible, a clear error message now explains the issue (e.g. wrong USB mode or ADB permissions) instead of silently showing an empty file list</li>
+                    </ul>
+                </div>
+
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Other Fixes</h3>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1">
+                        <li>Improved sync dialog layout and consistency</li>
+                        <li>Improved Intel Mac compatibility with build verification</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screenshots -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Screenshots</h2>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <img src="../screenshots/droiddock-2026-02-15-folder-sync.png" alt="DroidDock Folder Sync" class="screenshot w-full">
+                    <p class="text-center mt-3 text-gray-600 font-semibold">Folder Sync</p>
+                    <p class="text-center text-sm text-gray-500">Configure and run folder sync between Mac and Android</p>
+                </div>
+                <div>
+                    <img src="../screenshots/droiddock-2026-02-15-saved-sync.png" alt="DroidDock Saved Sync Configurations" class="screenshot w-full">
+                    <p class="text-center mt-3 text-gray-600 font-semibold">Saved Sync Configurations</p>
+                    <p class="text-center text-sm text-gray-500">Save and reload sync setups with one click</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Download -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Download</h2>
+            <div class="bg-gray-50 p-8 rounded-lg text-center">
+                <a href="https://github.com/rajivm1991/DroidDock/releases/tag/v0.4.1"
+                   class="inline-block px-8 py-4 rounded-lg text-lg font-semibold text-white transition shadow-lg"
+                   style="background-color: #b0b0b0;"
+                   onmouseover="this.style.backgroundColor='#666666'"
+                   onmouseout="this.style.backgroundColor='#b0b0b0'">
+                    Download DroidDock v0.4.1
+                </a>
+                <p class="mt-4 text-gray-600">macOS 10.13+ • Universal Binary (Apple Silicon + Intel)</p>
+                <p class="mt-2 text-gray-600">
+                    Or install via Homebrew:
+                    <code class="bg-white px-2 py-1 rounded text-sm">brew tap rajivm1991/droiddock &amp;&amp; brew install --cask droiddock</code>
+                </p>
+            </div>
+        </section>
+
+        <!-- Full Changelog -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Full Changelog</h2>
+            <div class="bg-gray-50 p-6 rounded-lg">
+                <h3 class="text-xl font-semibold mb-4 text-gray-800">v0.4.1 - February 2026</h3>
+
+                <h4 class="font-semibold text-gray-700 mb-2">Added</h4>
+                <ul class="list-disc list-inside mb-4 text-gray-600 space-y-1">
+                    <li>Saved sync configurations — name, save, and reload sync setups</li>
+                    <li>Root <code class="bg-white px-1 rounded">/</code> button in list and grid view breadcrumb</li>
+                </ul>
+
+                <h4 class="font-semibold text-gray-700 mb-2">Fixed</h4>
+                <ul class="list-disc list-inside mb-4 text-gray-600 space-y-1">
+                    <li>"Internal storage" button now navigates to the actual detected storage root</li>
+                    <li>Improved storage detection for MIUI/Android 12+ devices</li>
+                    <li>Clear error shown when internal storage path is inaccessible</li>
+                    <li>Improved sync dialog layout and consistency</li>
+                    <li>Improved Intel Mac compatibility with build verification</li>
+                </ul>
+
+                <p class="mt-4">
+                    <a href="https://github.com/rajivm1991/DroidDock/blob/main/CHANGELOG.md"
+                       class="hover:underline"
+                       style="color: #b0b0b0;">
+                        View complete changelog →
+                    </a>
+                </p>
+            </div>
+        </section>
+
+        <!-- Support -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Support the Developer</h2>
+            <div class="bg-gray-50 p-8 rounded-lg text-center">
+                <p class="text-gray-700 mb-6">DroidDock is free and open-source, built by one developer in their spare time. If it saves you time, a small donation means a lot!</p>
+                <a href="https://paypal.me/rajivm1991"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="inline-block px-8 py-4 rounded-lg text-lg font-semibold text-white transition shadow-md"
+                   style="background-color: #00457C;"
+                   onmouseover="this.style.backgroundColor='#003087'"
+                   onmouseout="this.style.backgroundColor='#00457C'">
+                    ☕ Buy Me a Coffee via PayPal
+                </a>
+            </div>
+        </section>
+
+        <!-- Links -->
+        <section>
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Links</h2>
+            <div class="space-y-2 text-gray-700">
+                <p>
+                    <a href="https://github.com/rajivm1991/DroidDock" class="hover:underline" style="color: #b0b0b0;">
+                        GitHub Repository →
+                    </a>
+                </p>
+                <p>
+                    <a href="https://github.com/rajivm1991/DroidDock/releases/tag/v0.4.1" class="hover:underline" style="color: #b0b0b0;">
+                        Release on GitHub →
+                    </a>
+                </p>
+                <p>
+                    <a href="../" class="hover:underline" style="color: #b0b0b0;">
+                        DroidDock Website →
+                    </a>
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 px-4 mt-12">
+        <div class="max-w-4xl mx-auto text-center">
+            <p class="text-gray-400">Built with Tauri, Rust, React, and TypeScript</p>
+            <p class="text-gray-500 text-sm mt-2">
+                © 2025-2026 DroidDock •
+                <a href="https://github.com/rajivm1991/DroidDock/blob/main/LICENSE"
+                   style="color: #b0b0b0;"
+                   class="hover:underline">
+                    MIT License
+                </a>
+            </p>
+        </div>
+    </footer>
+</body>
+</html>

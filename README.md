@@ -4,6 +4,8 @@ A sleek macOS desktop application for browsing Android device files via ADB (And
 
 🌐 **[Visit DroidDock Website](https://rajivm1991.github.io/DroidDock/)** | 📦 **[Download Latest Release](https://github.com/rajivm1991/DroidDock/releases/latest)**
 
+💝 **[Support this project on PayPal](https://paypal.me/rajivm1991)** — if DroidDock saves you time, a small donation helps keep development going!
+
 ## Features
 
 - **📱 Device Detection**: Automatically detects connected Android devices and shows their model name
@@ -32,6 +34,10 @@ A sleek macOS desktop application for browsing Android device files via ADB (And
 ![Folder Sync](docs/screenshots/droiddock-2026-02-15-folder-sync.png)
 
 _Folder sync between Mac and Android with filtering options_
+
+![Saved Sync](docs/screenshots/droiddock-2026-02-15-saved-sync.png)
+
+_Save sync configurations and reload them with one click_
 
 ![Sync Preview](docs/screenshots/droiddock-2026-02-15-sync-preview.png)
 
@@ -429,6 +435,12 @@ If you encounter any issues or have questions:
 
 - Open an issue on [GitHub Issues](https://github.com/rajivm1991/DroidDock/issues)
 - Check the [Troubleshooting](#troubleshooting) section above
+
+### Buy Me a Coffee
+
+DroidDock is free and open-source, made by one developer in their spare time. If it saves you time, consider a small donation — it means a lot!
+
+[![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?logo=paypal&logoColor=white)](https://paypal.me/rajivm1991)
 
 ---
 
