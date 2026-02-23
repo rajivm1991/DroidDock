@@ -588,6 +588,7 @@ function App() {
   const [savedSyncs, setSavedSyncs] = useState<SavedSync[]>([]);
   const [activeSavedSyncId, setActiveSavedSyncId] = useState<string | null>(null);
   const [showSaveSyncInput, setShowSaveSyncInput] = useState(false);
+  const [showAdvancedSync, setShowAdvancedSync] = useState(false);
   const [saveSyncName, setSaveSyncName] = useState("");
 
   // Check if ADB is available on startup
@@ -2202,6 +2203,7 @@ function App() {
     setActiveSavedSyncId(null);
     setShowSaveSyncInput(false);
     setSaveSyncName("");
+    setShowAdvancedSync(false);
     invoke<SavedSync[]>("list_saved_syncs")
       .then(setSavedSyncs)
       .catch((err) => setError(`Failed to load saved syncs: ${err}`));
@@ -3354,33 +3356,39 @@ function App() {
               <>
                 <h3>Folder Sync</h3>
 
-                {savedSyncs.length > 0 && (
-                  <div className="sync-saved-row">
-                    <select
-                      value={activeSavedSyncId ?? ""}
-                      onChange={(e) => {
-                        const found = savedSyncs.find((s) => s.id === e.target.value);
-                        if (found) handleLoadSavedSync(found);
-                      }}
-                    >
-                      <option value="">— Load saved sync —</option>
-                      {savedSyncs.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
-                    {activeSavedSyncId && (
-                      <button
-                        className="sync-delete-saved-btn"
-                        title="Delete this saved sync"
-                        onClick={() => handleDeleteSavedSync(activeSavedSyncId)}
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                )}
-
                 <div className="sync-form">
+                  {savedSyncs.length > 0 && (
+                    <div className="sync-form-group">
+                      <label>Saved Syncs</label>
+                      <div className="sync-saved-row">
+                        <select
+                          value={activeSavedSyncId ?? ""}
+                          onChange={(e) => {
+                            if (e.target.value === "") {
+                              setActiveSavedSyncId(null);
+                            } else {
+                              const found = savedSyncs.find((s) => s.id === e.target.value);
+                              if (found) handleLoadSavedSync(found);
+                            }
+                          }}
+                        >
+                          <option value="">—</option>
+                          {savedSyncs.map((s) => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                        </select>
+                        {activeSavedSyncId && (
+                          <button
+                            className="sync-delete-saved-btn"
+                            title="Delete this saved sync"
+                            onClick={() => handleDeleteSavedSync(activeSavedSyncId)}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <div className="sync-form-group">
                     <label>Computer Folder</label>
                     <div className="sync-path-input">
@@ -3407,138 +3415,150 @@ function App() {
                     </div>
                   </div>
 
-                  <div className="sync-form-group">
-                    <label>Sync Direction</label>
-                    <div className="sync-radio-group">
-                      <label className="sync-radio-label">
-                        <input
-                          type="radio"
-                          name="syncDirection"
-                          checked={syncDirection === "PhoneToComputer"}
-                          onChange={() => setSyncDirection("PhoneToComputer")}
-                        />
-                        Phone → Computer
-                      </label>
-                      <label className="sync-radio-label">
-                        <input
-                          type="radio"
-                          name="syncDirection"
-                          checked={syncDirection === "ComputerToPhone"}
-                          onChange={() => setSyncDirection("ComputerToPhone")}
-                        />
-                        Computer → Phone
-                      </label>
-                      <label className="sync-radio-label">
-                        <input
-                          type="radio"
-                          name="syncDirection"
-                          checked={syncDirection === "BothWays"}
-                          onChange={() => {
-                            setSyncDirection("BothWays");
-                            setSyncDeleteMissing(false);
-                          }}
-                        />
-                        Both Ways
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="sync-form-group">
-                    <label>Match by</label>
-                    <div className="sync-radio-group">
-                      <label className="sync-radio-label">
-                        <input
-                          type="radio"
-                          name="syncMatchMode"
-                          checked={syncMatchMode === "filename"}
-                          onChange={() => setSyncMatchMode("filename")}
-                        />
-                        Filename — match files by name and path
-                      </label>
-                      <label className="sync-radio-label">
-                        <input
-                          type="radio"
-                          name="syncMatchMode"
-                          checked={syncMatchMode === "content"}
-                          onChange={() => setSyncMatchMode("content")}
-                        />
-                        Content (MD5) — detect renamed files by content hash (slower)
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="sync-form-group">
-                    <label>Options</label>
-                    <div className="sync-options-group">
-                      <label className="sync-checkbox-label">
-                        <input
-                          type="checkbox"
-                          checked={syncRecursive}
-                          onChange={(e) => setSyncRecursive(e.target.checked)}
-                        />
-                        Include subfolders
-                      </label>
-
-                      <label className={`sync-checkbox-label ${syncDirection === "BothWays" ? "disabled" : ""}`}>
-                        <input
-                          type="checkbox"
-                          checked={syncDeleteMissing}
-                          disabled={syncDirection === "BothWays"}
-                          onChange={(e) => setSyncDeleteMissing(e.target.checked)}
-                        />
-                        Delete missing files
-                        {syncDirection === "BothWays" && (
-                          <span style={{ fontSize: 12, color: "#999" }}>(not available for Both Ways)</span>
-                        )}
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="sync-form-group">
-                    <label>File Patterns</label>
-                    {syncFilePatterns.length > 0 && (
-                      <div className="sync-pattern-chips">
-                        {syncFilePatterns.map((pattern, idx) => (
-                          <span key={idx} className="sync-pattern-chip">
-                            {pattern}
-                            <button
-                              onClick={() => setSyncFilePatterns(syncFilePatterns.filter((_, i) => i !== idx))}
-                            >
-                              ×
-                            </button>
-                          </span>
-                        ))}
+                  <div className="sync-direction-options-row">
+                    <div className="sync-form-group">
+                      <label>Sync Direction</label>
+                      <div className="sync-radio-group">
+                        <label className="sync-radio-label">
+                          <input
+                            type="radio"
+                            name="syncDirection"
+                            checked={syncDirection === "PhoneToComputer"}
+                            onChange={() => setSyncDirection("PhoneToComputer")}
+                          />
+                          Phone → Computer
+                        </label>
+                        <label className="sync-radio-label">
+                          <input
+                            type="radio"
+                            name="syncDirection"
+                            checked={syncDirection === "ComputerToPhone"}
+                            onChange={() => setSyncDirection("ComputerToPhone")}
+                          />
+                          Computer → Phone
+                        </label>
+                        <label className="sync-radio-label">
+                          <input
+                            type="radio"
+                            name="syncDirection"
+                            checked={syncDirection === "BothWays"}
+                            onChange={() => {
+                              setSyncDirection("BothWays");
+                              setSyncDeleteMissing(false);
+                            }}
+                          />
+                          Both Ways
+                        </label>
                       </div>
-                    )}
-                    <div className="sync-path-input">
-                      <input
-                        type="text"
-                        value={syncPatternInput}
-                        onChange={(e) => setSyncPatternInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && syncPatternInput.trim()) {
-                            e.preventDefault();
-                            setSyncFilePatterns([...syncFilePatterns, syncPatternInput.trim()]);
-                            setSyncPatternInput("");
-                          }
-                        }}
-                        placeholder="e.g. DCIM/Camera/*.jpg"
-                      />
-                      <button
-                        onClick={() => {
-                          if (syncPatternInput.trim()) {
-                            setSyncFilePatterns([...syncFilePatterns, syncPatternInput.trim()]);
-                            setSyncPatternInput("");
-                          }
-                        }}
-                      >
-                        Add
-                      </button>
                     </div>
-                    <span className="sync-pattern-hint">
-                      Leave empty to sync all files. Use * for any filename, ** for any subdirectories.
-                    </span>
+
+                    <div className="sync-form-group">
+                      <label>Options</label>
+                      <div className="sync-options-group">
+                        <label className="sync-checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={syncRecursive}
+                            onChange={(e) => setSyncRecursive(e.target.checked)}
+                          />
+                          Include subfolders
+                        </label>
+                        <label className={`sync-checkbox-label ${syncDirection === "BothWays" ? "disabled" : ""}`}>
+                          <input
+                            type="checkbox"
+                            checked={syncDeleteMissing}
+                            disabled={syncDirection === "BothWays"}
+                            onChange={(e) => setSyncDeleteMissing(e.target.checked)}
+                          />
+                          <span className="sync-checkbox-text">
+                            Delete missing files
+                            <span className="sync-checkbox-hint">Not available for Both Ways</span>
+                          </span>
+                        </label>
+                      </div>
+                    </div>
                   </div>
+
+                  <button
+                    className="sync-advanced-toggle"
+                    onClick={() => setShowAdvancedSync((v) => !v)}
+                  >
+                    {showAdvancedSync ? "▾" : "▸"} Advanced
+                  </button>
+
+                  {showAdvancedSync && (
+                    <div className="sync-advanced-section">
+                      <div className="sync-form-group">
+                        <label>Match by</label>
+                        <div className="sync-radio-group">
+                          <label className="sync-radio-label">
+                            <input
+                              type="radio"
+                              name="syncMatchMode"
+                              checked={syncMatchMode === "filename"}
+                              onChange={() => setSyncMatchMode("filename")}
+                            />
+                            Filename — match files by name and path
+                          </label>
+                          <label className="sync-radio-label">
+                            <input
+                              type="radio"
+                              name="syncMatchMode"
+                              checked={syncMatchMode === "content"}
+                              onChange={() => setSyncMatchMode("content")}
+                            />
+                            Content (MD5) — detect renamed files by content hash (slower)
+                          </label>
+                        </div>
+                      </div>
+
+                      <div className="sync-form-group">
+                        <label>File Patterns</label>
+                        {syncFilePatterns.length > 0 && (
+                          <div className="sync-pattern-chips">
+                            {syncFilePatterns.map((pattern, idx) => (
+                              <span key={idx} className="sync-pattern-chip">
+                                {pattern}
+                                <button
+                                  onClick={() => setSyncFilePatterns(syncFilePatterns.filter((_, i) => i !== idx))}
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="sync-path-input">
+                          <input
+                            type="text"
+                            value={syncPatternInput}
+                            onChange={(e) => setSyncPatternInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && syncPatternInput.trim()) {
+                                e.preventDefault();
+                                setSyncFilePatterns([...syncFilePatterns, syncPatternInput.trim()]);
+                                setSyncPatternInput("");
+                              }
+                            }}
+                            placeholder="e.g. DCIM/Camera/*.jpg"
+                          />
+                          <button
+                            onClick={() => {
+                              if (syncPatternInput.trim()) {
+                                setSyncFilePatterns([...syncFilePatterns, syncPatternInput.trim()]);
+                                setSyncPatternInput("");
+                              }
+                            }}
+                          >
+                            Add
+                          </button>
+                        </div>
+                        <span className="sync-pattern-hint">
+                          Leave empty to sync all files. Use * for any filename, ** for any subdirectories.
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="modal-actions">
