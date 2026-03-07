@@ -184,7 +184,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Technical
 - Built with Tauri 2, Rust, React, and TypeScript
-- Supports macOS 10.13+
+- Supports macOS 10.15+ (Catalina)
 - Universal binary (Apple Silicon + Intel)
 
 ---

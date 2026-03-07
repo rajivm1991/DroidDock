@@ -93,7 +93,7 @@ Navigate files like a pro!
 3. **Launch**: Right-click the app → Open (first time only, due to unsigned app)
 
 **Requirements**:
-- macOS 10.13 or later
+- macOS 10.15 (Catalina) or later
 - Universal binary (works on both Intel and Apple Silicon Macs)
 - ADB (Android Debug Bridge) installed
 
