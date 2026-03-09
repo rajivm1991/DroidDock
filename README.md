@@ -2,9 +2,15 @@
 
 A sleek macOS desktop application for browsing Android device files via ADB (Android Debug Bridge).
 
-🌐 **[Visit DroidDock Website](https://rajivm1991.github.io/DroidDock/)** | 📦 **[Download Latest Release](https://github.com/rajivm1991/DroidDock/releases/latest)**
+🌐 **[Visit DroidDock Website](https://rajivm1991.github.io/DroidDock/)**
 
-💝 **[Support this project on PayPal](https://paypal.me/rajivm1991)** — if DroidDock saves you time, a small donation helps keep development going!
+[![Latest Release](https://img.shields.io/github/v/release/rajivm1991/DroidDock?style=flat&color=6b8db5)](https://github.com/rajivm1991/DroidDock/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/rajivm1991/DroidDock/total?style=flat&color=6b8db5)](https://github.com/rajivm1991/DroidDock/releases)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/rajivm1991/DroidDock/release.yml?style=flat)](https://github.com/rajivm1991/DroidDock/actions)
+[![License](https://img.shields.io/github/license/rajivm1991/DroidDock?style=flat)](LICENSE)
+[![macOS](https://img.shields.io/badge/macOS-10.15%2B-lightgrey?style=flat&logo=apple)](https://github.com/rajivm1991/DroidDock/releases/latest)
+[![Homebrew](https://img.shields.io/badge/Homebrew-cask-orange?style=flat&logo=homebrew)](https://github.com/rajivm1991/DroidDock)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/rajivm1991)
 
 ## Features
 
@@ -438,9 +444,9 @@ If you encounter any issues or have questions:
 
 ### Buy Me a Coffee
 
-DroidDock is free and open-source, made by one developer in their spare time. If it saves you time, consider a small donation — it means a lot!
+DroidDock is free and open-source, made by one developer in their spare time. If it saves you time, buy me a coffee — it means a lot!
 
-[![Donate with PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?logo=paypal&logoColor=white)](https://paypal.me/rajivm1991)
+☕ **[buymeacoffee.com/rajivm1991](https://www.buymeacoffee.com/rajivm1991)**
 
 ---
 
