@@ -45,6 +45,9 @@ interface SyncOptions {
   delete_missing: boolean;
   match_mode: string;
   file_patterns: string[];
+  allow_copy: boolean;
+  allow_update: boolean;
+  allow_rename: boolean;
 }
 
 interface SyncAction {
@@ -586,6 +589,9 @@ function App() {
   const [syncDirection, setSyncDirection] = useState<SyncDirection>("PhoneToComputer");
   const [syncRecursive, setSyncRecursive] = useState(false);
   const [syncDeleteMissing, setSyncDeleteMissing] = useState(false);
+  const [syncAllowCopy, setSyncAllowCopy] = useState(true);
+  const [syncAllowUpdate, setSyncAllowUpdate] = useState(true);
+  const [syncAllowRename, setSyncAllowRename] = useState(true);
   const [syncPreview, setSyncPreview] = useState<SyncPreview | null>(null);
   const [syncPreviewing, setSyncPreviewing] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -2252,6 +2258,9 @@ function App() {
     setSyncDirection("PhoneToComputer");
     setSyncRecursive(false);
     setSyncDeleteMissing(false);
+    setSyncAllowCopy(true);
+    setSyncAllowUpdate(true);
+    setSyncAllowRename(true);
     setSyncPreview(null);
     setSyncResult(null);
     setSyncProgress(null);
@@ -2303,6 +2312,9 @@ function App() {
         delete_missing: syncDeleteMissing,
         match_mode: syncMatchMode,
         file_patterns: patterns,
+        allow_copy: syncAllowCopy,
+        allow_update: syncAllowUpdate,
+        allow_rename: syncAllowRename,
       };
       const preview = await invoke<SyncPreview>("preview_sync", {
         deviceId: selectedDevice,
@@ -2336,6 +2348,9 @@ function App() {
         delete_missing: syncDeleteMissing,
         match_mode: syncMatchMode,
         file_patterns: syncFilePatterns,
+        allow_copy: syncAllowCopy,
+        allow_update: syncAllowUpdate,
+        allow_rename: syncAllowRename,
       };
       const result = await invoke<SyncResult>("execute_sync", {
         deviceId: selectedDevice,
@@ -2368,6 +2383,9 @@ function App() {
     setSyncDirection(saved.options.direction);
     setSyncRecursive(saved.options.recursive);
     setSyncDeleteMissing(saved.options.delete_missing);
+    setSyncAllowCopy(saved.options.allow_copy ?? true);
+    setSyncAllowUpdate(saved.options.allow_update ?? true);
+    setSyncAllowRename(saved.options.allow_rename ?? true);
     setSyncMatchMode(saved.options.match_mode as "filename" | "content");
     setSyncFilePatterns(saved.options.file_patterns);
     setSyncPatternInput("");
@@ -2385,6 +2403,9 @@ function App() {
       delete_missing: syncDeleteMissing,
       match_mode: syncMatchMode,
       file_patterns: syncFilePatterns,
+      allow_copy: syncAllowCopy,
+      allow_update: syncAllowUpdate,
+      allow_rename: syncAllowRename,
     };
     try {
       const saved = await invoke<SavedSync>("save_sync_config", {
@@ -3610,6 +3631,30 @@ function App() {
                     </div>
                   </div>
 
+                  <div className="sync-form-group">
+                    <label>Match by</label>
+                    <div className="sync-radio-group">
+                      <label className="sync-radio-label">
+                        <input
+                          type="radio"
+                          name="syncMatchMode"
+                          checked={syncMatchMode === "filename"}
+                          onChange={() => setSyncMatchMode("filename")}
+                        />
+                        Filename — match files by name and path
+                      </label>
+                      <label className="sync-radio-label">
+                        <input
+                          type="radio"
+                          name="syncMatchMode"
+                          checked={syncMatchMode === "content"}
+                          onChange={() => setSyncMatchMode("content")}
+                        />
+                        Content (MD5) — detect renamed files by content hash (slower)
+                      </label>
+                    </div>
+                  </div>
+
                   <div className="sync-direction-options-row">
                     <div className="sync-form-group">
                       <label>Sync Direction</label>
@@ -3658,6 +3703,42 @@ function App() {
                           />
                           Include subfolders
                         </label>
+                        <label className="sync-checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={syncAllowCopy}
+                            onChange={(e) => setSyncAllowCopy(e.target.checked)}
+                          />
+                          <span className="sync-checkbox-text">
+                            Copy new files
+                            <span className="sync-checkbox-hint">Files that exist only on the source side</span>
+                          </span>
+                        </label>
+                        <label className="sync-checkbox-label">
+                          <input
+                            type="checkbox"
+                            checked={syncAllowUpdate}
+                            onChange={(e) => setSyncAllowUpdate(e.target.checked)}
+                          />
+                          <span className="sync-checkbox-text">
+                            Update changed files
+                            <span className="sync-checkbox-hint">Same path, different size, date or content</span>
+                          </span>
+                        </label>
+                        <label className={`sync-checkbox-label ${syncMatchMode !== "content" ? "disabled" : ""}`}>
+                          <input
+                            type="checkbox"
+                            checked={syncAllowRename}
+                            disabled={syncMatchMode !== "content"}
+                            onChange={(e) => setSyncAllowRename(e.target.checked)}
+                          />
+                          <span className="sync-checkbox-text">
+                            Rename moved files
+                            <span className="sync-checkbox-hint">
+                              Needs Match by: Content. When off, a renamed file is copied under its new name
+                            </span>
+                          </span>
+                        </label>
                         <label className={`sync-checkbox-label ${syncDirection === "BothWays" ? "disabled" : ""}`}>
                           <input
                             type="checkbox"
@@ -3683,30 +3764,6 @@ function App() {
 
                   {showAdvancedSync && (
                     <div className="sync-advanced-section">
-                      <div className="sync-form-group">
-                        <label>Match by</label>
-                        <div className="sync-radio-group">
-                          <label className="sync-radio-label">
-                            <input
-                              type="radio"
-                              name="syncMatchMode"
-                              checked={syncMatchMode === "filename"}
-                              onChange={() => setSyncMatchMode("filename")}
-                            />
-                            Filename — match files by name and path
-                          </label>
-                          <label className="sync-radio-label">
-                            <input
-                              type="radio"
-                              name="syncMatchMode"
-                              checked={syncMatchMode === "content"}
-                              onChange={() => setSyncMatchMode("content")}
-                            />
-                            Content (MD5) — detect renamed files by content hash (slower)
-                          </label>
-                        </div>
-                      </div>
-
                       <div className="sync-form-group">
                         <label>File Patterns</label>
                         {syncFilePatterns.length > 0 && (

@@ -1301,6 +1301,16 @@ pub struct SyncOptions {
     pub match_mode: String,
     #[serde(default)]
     pub file_patterns: Vec<String>,
+    #[serde(default = "default_true")]
+    pub allow_copy: bool,
+    #[serde(default = "default_true")]
+    pub allow_update: bool,
+    #[serde(default = "default_true")]
+    pub allow_rename: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -2231,6 +2241,53 @@ fn compute_sync_actions_by_content(
     actions
 }
 
+// Apply the per-action-type toggles to a computed action list.
+// Delete is governed by `delete_missing` in the diff itself, so it is never filtered here.
+// A disallowed rename is downgraded to a copy under the new name (plus a delete of the old name when
+// `delete_missing` is on), which matches what filename matching produces for a renamed file.
+fn filter_sync_actions(
+    actions: Vec<SyncAction>,
+    allow_copy: bool,
+    allow_update: bool,
+    allow_rename: bool,
+    delete_missing: bool,
+) -> Vec<SyncAction> {
+    let mut expanded: Vec<SyncAction> = Vec::with_capacity(actions.len());
+    for action in actions {
+        if action.action_type == "rename" && !allow_rename {
+            if let Some(old_path) = action.rename_from.clone() {
+                if delete_missing {
+                    expanded.push(SyncAction {
+                        file_path: old_path,
+                        action_type: "delete".to_string(),
+                        direction: action.direction.replace('\u{2192}', "\u{2716}"),
+                        size: action.size,
+                        reason: "Old name of a renamed file, will be deleted".to_string(),
+                        rename_from: None,
+                    });
+                }
+                expanded.push(SyncAction {
+                    action_type: "copy".to_string(),
+                    reason: "Rename disabled, file copied under its new name".to_string(),
+                    rename_from: None,
+                    ..action
+                });
+                continue;
+            }
+        }
+        expanded.push(action);
+    }
+
+    expanded
+        .into_iter()
+        .filter(|a| match a.action_type.as_str() {
+            "copy" => allow_copy,
+            "update" => allow_update,
+            _ => true,
+        })
+        .collect()
+}
+
 // Preview sync: compute what would happen without executing
 #[tauri::command]
 async fn preview_sync(
@@ -2271,7 +2328,13 @@ async fn preview_sync(
         }
     }
 
-    let actions = compute_sync_actions(&local_files, &device_files, &options.direction, options.delete_missing, &options.match_mode);
+    let actions = filter_sync_actions(
+        compute_sync_actions(&local_files, &device_files, &options.direction, options.delete_missing, &options.match_mode),
+        options.allow_copy,
+        options.allow_update,
+        options.allow_rename,
+        options.delete_missing,
+    );
 
     let mut total_transfer_bytes: u64 = 0;
     let mut copy_count: u32 = 0;
@@ -2339,7 +2402,13 @@ async fn execute_sync(
         patterns,
     ).await?;
 
-    let actions = compute_sync_actions(&local_files, &device_files, &options.direction, options.delete_missing, &options.match_mode);
+    let actions = filter_sync_actions(
+        compute_sync_actions(&local_files, &device_files, &options.direction, options.delete_missing, &options.match_mode),
+        options.allow_copy,
+        options.allow_update,
+        options.allow_rename,
+        options.delete_missing,
+    );
 
     // Build timestamp lookup maps for preserving file modification times
     let device_mtime_map: HashMap<String, u64> = device_files.iter()
@@ -2855,6 +2924,109 @@ mod tests {
         // Local is newer, so device should be renamed to match local
         assert!(actions[0].direction.contains("Phone"));
         assert_eq!(actions[0].file_path, "a.txt");
+    }
+
+    // ========================
+    // filter_sync_actions tests
+    // ========================
+
+    #[test]
+    fn test_filter_drops_copy_when_disallowed() {
+        let device = vec![make_file("new.txt", 100, 50, None)];
+        let actions = compute_sync_actions(&[], &device, &SyncDirection::PhoneToComputer, false, "filename");
+        let filtered = filter_sync_actions(actions, false, true, true, false);
+        assert!(filtered.is_empty());
+    }
+
+    #[test]
+    fn test_filter_drops_update_when_disallowed() {
+        let local = vec![make_file("file.txt", 100, 50, None)];
+        let device = vec![make_file("file.txt", 200, 100, None)];
+        let actions = compute_sync_actions(&local, &device, &SyncDirection::PhoneToComputer, false, "filename");
+        let filtered = filter_sync_actions(actions, true, false, true, false);
+        assert!(filtered.is_empty());
+    }
+
+    #[test]
+    fn test_filter_keeps_everything_when_all_allowed() {
+        let local = vec![make_file("changed.txt", 100, 50, None), make_file("orphan.txt", 100, 50, None)];
+        let device = vec![make_file("changed.txt", 200, 100, None), make_file("new.txt", 100, 50, None)];
+        let actions = compute_sync_actions(&local, &device, &SyncDirection::PhoneToComputer, true, "filename");
+        let expected = actions.len();
+        let filtered = filter_sync_actions(actions, true, true, true, true);
+        assert_eq!(filtered.len(), expected);
+        assert_eq!(expected, 3);
+    }
+
+    #[test]
+    fn test_filter_delete_unaffected_by_other_flags() {
+        let local = vec![make_file("orphan.txt", 100, 50, None)];
+        let actions = compute_sync_actions(&local, &[], &SyncDirection::PhoneToComputer, true, "filename");
+        let filtered = filter_sync_actions(actions, false, false, false, true);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].action_type, "delete");
+    }
+
+    #[test]
+    fn test_filter_keeps_rename_when_allowed() {
+        let local = vec![make_file("old_name.txt", 100, 50, Some("abc123"))];
+        let device = vec![make_file("new_name.txt", 100, 60, Some("abc123"))];
+        let actions = compute_sync_actions_by_content(&local, &device, &SyncDirection::PhoneToComputer, false);
+        let filtered = filter_sync_actions(actions, true, true, true, false);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].action_type, "rename");
+    }
+
+    #[test]
+    fn test_filter_rename_becomes_copy_when_disallowed() {
+        let local = vec![make_file("old_name.txt", 100, 50, Some("abc123"))];
+        let device = vec![make_file("new_name.txt", 100, 60, Some("abc123"))];
+        let actions = compute_sync_actions_by_content(&local, &device, &SyncDirection::PhoneToComputer, false);
+        let filtered = filter_sync_actions(actions, true, true, false, false);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].action_type, "copy");
+        assert_eq!(filtered[0].file_path, "new_name.txt");
+        assert!(filtered[0].direction.contains("Computer"));
+        assert!(filtered[0].rename_from.is_none());
+        assert_eq!(filtered[0].size, 100);
+    }
+
+    #[test]
+    fn test_filter_rename_becomes_copy_and_delete_with_delete_missing() {
+        let local = vec![make_file("old_name.txt", 100, 50, Some("abc123"))];
+        let device = vec![make_file("new_name.txt", 100, 60, Some("abc123"))];
+        let actions = compute_sync_actions_by_content(&local, &device, &SyncDirection::PhoneToComputer, true);
+        let filtered = filter_sync_actions(actions, true, true, false, true);
+        assert_eq!(filtered.len(), 2);
+        let copy = filtered.iter().find(|a| a.action_type == "copy").unwrap();
+        assert_eq!(copy.file_path, "new_name.txt");
+        let delete = filtered.iter().find(|a| a.action_type == "delete").unwrap();
+        assert_eq!(delete.file_path, "old_name.txt");
+        assert!(delete.direction.contains("Computer"));
+        assert!(delete.direction.starts_with('\u{2716}'));
+    }
+
+    #[test]
+    fn test_filter_rename_to_phone_deletes_on_phone() {
+        let local = vec![make_file("a.txt", 100, 200, Some("abc123"))];
+        let device = vec![make_file("b.txt", 100, 100, Some("abc123"))];
+        let actions = compute_sync_actions_by_content(&local, &device, &SyncDirection::ComputerToPhone, true);
+        let filtered = filter_sync_actions(actions, true, true, false, true);
+        let copy = filtered.iter().find(|a| a.action_type == "copy").unwrap();
+        assert_eq!(copy.file_path, "a.txt");
+        assert!(copy.direction.contains("Phone"));
+        let delete = filtered.iter().find(|a| a.action_type == "delete").unwrap();
+        assert_eq!(delete.file_path, "b.txt");
+        assert!(delete.direction.contains("Phone"));
+    }
+
+    #[test]
+    fn test_filter_rename_disallowed_and_copy_disallowed_drops_converted_copy() {
+        let local = vec![make_file("old_name.txt", 100, 50, Some("abc123"))];
+        let device = vec![make_file("new_name.txt", 100, 60, Some("abc123"))];
+        let actions = compute_sync_actions_by_content(&local, &device, &SyncDirection::PhoneToComputer, false);
+        let filtered = filter_sync_actions(actions, false, true, false, false);
+        assert!(filtered.is_empty());
     }
 
     #[test]
