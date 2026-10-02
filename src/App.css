@@ -1960,7 +1960,7 @@ tbody tr {
 
 .sync-direction-options-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 16px;
 }
 
@@ -1981,6 +1981,16 @@ tbody tr {
 
 .sync-radio-label input[type="radio"] {
   margin: 0;
+}
+
+/* Radios with a hint line align to the top of the text, like the checkbox rows */
+.sync-radio-label:has(.sync-checkbox-text) {
+  align-items: flex-start;
+}
+
+.sync-radio-label:has(.sync-checkbox-text) input[type="radio"] {
+  margin-top: 2px;
+  flex-shrink: 0;
 }
 
 .sync-checkbox-label {

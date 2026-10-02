@@ -3632,7 +3632,7 @@ function App() {
                   </div>
 
                   <div className="sync-form-group">
-                    <label>Match by</label>
+                    <label>Compare files by</label>
                     <div className="sync-radio-group">
                       <label className="sync-radio-label">
                         <input
@@ -3641,7 +3641,12 @@ function App() {
                           checked={syncMatchMode === "filename"}
                           onChange={() => setSyncMatchMode("filename")}
                         />
-                        Filename — match files by name and path
+                        <span className="sync-checkbox-text">
+                          Name and date
+                          <span className="sync-checkbox-hint">
+                            Same path means same file. Copied again if the size differs or the source is newer. Fast.
+                          </span>
+                        </span>
                       </label>
                       <label className="sync-radio-label">
                         <input
@@ -3650,7 +3655,12 @@ function App() {
                           checked={syncMatchMode === "content"}
                           onChange={() => setSyncMatchMode("content")}
                         />
-                        Content (MD5) — detect renamed files by content hash (slower)
+                        <span className="sync-checkbox-text">
+                          Content
+                          <span className="sync-checkbox-hint">
+                            Compares MD5 hashes, so renamed files aren't re-copied. Slower, reads every file.
+                          </span>
+                        </span>
                       </label>
                     </div>
                   </div>
@@ -3735,7 +3745,7 @@ function App() {
                           <span className="sync-checkbox-text">
                             Rename moved files
                             <span className="sync-checkbox-hint">
-                              Needs Match by: Content. When off, a renamed file is copied under its new name
+                              Needs Compare files by: Content. When off, a renamed file is copied under its new name
                             </span>
                           </span>
                         </label>
