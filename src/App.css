@@ -1804,6 +1804,45 @@ tbody tr {
 .sync-dialog {
   min-width: 600px;
   max-width: 700px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  /* Vertical padding moves onto the sticky header/footer so scrolled content never shows through it */
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.sync-dialog > h3 {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 24px 0 16px;
+  background: inherit;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.sync-dialog > .modal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin-top: 0;
+  padding: 16px 0 24px;
+  background: inherit;
+  border-top: 1px solid var(--card-border);
+}
+
+/* Gap between the scrolling body and the bordered header/footer */
+.sync-dialog > h3 + * {
+  margin-top: 16px;
+}
+
+.sync-dialog > :has(+ .modal-actions) {
+  margin-bottom: 16px;
+}
+
+/* Steps without an actions row (progress) still need the bottom padding */
+.sync-dialog > :last-child:not(.modal-actions) {
+  margin-bottom: 24px;
 }
 
 .sync-form {
