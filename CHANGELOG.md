@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-02
+
+### Added
+- **Per-action sync toggles**: Choose which actions a folder sync performs — copy, update, and rename — independently. Rename is available when matching by content; a disabled rename falls back to a copy under the new name. Existing saved syncs load unchanged
+- **Live sync scan progress**: Sync preview and the scan before a sync now show a scanning panel with items scanned per side, hashing progress in content mode, and elapsed time
+- **Sync result breakdown**: The sync result shows per-type counts for copied, updated, renamed, and deleted items
+
+### Changed
+- **Sync dialog options**: Reworded compare-by options with hints, moved match-by out of advanced, and stacked sync direction and options at full width
+
+### Fixed
+- **Sync dialog on short windows**: The dialog now scrolls on short windows, with a sticky bordered header and footer
+
 ## [0.5.0] - 2026-07-20
 
 ### Added
