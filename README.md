@@ -86,7 +86,7 @@ No. DroidDock does not collect or transmit any personal data. All communication 
 - **📂 File Browsing**: Navigate through your Android device's file system with an intuitive interface
 - **👁️ Multiple View Modes**: Choose between Table, Grid, or Column (Miller) view with keyboard shortcuts
 - **🖼️ File Preview**: View images and text files without downloading - press Space for quick preview or double-click
-- **🔁 Folder Sync**: Sync entire folders between Mac and Android — filter by file pattern, exclude system files, preserve timestamps
+- **🔁 Folder Sync**: Sync entire folders between Mac and Android — filter by file pattern, exclude system files, preserve timestamps. Compare files by name and date, or by content (MD5) to detect renamed files, and toggle copy, update, rename and delete independently. Preview shows exactly what will change before anything runs
 - **🔍 File Search**: Search for files by name with case-insensitive matching and recursive search
 - **🗑️ File Deletion**: Delete files and folders with confirmation dialogs and safety checks
 - **📥 File Download**: Download files and entire folders from device to Mac, with per-download conflict handling
