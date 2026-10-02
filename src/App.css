@@ -1851,6 +1851,23 @@ tbody tr {
   gap: 16px;
 }
 
+.sync-form-hidden {
+  display: none;
+}
+
+.sync-scan-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.sync-scan-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .sync-form-group {
   display: flex;
   flex-direction: column;
@@ -2147,6 +2164,12 @@ tbody tr {
   background: #f5f5f5;
   border-radius: 6px;
   font-size: 14px;
+}
+
+/* Per-type breakdown rows sit under "Successful", indented and tighter */
+.sync-result-sub {
+  margin: -4px 0 0 16px;
+  align-items: center;
 }
 
 .sync-errors-list {

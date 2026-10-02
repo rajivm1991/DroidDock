@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -1355,9 +1356,36 @@ pub struct SyncProgress {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SyncResult {
     pub success_count: u32,
+    pub copied_count: u32,
+    pub updated_count: u32,
+    pub renamed_count: u32,
+    pub deleted_count: u32,
     pub skip_count: u32,
     pub error_count: u32,
     pub errors: Vec<String>,
+}
+
+// Successful actions by type. success_count is always the sum of the per-type counts.
+#[derive(Debug, Default)]
+struct SyncTally {
+    success_count: u32,
+    copied_count: u32,
+    updated_count: u32,
+    renamed_count: u32,
+    deleted_count: u32,
+}
+
+impl SyncTally {
+    fn record_success(&mut self, action_type: &str) {
+        match action_type {
+            "copy" => self.copied_count += 1,
+            "update" => self.updated_count += 1,
+            "rename" => self.renamed_count += 1,
+            "delete" => self.deleted_count += 1,
+            _ => return,
+        }
+        self.success_count += 1;
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -1440,6 +1468,69 @@ async fn delete_saved_sync(app: tauri::AppHandle, id: String) -> Result<(), Stri
     write_saved_syncs_file(&app, &syncs)
 }
 
+// Progress reported while scanning either side of a sync, before any actions are computed.
+// `phase` is "listing" (done = items seen so far, total unknown) or "hashing" (done / total files hashed).
+#[derive(Debug, Serialize, Clone)]
+pub struct ScanProgress {
+    pub side: String,
+    pub phase: String,
+    pub done: u32,
+    pub total: Option<u32>,
+}
+
+const SCAN_PROGRESS_INTERVAL: Duration = Duration::from_millis(150);
+
+fn should_emit_scan_progress(last: Option<std::time::Instant>, now: std::time::Instant, interval: Duration) -> bool {
+    match last {
+        None => true,
+        Some(last) => now.duration_since(last) >= interval,
+    }
+}
+
+fn count_newlines(bytes: &[u8]) -> u32 {
+    bytes.iter().filter(|&&b| b == b'\n').count() as u32
+}
+
+// Throttled emitter for `sync-scan-progress`. With no window it is a no-op, which the
+// standalone list_* commands use.
+pub struct ScanReporter {
+    window: Option<tauri::Window>,
+    last_emit: Option<std::time::Instant>,
+}
+
+impl ScanReporter {
+    fn none() -> Self {
+        ScanReporter { window: None, last_emit: None }
+    }
+
+    fn new(window: tauri::Window) -> Self {
+        ScanReporter { window: Some(window), last_emit: None }
+    }
+
+    // Emits at most once per SCAN_PROGRESS_INTERVAL so huge scans don't flood the UI.
+    fn report(&mut self, side: &str, phase: &str, done: u32, total: Option<u32>) {
+        let now = std::time::Instant::now();
+        if should_emit_scan_progress(self.last_emit, now, SCAN_PROGRESS_INTERVAL) {
+            self.emit(side, phase, done, total);
+        }
+    }
+
+    // Always emits, so the UI shows the final count of a phase.
+    fn report_final(&mut self, side: &str, phase: &str, done: u32, total: Option<u32>) {
+        self.emit(side, phase, done, total);
+    }
+
+    fn emit(&mut self, side: &str, phase: &str, done: u32, total: Option<u32>) {
+        self.last_emit = Some(std::time::Instant::now());
+        if let Some(window) = &self.window {
+            let _ = window.emit(
+                "sync-scan-progress",
+                ScanProgress { side: side.to_string(), phase: phase.to_string(), done, total },
+            );
+        }
+    }
+}
+
 fn compute_local_md5(path: &std::path::Path) -> Option<String> {
     use std::io::Read;
     let mut file = std::fs::File::open(path).ok()?;
@@ -1520,12 +1611,24 @@ fn matches_any_pattern(rel_path: &str, patterns: &[String]) -> bool {
 // List files on the local Mac filesystem for sync
 #[tauri::command]
 fn list_local_files(path: String, recursive: bool, match_mode: String, file_patterns: Vec<String>) -> Result<Vec<FileMetadata>, String> {
+    scan_local_files(path, recursive, match_mode, file_patterns, &mut ScanReporter::none())
+}
+
+fn scan_local_files(
+    path: String,
+    recursive: bool,
+    match_mode: String,
+    file_patterns: Vec<String>,
+    reporter: &mut ScanReporter,
+) -> Result<Vec<FileMetadata>, String> {
     let root = PathBuf::from(&path);
     if !root.exists() {
         return Err(format!("Local path does not exist: {}", path));
     }
 
     let mut result = Vec::new();
+    // Every entry visited, including ones the patterns filter out, so the counter keeps moving on big trees
+    let mut visited: u32 = 0;
 
     if recursive {
         for entry in walkdir::WalkDir::new(&root)
@@ -1537,6 +1640,9 @@ fn list_local_files(path: String, recursive: bool, match_mode: String, file_patt
             })
             .filter_map(|e| e.ok())
         {
+            visited += 1;
+            reporter.report("computer", "listing", visited, None);
+
             let rel_path = entry.path().strip_prefix(&root)
                 .map_err(|e| format!("Path error: {}", e))?
                 .to_string_lossy()
@@ -1560,18 +1666,12 @@ fn list_local_files(path: String, recursive: bool, match_mode: String, file_patt
                 .unwrap_or_default()
                 .as_secs();
 
-            let md5_hash = if match_mode == "content" && !metadata.is_dir() {
-                compute_local_md5(entry.path())
-            } else {
-                None
-            };
-
             result.push(FileMetadata {
                 relative_path: rel_path,
                 size: metadata.len(),
                 modified_time,
                 is_directory: metadata.is_dir(),
-                md5_hash,
+                md5_hash: None,
             });
         }
     } else {
@@ -1583,6 +1683,9 @@ fn list_local_files(path: String, recursive: bool, match_mode: String, file_patt
             let metadata = entry.metadata()
                 .map_err(|e| format!("Failed to read metadata: {}", e))?;
             let name = entry.file_name().to_string_lossy().to_string();
+
+            visited += 1;
+            reporter.report("computer", "listing", visited, None);
 
             if is_sync_excluded(&name) {
                 continue;
@@ -1598,20 +1701,27 @@ fn list_local_files(path: String, recursive: bool, match_mode: String, file_patt
                 .unwrap_or_default()
                 .as_secs();
 
-            let md5_hash = if match_mode == "content" && !metadata.is_dir() {
-                compute_local_md5(&root.join(&name))
-            } else {
-                None
-            };
-
             result.push(FileMetadata {
                 relative_path: name,
                 size: metadata.len(),
                 modified_time,
                 is_directory: metadata.is_dir(),
-                md5_hash,
+                md5_hash: None,
             });
         }
+    }
+    reporter.report_final("computer", "listing", visited, None);
+
+    // Hash in a second pass, once the file count is known, so progress can show done / total
+    if match_mode == "content" {
+        let total = result.iter().filter(|f| !f.is_directory).count() as u32;
+        let mut hashed: u32 = 0;
+        for file in result.iter_mut().filter(|f| !f.is_directory) {
+            file.md5_hash = compute_local_md5(&root.join(&file.relative_path));
+            hashed += 1;
+            reporter.report("computer", "hashing", hashed, Some(total));
+        }
+        reporter.report_final("computer", "hashing", hashed, Some(total));
     }
 
     Ok(result)
@@ -1627,11 +1737,60 @@ async fn list_device_files_for_sync(
     match_mode: String,
     file_patterns: Vec<String>,
 ) -> Result<Vec<FileMetadata>, String> {
+    scan_device_files(app, device_id, path, recursive, match_mode, file_patterns, &mut ScanReporter::none()).await
+}
+
+// Hash device files one adb call at a time, reporting done / total as it goes.
+// `full_paths` maps each relative path to the absolute device path to hash.
+async fn hash_device_files(
+    app: &tauri::AppHandle,
+    device_id: &str,
+    files: &mut [FileMetadata],
+    full_paths: &HashMap<String, String>,
+    reporter: &mut ScanReporter,
+) {
+    let shell = app.shell();
+    let adb_cmd = get_adb_command();
+    let total = files.iter().filter(|f| !f.is_directory).count() as u32;
+    let mut hashed: u32 = 0;
+
+    for file in files.iter_mut().filter(|f| !f.is_directory) {
+        if let Some(full_path) = full_paths.get(&file.relative_path) {
+            let escaped_file = full_path.replace("'", "'\\''");
+            let md5_cmd = format!("md5sum '{}' 2>/dev/null", escaped_file);
+            let md5_output = shell
+                .command(&adb_cmd)
+                .args(["-s", device_id, "shell", &md5_cmd])
+                .output()
+                .await
+                .ok();
+            file.md5_hash = md5_output.and_then(|o| {
+                let out = String::from_utf8_lossy(&o.stdout).trim().to_string();
+                out.split_whitespace().next().map(|s| s.to_string())
+            });
+        }
+        hashed += 1;
+        reporter.report("phone", "hashing", hashed, Some(total));
+    }
+    reporter.report_final("phone", "hashing", hashed, Some(total));
+}
+
+async fn scan_device_files(
+    app: tauri::AppHandle,
+    device_id: String,
+    path: String,
+    recursive: bool,
+    match_mode: String,
+    file_patterns: Vec<String>,
+    reporter: &mut ScanReporter,
+) -> Result<Vec<FileMetadata>, String> {
     let shell = app.shell();
     let adb_cmd = get_adb_command();
     let escaped_path = path.replace("'", "'\\''");
 
     let mut result = Vec::new();
+    // relative path -> absolute device path, used by the hashing pass
+    let mut full_paths: HashMap<String, String> = HashMap::new();
 
     if recursive {
         // When patterns are provided, only scan targeted directories instead of the entire root
@@ -1677,6 +1836,8 @@ async fn list_device_files_for_sync(
         // Use find + stat in one command per scan_dir. Each output line is self-contained
         // using '|' as delimiter: size|mtime|type|full_path
         // This avoids the fragile batch-stat approach where one failed stat misaligns all subsequent entries.
+        // Lines streamed so far across all scan_dirs, for the live "items found" count
+        let mut listed_before: u32 = 0;
         for scan_dir in &scan_dirs {
             let escaped_scan_dir = scan_dir.replace("'", "'\\''");
             let find_stat_command = format!(
@@ -1684,14 +1845,31 @@ async fn list_device_files_for_sync(
                 escaped_scan_dir
             );
 
-            let output = shell
+            let (mut rx, _child) = shell
                 .command(&adb_cmd)
                 .args(["-s", &device_id, "shell", &find_stat_command])
-                .output()
-                .await
+                .spawn()
                 .map_err(|e| format!("Failed to list device files: {}", e))?;
 
-            let stdout = String::from_utf8_lossy(&output.stdout);
+            // Stream stdout instead of waiting for the whole listing, so the UI can show a live count
+            let mut stdout_bytes: Vec<u8> = Vec::new();
+            let mut dir_lines: u32 = 0;
+            while let Some(event) = rx.recv().await {
+                match event {
+                    CommandEvent::Stdout(chunk) => {
+                        dir_lines += count_newlines(&chunk);
+                        stdout_bytes.extend_from_slice(&chunk);
+                        reporter.report("phone", "listing", listed_before + dir_lines, None);
+                    }
+                    CommandEvent::Error(e) => return Err(format!("Failed to list device files: {}", e)),
+                    CommandEvent::Terminated(_) => break,
+                    _ => {}
+                }
+            }
+            listed_before += dir_lines;
+            reporter.report_final("phone", "listing", listed_before, None);
+
+            let stdout = String::from_utf8_lossy(&stdout_bytes);
 
             #[cfg(debug_assertions)]
             eprintln!("[sync] find+stat returned {} lines for {}", stdout.lines().count(), scan_dir);
@@ -1734,29 +1912,16 @@ async fn list_device_files_for_sync(
                     continue;
                 }
 
-                let md5_hash = if match_mode == "content" && !is_dir {
-                    let escaped_file = file_path.replace("'", "'\\''");
-                    let md5_cmd = format!("md5sum '{}' 2>/dev/null", escaped_file);
-                    let md5_output = shell
-                        .command(&adb_cmd)
-                        .args(["-s", &device_id, "shell", &md5_cmd])
-                        .output()
-                        .await
-                        .ok();
-                    md5_output.and_then(|o| {
-                        let out = String::from_utf8_lossy(&o.stdout).trim().to_string();
-                        out.split_whitespace().next().map(|s| s.to_string())
-                    })
-                } else {
-                    None
-                };
+                if !is_dir {
+                    full_paths.insert(rel_path.clone(), file_path.to_string());
+                }
 
                 result.push(FileMetadata {
                     relative_path: rel_path,
                     size,
                     modified_time: mtime,
                     is_directory: is_dir,
-                    md5_hash,
+                    md5_hash: None,
                 });
             }
         }
@@ -1782,7 +1947,10 @@ async fn list_device_files_for_sync(
             .filter_map(|line| parse_ls_line(line))
             .collect();
 
-        for entry in &entries {
+        let entry_total = entries.len() as u32;
+        for (index, entry) in entries.iter().enumerate() {
+            reporter.report("phone", "listing", index as u32 + 1, Some(entry_total));
+
             if is_sync_excluded(&entry.name) {
                 continue;
             }
@@ -1817,30 +1985,24 @@ async fn list_device_files_for_sync(
                 (entry.size.parse::<u64>().unwrap_or(0), 0)
             };
 
-            let md5_hash = if match_mode == "content" && !entry.is_directory {
-                let md5_cmd = format!("md5sum '{}' 2>/dev/null", escaped_file);
-                let md5_output = shell
-                    .command(&adb_cmd)
-                    .args(["-s", &device_id, "shell", &md5_cmd])
-                    .output()
-                    .await
-                    .ok();
-                md5_output.and_then(|o| {
-                    let out = String::from_utf8_lossy(&o.stdout).trim().to_string();
-                    out.split_whitespace().next().map(|s| s.to_string())
-                })
-            } else {
-                None
-            };
+            if !entry.is_directory {
+                full_paths.insert(entry.name.clone(), file_full_path.clone());
+            }
 
             result.push(FileMetadata {
                 relative_path: entry.name.clone(),
                 size,
                 modified_time: mtime,
                 is_directory: entry.is_directory,
-                md5_hash,
+                md5_hash: None,
             });
         }
+        reporter.report_final("phone", "listing", entry_total, Some(entry_total));
+    }
+
+    // Hash in a second pass, once the file count is known, so progress can show done / total
+    if match_mode == "content" {
+        hash_device_files(&app, &device_id, &mut result, &full_paths, reporter).await;
     }
 
     Ok(result)
@@ -2292,6 +2454,7 @@ fn filter_sync_actions(
 #[tauri::command]
 async fn preview_sync(
     app: tauri::AppHandle,
+    window: tauri::Window,
     device_id: String,
     options: SyncOptions,
 ) -> Result<SyncPreview, String> {
@@ -2306,14 +2469,16 @@ async fn preview_sync(
         eprintln!("[sync] recursive: {}", recursive);
     }
 
-    let local_files = list_local_files(options.local_path.clone(), recursive, options.match_mode.clone(), patterns.clone())?;
-    let device_files = list_device_files_for_sync(
+    let mut reporter = ScanReporter::new(window);
+    let local_files = scan_local_files(options.local_path.clone(), recursive, options.match_mode.clone(), patterns.clone(), &mut reporter)?;
+    let device_files = scan_device_files(
         app,
         device_id,
         options.device_path.clone(),
         recursive,
         options.match_mode.clone(),
         patterns,
+        &mut reporter,
     ).await?;
 
     #[cfg(debug_assertions)]
@@ -2392,14 +2557,16 @@ async fn execute_sync(
     // Force recursive when patterns contain path separators
     let recursive = options.recursive || patterns.iter().any(|p| p.contains('/'));
 
-    let local_files = list_local_files(options.local_path.clone(), recursive, options.match_mode.clone(), patterns.clone())?;
-    let device_files = list_device_files_for_sync(
+    let mut reporter = ScanReporter::new(window.clone());
+    let local_files = scan_local_files(options.local_path.clone(), recursive, options.match_mode.clone(), patterns.clone(), &mut reporter)?;
+    let device_files = scan_device_files(
         app.clone(),
         device_id.clone(),
         options.device_path.clone(),
         recursive,
         options.match_mode.clone(),
         patterns,
+        &mut reporter,
     ).await?;
 
     let actions = filter_sync_actions(
@@ -2425,7 +2592,7 @@ async fn execute_sync(
         .map(|a| a.size)
         .sum();
 
-    let mut success_count: u32 = 0;
+    let mut tally = SyncTally::default();
     let mut skip_count: u32 = 0;
     let mut error_count: u32 = 0;
     let mut errors: Vec<String> = Vec::new();
@@ -2623,7 +2790,7 @@ async fn execute_sync(
 
         match result {
             Ok(()) => {
-                success_count += 1;
+                tally.record_success(&action.action_type);
                 if action.action_type == "copy" || action.action_type == "update" {
                     completed_bytes += action.size;
                 }
@@ -2645,7 +2812,11 @@ async fn execute_sync(
     });
 
     Ok(SyncResult {
-        success_count,
+        success_count: tally.success_count,
+        copied_count: tally.copied_count,
+        updated_count: tally.updated_count,
+        renamed_count: tally.renamed_count,
+        deleted_count: tally.deleted_count,
         skip_count,
         error_count,
         errors,
@@ -3027,6 +3198,64 @@ mod tests {
         let actions = compute_sync_actions_by_content(&local, &device, &SyncDirection::PhoneToComputer, false);
         let filtered = filter_sync_actions(actions, false, true, false, false);
         assert!(filtered.is_empty());
+    }
+
+    // ========================
+    // SyncTally tests
+    // ========================
+
+    #[test]
+    fn test_tally_counts_each_action_type() {
+        let mut tally = SyncTally::default();
+        for t in ["copy", "copy", "copy", "update", "update", "rename", "delete"] {
+            tally.record_success(t);
+        }
+        assert_eq!(tally.copied_count, 3);
+        assert_eq!(tally.updated_count, 2);
+        assert_eq!(tally.renamed_count, 1);
+        assert_eq!(tally.deleted_count, 1);
+        assert_eq!(tally.success_count, 7);
+    }
+
+    #[test]
+    fn test_tally_success_count_equals_sum_of_types() {
+        let mut tally = SyncTally::default();
+        for t in ["copy", "update", "rename", "delete", "copy"] {
+            tally.record_success(t);
+        }
+        assert_eq!(
+            tally.success_count,
+            tally.copied_count + tally.updated_count + tally.renamed_count + tally.deleted_count
+        );
+    }
+
+    // ========================
+    // scan progress throttle tests
+    // ========================
+
+    #[test]
+    fn test_should_emit_first_report() {
+        assert!(should_emit_scan_progress(None, std::time::Instant::now(), Duration::from_millis(150)));
+    }
+
+    #[test]
+    fn test_should_not_emit_within_interval() {
+        let last = std::time::Instant::now();
+        let now = last + Duration::from_millis(50);
+        assert!(!should_emit_scan_progress(Some(last), now, Duration::from_millis(150)));
+    }
+
+    #[test]
+    fn test_should_emit_after_interval() {
+        let last = std::time::Instant::now();
+        let now = last + Duration::from_millis(150);
+        assert!(should_emit_scan_progress(Some(last), now, Duration::from_millis(150)));
+    }
+
+    #[test]
+    fn test_count_newlines() {
+        assert_eq!(count_newlines(b""), 0);
+        assert_eq!(count_newlines(b"a|b\nc|d\ne"), 2);
     }
 
     #[test]

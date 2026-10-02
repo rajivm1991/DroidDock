@@ -69,6 +69,13 @@ interface SyncPreview {
   rename_count: number;
 }
 
+interface ScanProgress {
+  side: "computer" | "phone";
+  phase: "listing" | "hashing";
+  done: number;
+  total: number | null;
+}
+
 interface SyncProgress {
   current_file: string;
   completed_count: number;
@@ -79,6 +86,10 @@ interface SyncProgress {
 
 interface SyncResult {
   success_count: number;
+  copied_count: number;
+  updated_count: number;
+  renamed_count: number;
+  deleted_count: number;
   skip_count: number;
   error_count: number;
   errors: string[];
@@ -112,6 +123,19 @@ interface FileRowProps {
 }
 
 // Helper function to format bytes into human-readable format
+function formatElapsed(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function describeScan(p: ScanProgress): string {
+  if (p.phase === "hashing") {
+    return `Hashing ${p.done.toLocaleString()} / ${(p.total ?? 0).toLocaleString()} files`;
+  }
+  return p.total !== null
+    ? `${p.done.toLocaleString()} / ${p.total.toLocaleString()} items scanned`
+    : `${p.done.toLocaleString()} items scanned`;
+}
+
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';
   const k = 1024;
@@ -596,6 +620,8 @@ function App() {
   const [syncPreviewing, setSyncPreviewing] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
+  const [syncScan, setSyncScan] = useState<Partial<Record<ScanProgress["side"], ScanProgress>>>({});
+  const [syncScanElapsed, setSyncScanElapsed] = useState(0);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [syncStep, setSyncStep] = useState<"config" | "preview" | "progress" | "result">("config");
   const [syncMatchMode, setSyncMatchMode] = useState<"filename" | "content">("filename");
@@ -606,6 +632,17 @@ function App() {
   const [showSaveSyncInput, setShowSaveSyncInput] = useState(false);
   const [showAdvancedSync, setShowAdvancedSync] = useState(false);
   const [saveSyncName, setSaveSyncName] = useState("");
+
+  // Scanning covers both the preview and the pre-transfer scan inside execute, until the first transfer progress arrives
+  const syncScanning = syncPreviewing || (syncing && syncProgress === null);
+
+  useEffect(() => {
+    if (!syncScanning) return;
+    const started = Date.now();
+    setSyncScanElapsed(0);
+    const timer = setInterval(() => setSyncScanElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, [syncScanning]);
 
   // Check if ADB is available on startup
   useEffect(() => {
@@ -2251,6 +2288,42 @@ function App() {
     }
   }
 
+  // Live scan status for both sides, shown while previewing and during the scan that precedes a sync
+  function renderSyncScan() {
+    const sides: { key: ScanProgress["side"]; label: string }[] = [
+      { key: "computer", label: "Computer" },
+      { key: "phone", label: "Phone" },
+    ];
+    return (
+      <div className="sync-scan-panel">
+        <div className="sync-progress-file">Scanning folders. Large folders can take a while.</div>
+        {sides.map(({ key, label }) => {
+          const p = syncScan[key];
+          return (
+            <div key={key} className="sync-scan-row">
+              <div className="sync-progress-stats">
+                <span>{label}</span>
+                <span>{p ? describeScan(p) : "Waiting..."}</span>
+              </div>
+              {p?.phase === "hashing" && (
+                <div className="sync-progress-bar">
+                  <div
+                    className="sync-progress-bar-fill"
+                    style={{ width: `${p.total ? (p.done / p.total) * 100 : 0}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+        <div className="sync-progress-stats">
+          <span>Elapsed</span>
+          <span>{formatElapsed(syncScanElapsed)}</span>
+        </div>
+      </div>
+    );
+  }
+
   // Sync handlers
   function handleOpenSyncDialog() {
     setSyncDevicePath(currentPath);
@@ -2294,7 +2367,11 @@ function App() {
   async function handlePreviewSync() {
     if (!syncLocalPath || !syncDevicePath || !selectedDevice) return;
     setSyncPreviewing(true);
+    setSyncScan({});
     setError("");
+    const unlistenScan = await listen<ScanProgress>("sync-scan-progress", (event) => {
+      setSyncScan((prev) => ({ ...prev, [event.payload.side]: event.payload }));
+    });
     try {
       // Include any pattern currently typed in the input field
       const patterns = syncPatternInput.trim()
@@ -2326,6 +2403,7 @@ function App() {
       setError(`Sync preview failed: ${err}`);
     } finally {
       setSyncPreviewing(false);
+      unlistenScan();
     }
   }
 
@@ -2334,9 +2412,13 @@ function App() {
     setSyncing(true);
     setSyncStep("progress");
     setSyncProgress(null);
+    setSyncScan({});
 
     const unlisten = await listen<SyncProgress>("sync-progress", (event) => {
       setSyncProgress(event.payload);
+    });
+    const unlistenScan = await listen<ScanProgress>("sync-scan-progress", (event) => {
+      setSyncScan((prev) => ({ ...prev, [event.payload.side]: event.payload }));
     });
 
     try {
@@ -2364,6 +2446,7 @@ function App() {
     } finally {
       setSyncing(false);
       unlisten();
+      unlistenScan();
     }
   }
 
@@ -3572,7 +3655,9 @@ function App() {
               <>
                 <h3>Folder Sync</h3>
 
-                <div className="sync-form">
+                {syncPreviewing && renderSyncScan()}
+
+                <div className={`sync-form ${syncPreviewing ? "sync-form-hidden" : ""}`}>
                   {savedSyncs.length > 0 && (
                     <div className="sync-form-group">
                       <label>Saved Syncs</label>
@@ -3986,7 +4071,7 @@ function App() {
                       </div>
                     </>
                   )}
-                  {!syncProgress && <p>Starting sync...</p>}
+                  {!syncProgress && (Object.keys(syncScan).length > 0 ? renderSyncScan() : <p>Starting sync...</p>)}
                 </div>
               </>
             )}
@@ -3999,6 +4084,21 @@ function App() {
                     <span>Successful</span>
                     <span>{syncResult.success_count}</span>
                   </div>
+                  {(
+                    [
+                      ["copy", "Copied", syncResult.copied_count],
+                      ["update", "Updated", syncResult.updated_count],
+                      ["rename", "Renamed", syncResult.renamed_count],
+                      ["delete", "Deleted", syncResult.deleted_count],
+                    ] as const
+                  )
+                    .filter(([, , count]) => count > 0)
+                    .map(([type, label, count]) => (
+                      <div key={type} className="sync-result-stat sync-result-sub">
+                        <span className={`action-badge ${type}`}>{label}</span>
+                        <span>{count}</span>
+                      </div>
+                    ))}
                   {syncResult.skip_count > 0 && (
                     <div className="sync-result-stat">
                       <span>Skipped</span>
