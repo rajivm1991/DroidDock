@@ -1,6 +1,6 @@
 # DroidDock
 
-Browse, download, and manage your Android phone's files from your Mac — no cables-and-folders dance, no cloud upload required.
+Transfer files between an Android phone and a Mac over a USB cable. The phone and This Mac stay open together, and a copy can go either way. Nothing is uploaded to a cloud.
 
 🌐 **[Visit DroidDock Website](https://rajivm1991.github.io/DroidDock/)**
 
@@ -12,98 +12,99 @@ Browse, download, and manage your Android phone's files from your Mac — no cab
 [![Homebrew](https://img.shields.io/badge/Homebrew-cask-orange?style=flat&logo=homebrew)](https://github.com/rajivm1991/DroidDock)
 [![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=flat&logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/rajivm1991)
 
-**You don't need to know anything about Android development to use this.** [Download DroidDock](#step-1-install-droiddock), then follow the 5-minute [First Time Setup](#first-time-setup-5-minutes) below.
+**You don't need a technical background.** [Get the app](#get-the-app), open it, and follow the screen.
 
-## First Time Setup (5 minutes)
+## How fast is a copy?
 
-You only need to do this once. After that, just plug in your phone and open the app.
+**Your phone's USB-C port sets the top speed.** On current phones that rating is often **5 or 10 Gb/s**, and **20 Gb/s** when the phone says so. Many phones are still **USB 2.0**, even with a USB-C plug. DroidDock uses whatever that port and the cable can do. Your Mac's port is faster than the phone's, so the Mac is not the holdup.
 
-### Step 1: Install DroidDock
+**5, 10, and 20 Gb/s are a ceiling, not the speed you will see.** The copy is shown in MB/s, and it lands lower. One large video is the fair test. A folder of photos is slower, because each photo has to start on its own.
 
-**Option A — Homebrew** (if you're comfortable with Terminal):
+| The phone's USB-C port | Ceiling | A large video often copies at |
+| --- | --- | --- |
+| USB 2.0 | about 50 MB/s | about 20–40 MB/s |
+| 5 Gb/s | about 500 MB/s | often about 100–300 MB/s |
+| 10 Gb/s | about 1,200 MB/s | higher, and still under 1,200 MB/s |
+| 20 Gb/s, only if the phone says so | about 2,400 MB/s | higher, and still under 2,400 MB/s |
+
+**Why the copy sits under that ceiling**
+
+- Part of the rating is used by USB itself, before your file moves.
+- The phone and the Mac also spend a moment agreeing on each file. That is still much faster than a Wi-Fi, Bluetooth, or File transfer copy.
+- The phone's storage often cannot fill the whole connection on a long copy.
+
+**Faster than Wi-Fi, Bluetooth, or File transfer.** Those are the usual ways to move files to a Mac, and they stop early. File transfer mode on a Mac often stays around 20–40 MB/s. DroidDock uses the USB cable through ADB (Android Debug Bridge), Google's own way for a computer to talk to an Android phone.
+
+**The cable in the box is often the slow part.** A cable can say 60W or 100W and still be built for charging, not for fast data. Check the phone's port — USB 2.0, 5, 10, or 20 Gb/s — and use a cable marked for that same data speed. Plug the phone straight into the Mac. A cheap hub can drop the copy back to USB 2.0 speeds, about 20–40 MB/s.
+
+## Get the app
+
+**Homebrew**
 
 ```bash
 brew tap rajivm1991/droiddock
 brew install --cask droiddock
 ```
 
-**Option B — Direct download** (easiest if you're not):
+**Or download** the latest `.dmg` from [Releases](https://github.com/rajivm1991/DroidDock/releases/latest), and drag DroidDock into Applications. If macOS says the app is damaged, see [that note](#macos-says-droiddock-is-damaged) below.
 
-1. Download the latest `.dmg` from the [Releases page](https://github.com/rajivm1991/DroidDock/releases/latest)
-2. Open the DMG and drag **DroidDock** into your **Applications** folder
-3. Open DroidDock from Applications. If macOS says it's "damaged and can't be opened", see [Gatekeeper warning](#macos-says-droiddock-is-damaged) below — this is normal for apps not distributed through the App Store, and DroidDock is safe.
+**Then open it.** The first screen installs ADB (Android Debug Bridge), Google's USB tool, or lets you point at it. With no phone connected, the phone side shows USB debugging steps for your brand. Plug in, tap Allow, and the phone appears next to This Mac. You do this once.
 
-### Step 2: Install ADB
+**USB debugging is safe.** It does not root the phone, void the warranty, or put the phone on the internet. Turn it off later in Developer options.
 
-DroidDock talks to your phone through **ADB (Android Debug Bridge)** — Google's own official tool for connecting a computer to an Android device. DroidDock is a friendly interface on top of it; it doesn't replace or bypass anything.
-
-```bash
-brew install android-platform-tools
-```
-
-Don't have Homebrew? Install it first from [brew.sh](https://brew.sh), or grab ADB manually from [Android Platform Tools](https://developer.android.com/tools/releases/platform-tools) — see [Prerequisites](#prerequisites) for manual setup.
-
-### Step 3: Enable USB Debugging on your phone
-
-This is an Android setting that's hidden by default. It tells your phone to trust and allow computer connections.
-
-1. Open **Settings** → **About phone**
-2. Find **Build number** and tap it **7 times** — you'll see "You are now a developer!"
-3. Go back to **Settings** → **System** → **Developer options** (location varies slightly by phone brand)
-4. Enable **USB debugging**
-
-Worried this is risky? See [Is USB Debugging safe?](#is-usb-debugging-safe) below.
-
-### Step 4: Connect your phone
-
-1. Plug your phone into your Mac with a USB cable
-2. On your phone, a prompt appears: **"Allow USB debugging?"** — tap **Allow** (check "Always allow from this computer" to skip this next time)
-3. Open DroidDock — your phone should appear in the device dropdown within a few seconds
-
-**Done!** Select your device and start browsing.
-
-## New to Android development terms?
-
-### Is USB Debugging safe?
-
-Yes. USB debugging is Android's official developer interface — the same one Android Studio and every Android tool uses. Enabling it does **not** root your phone, void your warranty, or expose your phone to the internet. It only allows a computer you've physically connected and explicitly approved (via the "Allow USB debugging?" prompt) to communicate with your device. You can turn it off anytime afterward in **Developer options**.
-
-### What is ADB?
-
-ADB (Android Debug Bridge) is a command-line tool made by Google that lets a computer talk to an Android device — list files, install apps, view logs, etc. DroidDock uses it under the hood so you get a normal file-browser window instead of typing commands.
-
-### Do I need to redo this setup every time?
-
-No. Once ADB is installed and you've checked "Always allow" on the debugging prompt, just plug in your phone and open DroidDock — no setup required.
-
-### Does DroidDock collect my data?
-
-No. DroidDock does not collect or transmit any personal data. All communication stays between your Mac and your phone over the USB cable.
+**DroidDock does not collect your files.** The copy stays on the cable between the Mac and the phone.
 
 ## Features
 
-- **📱 Device Detection**: Automatically detects connected Android devices and shows their model name
-- **📂 File Browsing**: Navigate through your Android device's file system with an intuitive interface
-- **👁️ Multiple View Modes**: Choose between Table, Grid, or Column (Miller) view with keyboard shortcuts
-- **🖼️ File Preview**: View images and text files without downloading - press Space for quick preview or double-click
-- **🔁 Folder Sync**: Sync entire folders between Mac and Android — filter by file pattern, exclude system files, preserve timestamps. Compare files by name and date, or by content (MD5) to detect renamed files, and toggle copy, update, rename and delete independently. Preview shows exactly what will change before anything runs
-- **🔍 File Search**: Search for files by name with case-insensitive matching and recursive search
-- **🗑️ File Deletion**: Delete files and folders with confirmation dialogs and safety checks
-- **📥 File Download**: Download files and entire folders from device to Mac, with per-download conflict handling
-- **📤 File Upload**: Upload files from Mac to device via floating action button
-- **✅ Multi-Select**: Select multiple files with click, Ctrl/Cmd+click, and Shift+click range selection
-- **🖼️ Thumbnails**: Automatic thumbnail generation for images and videos with lazy loading
-- **🏠 Smart Breadcrumbs**: Clean navigation with "Internal storage" labels and arrow separators
-- **👁️ Hidden Files Toggle**: Show or hide dot files with a single click
-- **📊 File Information**: View file types, permissions, sizes, and modification dates
-- **💾 Storage Info**: Real-time storage usage display in VSCode-style status bar
-- **🎯 Contextual Actions**: File actions (download/delete) appear in a slide-up bar when files are selected
-- **⌨️ Keyboard Shortcuts**: Full keyboard navigation with arrow keys, view switching, and file operations
-- **🎨 Appearance**: Light, Dark, or Sync with System — settings modal opens with the gear icon or Cmd+,
-- **🛠️ Smart ADB Detection**: Automatically finds ADB in common installation locations
-- **⚙️ Custom ADB Path**: Set a custom ADB path if it's not automatically detected
+**Device detection.** A connected phone shows up on its own, with its model name.
 
-## Screenshots
+**File browsing.** The phone and This Mac stay open together. A pale wash marks the side your shortcuts use.
+
+**List, Icons, and Columns.** These are the table, grid, and column views. Each side has its own. List sorts from the Name, Size, and Date headers. Cmd+1, Cmd+2, and Cmd+3 switch them.
+
+**File preview.** On the phone, Space previews the focused file, and double-click previews a file in List or Icons. Arrow keys move to the next file. Space or Escape closes the preview.
+
+**Folder sync.** Sync a whole folder between the Mac and the phone. Filter by pattern, skip system files, and keep timestamps. Compare by name and date, or by file content (MD5) to notice renames. Turn copy, update, rename, and delete on or off. A preview lists what will change before anything runs.
+
+**File search.** The filter box narrows the open folder to names that contain what you type, ignoring case. Search subfolders looks through the folders inside it.
+
+**File deletion.** Delete on the file menu or the bar above the list asks first, and critical system folders are blocked. The Delete key goes to the parent folder. On the phone, Cmd+Delete does not delete.
+
+**Copy from the phone.** Copy a file or a whole folder to the Mac folder that is open. If the name exists, skip, replace, keep both, or ask each time. Folders can merge or be replaced.
+
+**Copy to the phone.** The same copy, the other way. Drag between the panes, or drop a file from Finder onto the phone side. In Columns that drop has to land on the Open column. A drop on This Mac is refused. The question returns until you check Don't show again.
+
+**Transfer queue.** Overall and per-file progress, with pause, cancel, and retry. A replace keeps the existing file until the new copy finishes.
+
+**Multi-select.** Click, Cmd+click, and Shift+click. Cmd+A selects everything visible on the active side. Selecting one side clears the other.
+
+**Thumbnails.** Photos and videos can show a preview in Icons, on the phone and on This Mac. With thumbnails on, Icons can zoom larger, and that size is remembered.
+
+**Breadcrumbs.** The path uses plain names, including Internal storage, and you can click a step to go there.
+
+**Hidden files.** Show or hide names that start with a dot, from Settings or Cmd+Shift+.
+
+**File information.** List shows kind, size, and date.
+
+**Storage.** The status bar has a meter for the phone and one for This Mac. A selection size adds up files.
+
+**Actions for the selection.** When something is selected, a bar offers Copy, and on the phone also Preview, Rename, and Delete.
+
+**Rename and new folder.** Rename one phone item from the pencil, the menu, or Cmd+Return. List edits the name in the row. Icons and Columns ask in a dialog. New folder works on either side.
+
+**Place marks and history.** Shortcuts for common folders and your own. A shortcut hides when that folder is missing. Back and forward on each side. After you go up, the folder you left stays selected.
+
+**USB debugging by brand.** With no phone connected, the phone side shows the steps for the brand and software you pick.
+
+**Keyboard shortcuts.** Arrow keys, view switching, and file actions follow the active side. Cmd+/ opens the list in the app.
+
+**Appearance.** Light, dark, or match the Mac, from the gear icon or Cmd+,. Settings also covers thumbnails, how folders open, the phone's start folder, and the tour.
+
+**ADB setup.** DroidDock looks for ADB in the usual places. The setup screen can install it, or you can choose the `adb` program or the folder that contains it.
+
+## Pictures
+
+**These are the previous single window.** The app now shows the phone and This Mac together. New pictures are still to be taken.
 
 ![Download Options](docs/screenshots/folder-download-options.png)
 
@@ -139,59 +140,81 @@ _Full keyboard navigation with a helpful reference_
 
 ## Using DroidDock
 
-Once setup is complete:
+**Click a row to select it.** There are no checkboxes. Cmd+click toggles one more. Shift+click selects a range. Cmd+A selects everything visible on the active side. A selection on one side clears the other.
 
-- **Single-click** a file or folder to select it
-- **Double-click** a folder to open it, or a file to preview it (images, text files)
-- **Press Space** to quick-preview the focused file without changing selection
-- Use **breadcrumb navigation** or the **↑ Up** button to go back
-- **Switch Views**: Use view toggle buttons or keyboard shortcuts (Cmd+1/2/3) to switch between Table, Grid, or Column view
-- Open **Settings** (gear icon or Cmd+,) to toggle hidden files, thumbnails, and appearance
-- Click **Refresh** to reload the device list
-- **Upload Files**: Click the floating action button (bottom-right) to upload files to current directory
-- **File Actions**: Select files or folders to reveal the contextual action bar with Download and Delete options
+**Double-click a folder to open it.** Return does too. Settings can switch that to a single click. Double-click stays the default. In List or Icons, double-click a file to preview it.
 
-### Search for Files
+**Press Space** to preview the focused file on the phone, without changing which side is active. Press Space again, or Escape, to close it. Arrow keys move through files while the preview is open.
 
-- Type in the **search bar** to find files by name (case-insensitive)
-- Check **All subdirectories** to search recursively through all folders
-- Click **Search** or press Enter to execute the search
-- Search results show full file paths
-- Click **Clear** to exit search mode
+**Go back** with the path breadcrumbs, the Back button, Cmd+[, or the Delete key. The folder you left stays selected.
 
-### Select & Delete Files
+**Switch views** with the List, Icons, and Columns buttons, or Cmd+1, Cmd+2, and Cmd+3, on the active side.
 
-- **Click row** to select files (no more checkboxes!)
-- **Ctrl/Cmd + Click**: Toggle individual files for multi-select
-- **Shift + Click**: Select a range of files between two clicks
-- **Ctrl/Cmd + A**: Select all visible files
-- Press **Delete** or **Backspace** key to delete selected files
-- Confirm deletion in the dialog that appears
-- The app prevents deletion of critical system directories
+**Settings** (the gear, or Cmd+,) covers hidden files, thumbnails, appearance, how folders open, the phone's start folder, and the tour.
 
-## Keyboard Shortcuts
+**Look for phones** reloads the phone list. Refresh on a pane reloads the folder that is open.
 
-DroidDock supports these keyboard shortcuts for faster navigation and file management:
+**Copy to the other side** from the bar above the list, the file menu, or Cmd+D. Cmd+C remembers the selection. Cmd+V on the other side pastes into the folder open there. Cmd+V on the same side does not copy. Drag between the panes. A Finder drop has to land on the phone side.
 
-| Shortcut                | Action                                                            |
-| ----------------------- | ----------------------------------------------------------------- |
-| `Ctrl/Cmd + F`          | Focus search bar                                                  |
-| `Ctrl/Cmd + A`          | Select all visible files                                          |
-| `Ctrl/Cmd + 1`          | Switch to Table view                                              |
-| `Ctrl/Cmd + 2`          | Switch to Grid view                                               |
-| `Ctrl/Cmd + 3`          | Switch to Column view                                             |
-| `Ctrl/Cmd + =/-`        | Zoom in/out (Grid view only)                                      |
-| `Cmd + ,`               | Open settings                                                     |
-| `Cmd + I`               | Open folder sync dialog                                           |
-| `Cmd + U`               | Open upload file picker                                           |
-| `Arrow Keys`            | Navigate between files (Up/Down in table, all directions in grid) |
-| `Space`                 | Quick-preview focused file (or close preview)                     |
-| `Enter`                 | Open focused folder or execute search                             |
-| `Delete` or `Backspace` | Delete selected files (shows confirmation dialog)                 |
-| `Escape`                | Clear selection or close dialogs                                  |
-| **In Preview Mode**     |                                                                   |
-| `Arrow Keys`            | Navigate to next/previous file                                    |
-| `Escape` or `Space`     | Close preview                                                     |
+**The bar above the list** is where Copy, and on the phone Preview, Rename, and Delete, show up once something is selected.
+
+### Search
+
+**Filter this folder** narrows the open folder as you type. Matching ignores case.
+
+**Search subfolders** looks through the folders inside the open one.
+
+Escape in the filter returns to the file list.
+
+### Select and delete
+
+**Click, Cmd+click, and Shift+click** select, as above.
+
+**Delete on the menu or the bar** removes the selection after you confirm. Critical system folders are blocked.
+
+**The Delete key goes to the parent folder.** It does not remove files. On the phone, Cmd+Delete does not delete either.
+
+**Columns.** Up and down move without opening. Right opens the highlighted folder. Left goes back one column.
+
+**Rename one phone item** with the pencil, the menu, or Cmd+Return.
+
+## Keyboard shortcuts
+
+Cmd+/ opens this same list in the app. Shortcuts follow the active side.
+
+| Shortcut | Action |
+| --- | --- |
+| `Cmd + F` | Focus the filter on the active side |
+| `Cmd + A` | Select all visible files on the active side |
+| `Cmd + 1` | List view (the table) |
+| `Cmd + 2` | Icons view (the grid) |
+| `Cmd + 3` | Columns view |
+| `Cmd + +` / `Cmd + -` | Zoom Icons in or out. Zoom goes larger while thumbnails are on |
+| `Cmd + ,` | Open settings |
+| `Cmd + I` | Open folder sync |
+| `Cmd + D` | Copy the selection now into the folder open on the other side |
+| `Cmd + C` | Remember the selection. A tip shows Cmd+V on the other side |
+| `Cmd + V` | Paste into the folder open on the other side |
+| `Ctrl + Tab` | Switch the active side |
+| `Cmd + [` / `Cmd + ]` | Back / forward on the active side |
+| `Ctrl + Return` | Open the menu for the focused or selected item |
+| `↑` `↓` while that menu is open | Move among menu items |
+| `Return` while that menu is open | Run the highlighted item |
+| `↑` `↓` | List: move and select. Shift adds to the selection |
+| `↑` `↓` `←` `→` | Icons: move and select. Shift adds to the selection |
+| `↑` `↓` | Columns: move and select without opening a folder |
+| `→` / `←` | Columns: open the highlighted folder / go back one column |
+| `Return` | Open the focused folder |
+| `Space` | Preview the focused file on the phone, or close the preview |
+| `Cmd + Return` | Rename the focused file or folder on the phone |
+| `Delete` or `Backspace` | Go to the parent folder |
+| `Escape` | Close the tip or menu, leave rename, close a dialog, then clear the selection. In the filter, return to the file list |
+| `Cmd + T` | Toggle thumbnails |
+| `Cmd + Shift + .` | Toggle hidden files |
+| `Cmd + /` | Show this list |
+| **While a preview is open** | |
+| `Arrow keys` | Next or previous file |
+| `Escape` or `Space` | Close the preview |
 
 ## Troubleshooting
 
@@ -207,25 +230,11 @@ Then launch the app normally. Future releases will be code-signed to eliminate t
 
 ### ADB Not Found
 
-If the app can't find ADB:
-
-1. **Install ADB** via Homebrew:
-
-   ```bash
-   brew install android-platform-tools
-   ```
-
-2. **Or set a custom path**:
-   - The app will show a setup screen
-   - Enter the full path to your ADB executable (e.g., `/opt/homebrew/bin/adb`)
-   - Click "Set Path"
+Open DroidDock. The setup screen can install ADB, or you can choose the `adb` program or the folder that contains it.
 
 ### Device Not Showing Up
 
-- Ensure USB debugging is enabled on your device (see [Step 3](#step-3-enable-usb-debugging-on-your-phone))
-- Check if device is recognized: `adb devices`
-- Try clicking the "Refresh" button in the app
-- You may need to accept the debugging authorization prompt on your device
+With no phone connected, the phone side shows USB debugging steps for your brand. Plug in with a data cable, unlock the phone, and tap Allow. Then use Look for phones.
 
 ### "Not Supported on This Mac" Error
 
@@ -246,7 +255,7 @@ DroidDock requires **macOS 10.15 (Catalina) or later** and supports both Intel a
 
 ### Can't Navigate Into Folders
 
-- **Double-click** the folder row to open it
+- **Double-click** the folder row to open it (or single-click, if Settings is set that way)
 - Wait for the loading indicator to finish
 - Note: A single click only selects the folder — it won't open it
 
@@ -330,16 +339,13 @@ DroidDock automatically checks these common ADB locations:
 ```
 droiddock/
 ├── src/                 # React frontend
-│   ├── App.tsx         # Main application component
-│   ├── App.css         # Styles
-│   └── main.tsx        # Entry point
-├── src-tauri/          # Rust backend
-│   ├── src/
-│   │   ├── lib.rs      # ADB commands and core logic
-│   │   └── main.rs     # Application entry point
-│   ├── Cargo.toml      # Rust dependencies
-│   └── tauri.conf.json # Tauri configuration
-└── package.json        # Node.js dependencies
+│   ├── App.tsx          # Shell: panes, shortcuts, and overlays
+│   ├── components/      # Phone pane, This Mac pane, dialogs, transfer UI
+│   ├── hooks/           # Listing, copy, sync, and setup behavior
+│   └── styles/          # Shared light and dark theme
+├── src-tauri/           # Rust backend
+│   └── src/             # adb, phone, transfer, sync, media, local, setup
+└── package.json
 ```
 
 ### Available ADB Commands
@@ -431,11 +437,8 @@ DroidDock uses an automated release workflow:
 
 Potential features for future releases:
 
-- 💾 **Drag & Drop** - Drag files to/from the app
-- 📱 **Multiple Devices** - View multiple devices simultaneously
-- 📊 **Sortable Columns** - Sort files by name, size, date, etc.
-- 🎬 **Video Preview** - Preview video files in-app
-- 🔄 **Two-Way Sync** - Bidirectional sync with conflict resolution
+- **Several phones at once** — the window shows one phone beside This Mac
+- **Video playback** — Icons can show a video preview; playing the video in the window is still ahead
 
 ### Contributing
 

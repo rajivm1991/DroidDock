@@ -1,0 +1,460 @@
+/* Shared modal chrome, replace confirmation, preview, and the keyboard-shortcuts dialog. */
+
+
+/* Modal dialog */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-dialog {
+  background-color: var(--panel);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 24px;
+  min-width: 400px;
+  max-width: 500px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.modal-dialog h3 {
+  margin: 0 0 16px 0;
+  font-size: 20px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.modal-dialog p {
+  margin: 0 0 12px 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.warning-text {
+  color: #f44336 !important;
+  font-weight: 600;
+}
+
+.download-options-dialog {
+  max-width: 420px;
+}
+
+.download-options-summary {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 4px 0 14px;
+}
+
+.conflict-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.conflict-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  align-items: baseline;
+  padding: 8px 10px;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.conflict-option.active {
+  border-color: var(--accent);
+}
+
+.conflict-option-label {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.conflict-option-hint {
+  grid-column: 2;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.conflict-option:hover {
+  background: var(--accent-soft);
+}
+
+.conflict-section-label {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted, #888);
+}
+
+.transfer-conflict-dialog {
+  max-width: 460px;
+  max-height: min(80vh, 640px);
+  overflow-y: auto;
+}
+
+.conflict-section-label {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted, #888);
+}
+
+.transfer-conflict-dialog {
+  max-width: 460px;
+  max-height: min(80vh, 640px);
+  overflow-y: auto;
+}
+
+/* Replace-folders confirmation: permanent-loss lines must stand out in both themes. */
+.conflict-warning {
+  color: #b42318;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .conflict-warning {
+  color: #ffcdd2;
+}
+
+.transfer-conflict-dialog .confirm-delete-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.reveal-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+/* Buttons inside modal action rows share one size regardless of origin class */
+.modal-actions .download-btn {
+  padding: 10px 20px;
+}
+
+.cancel-btn,
+.confirm-btn,
+.confirm-delete-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.cancel-btn {
+  background-color: #f0f0f0;
+  color: #666;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background-color: #e0e0e0;
+}
+
+.confirm-btn {
+  background-color: var(--accent);
+  color: #fff;
+}
+
+.confirm-btn:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.confirm-delete-btn {
+  background-color: #f44336;
+  color: white;
+}
+
+.confirm-delete-btn:hover:not(:disabled) {
+  background-color: #d32f2f;
+}
+
+.cancel-btn:disabled,
+.confirm-btn:disabled,
+.confirm-delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Preview Modal Styles */
+.preview-dialog {
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  padding: 12px; /* Reduced from 24px */
+}
+
+/* Portrait images - taller, narrower modal */
+.preview-dialog.preview-portrait {
+  width: 70vw;
+  max-width: 900px;
+  height: 85vh;
+}
+
+/* Landscape images - wider, shorter modal */
+.preview-dialog.preview-landscape {
+  width: 80vw;
+  max-width: 1200px;
+  height: 70vh;
+}
+
+/* Square images - balanced modal */
+.preview-dialog.preview-square {
+  width: 75vw;
+  max-width: 1000px;
+  height: 75vh;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px; /* Reduced from 16px */
+  padding-bottom: 6px; /* Reduced from 12px */
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.preview-header h3 {
+  margin: 0;
+  font-size: 14px; /* Reduced from 18px */
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 500px;
+}
+
+.preview-header .close-btn {
+  background: none;
+  border: none;
+  font-size: 20px; /* Reduced from 28px */
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  width: 20px; /* Reduced from 28px */
+  height: 20px; /* Reduced from 28px */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.preview-header .close-btn:hover {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.preview-content {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  min-height: 0; /* Allow flexbox to shrink */
+}
+
+.preview-two-column {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.preview-image-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.preview-no-preview {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  color: var(--text-secondary);
+  font-size: 15px;
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 4px;
+  display: block;
+}
+
+.preview-info-panel {
+  width: 290px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  background-color: #f8f8f8;
+  border-radius: 6px;
+  overflow-y: auto;
+}
+
+.preview-info-panel h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #b0b0b0;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.info-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-value {
+  font-size: 13px;
+  color: #333;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.preview-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  color: #666;
+  gap: 12px;
+  width: 100%;
+}
+
+.preview-text-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.preview-text {
+  background-color: #f8f8f8;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 16px;
+  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: #333;
+  max-height: calc(90vh - 250px);
+  user-select: text; /* Allow text selection in preview */
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+.preview-info {
+  color: #999;
+  font-size: 12px;
+  text-align: center;
+  margin: 0;
+}
+
+.preview-btn {
+  background-color: #b0b0b0;
+  color: white;
+}
+
+.preview-btn:hover:not(:disabled) {
+  background-color: #666666;
+}
+
+/* Keyboard Shortcuts Dialog */
+.shortcuts-dialog {
+  min-width: 600px;
+  max-width: 800px;
+}
+
+.shortcuts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  margin-bottom: 24px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.shortcuts-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.shortcut-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  gap: 16px;
+}
+
+.shortcut-keys {
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  font-size: 12px;
+  background-color: #f5f5f5;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  white-space: nowrap;
+  min-width: 80px;
+  text-align: center;
+}
+
+.shortcut-desc {
+  flex: 1;
+  font-size: 14px;
+  color: #333;
+}

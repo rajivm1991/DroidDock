@@ -1,0 +1,891 @@
+/* File glyphs, row menus, Mac folder access, and the shared List table. Includes the view-mode button letter-spacing that sat between Settings and the glyphs. */
+
+
+.view-switch {
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+/*
+ * Icons view showed tiny DIR/XML chips in huge empty tiles. SVG glyphs use the
+ * same language at sm/md/lg across List, Columns, and Icons; currentColor tracks
+ * theme and accent. Emoji and icon fonts are not used here.
+ */
+.file-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--accent);
+  vertical-align: middle;
+  line-height: 0;
+}
+
+.file-mark svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.file-mark--folder {
+  color: var(--muted);
+}
+
+.file-mark--sm {
+  width: 18px;
+  height: 18px;
+}
+
+.file-mark--md {
+  width: 40px;
+  height: 40px;
+}
+
+.file-mark--lg {
+  width: 56px;
+  height: 56px;
+}
+
+.file-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+
+/*
+ * Copy labels name the open folder on the other pane (“Copy to Downloads on
+ * This Mac”), so the menu is wider than the old 160px that clipped the text.
+ */
+.file-menu {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  max-width: min(320px, calc(100vw - 24px));
+  padding: 4px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+}
+
+.file-menu button {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  white-space: normal;
+  line-height: 1.3;
+}
+
+.file-menu button:hover,
+.file-menu button.is-highlighted {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.file-menu button.file-menu-primary {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.file-menu button.file-menu-primary:hover,
+.file-menu button.file-menu-primary.is-highlighted {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.transfer-slow {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.transfer-history {
+  position: fixed;
+  right: 12px;
+  bottom: 40px;
+  z-index: 110;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(360px, calc(100vw - 24px));
+}
+
+.transfer-history-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid color-mix(in srgb, #c62828 45%, var(--panel-border));
+  border-left: 4px solid #c62828;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px color-mix(in srgb, #000 12%, transparent);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.transfer-history-copy {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.transfer-history-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.transfer-history-status {
+  color: #c62828;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.transfer-history-retry {
+  flex-shrink: 0;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.transfer-history-dismiss {
+  flex-shrink: 0;
+  border: 1px solid var(--panel-border);
+  background: var(--track);
+  color: var(--text);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.transfer-history-dismiss:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.mac-pane {
+  border-left: 1px solid var(--panel-border);
+}
+
+/*
+ * Grant access and Open Full Disk Access settings share the same filled accent
+ * button in the blocked-folder card so the section reads as one family of
+ * controls, not outline versus fill. To phone in pane chrome already uses
+ * primary and is unchanged here.
+ */
+.mac-pane-error button,
+.mac-pane-permission-actions button,
+.mac-pane-permission-fda button {
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text);
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mac-pane-primary {
+  border-color: var(--accent) !important;
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+
+.mac-pane-permission-fda {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--panel-border);
+}
+
+.mac-pane-permission-fda ol {
+  margin: 8px 0 10px 18px;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/*
+ * Phone .file-list had extra top/side pad so headers sat lower than Mac. Both
+ * wraps share the same padding; tables start flush under chrome. overflow:auto
+ * scrolls vertically for many rows and horizontally when Name min-width plus
+ * content columns exceed the pane (see .explorer-table column rules).
+ */
+.file-list,
+.mac-pane-list-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 8px 8px;
+  background: var(--explorer-canvas);
+}
+
+.mac-explorer-table {
+  margin-top: 0;
+}
+
+.mac-pane-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  color: var(--muted);
+  font-size: 12px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.mac-pane-permission {
+  margin: 12px;
+  padding: 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: var(--track);
+}
+
+.mac-pane-permission h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.mac-pane-permission p {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.mac-pane-permission-path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px !important;
+  word-break: break-all;
+  color: var(--text) !important;
+}
+
+.mac-pane-permission-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/*
+ * Empty phone pane holds the USB debugging guide. It fills the phone column
+ * width; pickers and the steps card react to the pane’s own size via a
+ * container query, not the window.
+ */
+.connect-empty {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 28px 24px 36px;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+  color: var(--text);
+  container-type: inline-size;
+  container-name: connect-empty;
+}
+
+.connect-empty h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+
+.connect-empty ol,
+.usb-debug-steps ol {
+  margin: 0 0 12px 18px;
+  padding: 0;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.usb-debug-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 0;
+  width: 100%;
+  min-width: 0;
+}
+
+.usb-debug-lede {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+  max-width: 42rem;
+}
+
+.usb-debug-picker-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.usb-debug-pickers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px 12px;
+  width: 100%;
+}
+
+.usb-debug-pickers.is-brand-only {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.usb-debug-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.usb-debug-field-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.usb-debug-field select {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.usb-debug-field select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.usb-debug-steps {
+  padding: 14px 16px 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: var(--track);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.usb-debug-steps h3 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 10px;
+  color: var(--text);
+}
+
+.usb-debug-steps-skin {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.usb-debug-notes {
+  margin: 0;
+  padding: 10px 0 0 18px;
+  border-top: 1px solid var(--panel-border);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.usb-debug-steps.is-unsupported ol {
+  color: var(--text);
+}
+
+.usb-debug-disclaimer {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+  max-width: 42rem;
+}
+
+/*
+ * After the Settings guide: cable + Allow + refresh. Bordered like the steps
+ * card so it reads as its own section, not a dangling muted paragraph.
+ */
+.connect-empty-next {
+  margin-top: 20px;
+  padding: 16px 16px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  background: var(--panel);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.connect-empty-next-kicker {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.connect-empty-next h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.connect-empty-next-copy {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+  max-width: 42rem;
+}
+
+.connect-empty-next-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--track);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.connect-empty-next-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+@container connect-empty (max-width: 420px) {
+  .usb-debug-pickers:not(.is-brand-only) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.loading {
+  padding: 40px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+/*
+ * Fixed Kind/Size/Date widths wasted space and clipped long names. Content
+ * columns hug their text (soft max); Name takes leftover space with a floor;
+ * when the sum exceeds the pane, the list wrap scrolls horizontally. Same rules
+ * on phone and Mac List tables. Columns are not user-resizable; Icons and
+ * Columns views are unchanged.
+ */
+table,
+.explorer-table {
+  border-collapse: collapse;
+  margin-top: 0;
+  table-layout: auto;
+  width: max-content;
+  min-width: 100%;
+}
+
+.explorer-table thead,
+thead {
+  background-color: var(--explorer-canvas);
+  position: sticky;
+  top: 0;
+}
+
+.explorer-table th,
+th {
+  padding: 6px 8px;
+  text-align: left;
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 12px;
+  border-bottom: 1px solid var(--panel-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--explorer-canvas);
+}
+
+.explorer-table th + th,
+th + th {
+  border-left: 1px solid var(--panel-border);
+}
+
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+th.sortable:hover {
+  background-color: var(--row-hover);
+  color: var(--text);
+}
+
+th.sortable.active {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.explorer-table .col-name {
+  min-width: 180px;
+  width: 100%;
+}
+
+.explorer-table .col-name-inner {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.explorer-table .col-name .file-name {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.explorer-table .col-name .file-mark,
+.explorer-table .col-name .thumbnail {
+  flex: 0 0 auto;
+}
+
+.explorer-table .col-name .rename-input {
+  flex: 1 1 auto;
+  min-width: 120px;
+  max-width: 100%;
+}
+
+/* width:1% + nowrap ≈ shrink-wrap to content; soft max only on Kind/Size.
+ * Date has no max-width: phone ls dates are “YYYY-MM-DD HH:MM” and a 16ch
+ * cap (plus padding) always clipped them. Mac local dates vary similarly.
+ */
+.explorer-table .col-kind,
+.explorer-table .col-size,
+.explorer-table .col-date {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.explorer-table .col-kind,
+.explorer-table .col-size {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.explorer-table .col-kind {
+  max-width: 12ch;
+}
+
+.explorer-table .col-size {
+  max-width: 9ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.explorer-table th.col-size {
+  text-align: right;
+}
+
+.explorer-table .col-date {
+  max-width: none;
+  font-variant-numeric: tabular-nums;
+}
+
+tbody tr {
+  border-bottom: none;
+}
+
+.explorer-table tbody tr.file-row,
+tbody tr.file-row {
+  cursor: default;
+  background-color: var(--row-base);
+  border-bottom: 1px solid var(--row-line);
+}
+
+.explorer-table tbody tr.file-row:nth-child(even),
+tbody tr.file-row:nth-child(even) {
+  background-color: var(--row-alt);
+}
+
+.explorer-table tbody tr.file-row:hover,
+.explorer-table tbody tr.file-row.selected,
+tbody tr.file-row:hover,
+tbody tr.file-row.selected {
+  background-color: var(--accent-soft);
+}
+
+.explorer-table td,
+td {
+  padding: 5px 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.explorer-table td.col-kind,
+.explorer-table td.col-size {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.explorer-table td.col-date {
+  white-space: nowrap;
+}
+
+.directory {
+  font-weight: 400;
+}
+
+.directory:hover td {
+  background-color: inherit;
+}
+
+.file {
+  cursor: default;
+}
+
+.file-name {
+  display: inline;
+  vertical-align: middle;
+}
+
+.file-name.clickable {
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.file-name.clickable:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.kind-cell,
+.size-cell,
+.date-cell {
+  color: var(--text-secondary);
+}
+
+.rename-input {
+  display: inline-block;
+  padding: 4px 8px;
+  border: 2px solid #b0b0b0;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  background-color: white;
+  min-width: 200px;
+  max-width: 400px;
+  user-select: text; /* Allow text selection in input */
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+.rename-input:focus {
+  border-color: #666666;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.icon {
+  margin-right: 7px;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.thumbnail {
+  width: 18px;
+  height: 18px;
+  object-fit: cover;
+  border-radius: 3px;
+  margin-right: 7px;
+  vertical-align: middle;
+  border: 1px solid #e0e0e0;
+}
+
+.permissions {
+  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-size: 12px;
+  color: #666;
+}
+
+.empty {
+  text-align: center;
+  color: #999;
+  padding: 40px !important;
+  font-style: italic;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  background-color: #ffffff;
+  color: #333;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s;
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+.search-input:hover {
+  border-color: #b0b0b0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #999;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.clear-search-btn {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 13px;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  background-color: #ffffff;
+  color: #666;
+}
+
+.clear-search-btn:hover {
+  background-color: #f5f5f5;
+  border-color: #b0b0b0;
+  color: #333;
+}
+
+.download-btn,
+.delete-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.download-btn {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.download-btn:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.download-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.delete-btn {
+  background-color: #f44336;
+  color: white;
+}
+
+.delete-btn:hover:not(:disabled) {
+  background-color: #d32f2f;
+}
+
+.delete-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Search info */
+.search-info {
+  padding: 8px 20px;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+  color: #666;
+  font-size: 14px;
+}
+
+/* File selection */
+tbody tr.selected {
+  background-color: var(--accent-soft) !important;
+  border-left: 3px solid var(--accent);
+}
+
+tbody tr.selected td {
+  color: #333;
+}
+
+tbody tr.file-row.focused {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+tbody tr {
+  cursor: pointer;
+}

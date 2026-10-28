@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS shows these strings when DroidDock touches Desktop, Documents,
+  Downloads, or a removable volume. Tauri merges this file into the app's
+  Info.plist on a Mac build, and embeds the same keys in the dev binary.
+  The file has to stay named Info.plist beside tauri.conf.json. Grant access
+  and Full Disk Access are still how a folder is opened; these strings are
+  only the system prompt text.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>DroidDock shows your Downloads folder next to your phone so you can move files between them.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>DroidDock shows your Documents folder next to your phone so you can move files between them.</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>DroidDock shows your Desktop folder next to your phone so you can move files between them.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>DroidDock can open folders on external drives next to your phone when you choose them.</string>
+</dict>
+</plist>

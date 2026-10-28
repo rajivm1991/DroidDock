@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Rename from the selection strip**: A pencil button beside Preview and Delete renames the one selected phone item. List edits the name in the row; Icons and Columns ask in a small dialog
+- **USB debugging by brand**: When no phone is connected, the phone pane shows Brand and Software dropdowns with steps for that pair
+- **Phone and This Mac together**: Both panes stay open so you can browse the phone and your Mac in one window
+- **Active pane shortcuts**: The active side uses a light wash over the whole pane so `Ctrl+Tab` is obvious. `Cmd+[` / `Cmd+]` go back and forward on that side. `Ctrl+Return` opens the file menu for the selection. Arrow keys, view mode, filter focus, and parent-folder shortcuts follow the active pane
+- **Columns keyboard**: Up and down move and select without opening. Right opens the highlighted folder; left goes back a column — same idea as Finder Columns
+- **Return opens folders**: Return opens the focused folder. On Phone, Cmd+Return renames. Arrow keys select as they move so Cmd+C works without a mouse click. Ctrl+Return opens the menu on that same item; ↑↓ move among menu items and Return runs the highlight
+- **Delete goes up**: Delete (the Mac backspace key) opens the parent folder. Cmd+↑ was removed so arrow chords stay for browsing only
+- **Back keeps the folder**: After Delete, history back, or breadcrumb to a parent, the folder you left stays focused and selected on Phone and This Mac. Entering a folder clears focus/selection so a child index cannot fight that restore. Columns keep the opened folder highlighted and scrolled on mouse open, →, ←, and back/forward
+- **Escape in filter**: Escape in the Phone or This Mac filter blurs the field and returns focus to the pane instead of leaving fullscreen
+- **Cmd+. stays in the window**: Cmd+. no longer leaves fullscreen (that also stopped keyboard shortcuts until a click in the file list)
+- **Cmd+C / Cmd+V copy**: `Cmd+C` remembers the selection on the active pane and shows a short tip above the status bar. `Cmd+V` on the other pane copies into the folder that is open there. `Cmd+D` still copies immediately
+- **Copy either way**: Copy from the action strip above the list, the file menu, or `Cmd+D`. Drag between the phone pane and the This Mac pane inside DroidDock. A separate drop from Finder (the Mac's own file window) copies into the open phone folder only when it lands on the phone pane. In Columns view it has to land on the Open column. A drop on This Mac from Finder is refused. The confirm question comes back on later drops until Don't show again is checked. Selecting files on one side clears the other
+- **Transfer queue**: Overall and per-file progress, with pause, cancel, and retry. Before files move, you can skip, replace, keep both, or ask for each item, and you can merge or replace matching folders
+- **Quick tour**: A one-time tour of the two panes. Settings can show it again
+- **Place marks**: Shortcuts for common phone and Mac folders, plus your own. A shortcut hides when that folder is missing
+- **Folder history**: Back and forward on each pane. Refresh reloads the folder you have open
+- **Filter and search**: On the phone and This Mac, the filter box narrows the open folder as you type, to names that contain that text. Search subfolders is a separate button that looks through the folders inside the open folder
+- **Phone start folder**: Settings can open Camera, Screenshots, Downloads, or Internal storage when a phone connects
+- **How folders open**: Choose single-click or double-click. Double-click stays the default
+- **New folder**: Create a folder in the open phone or Mac directory
+- **Phone connection setup**: If Android Debug Bridge (ADB), the tool DroidDock uses to talk to the phone, is missing, setup can install it and show each step, or you can choose the `adb` program or the folder that contains it
+- **As-is notice**: The first launch asks you to agree that DroidDock, and any install it runs, is provided as is. That screen comes before the library and before phone-tool setup, including when those tools are already installed. Later launches skip it. The install screen keeps the same agreement and starts with it checked
+- **Icons on This Mac**: Photo and video files can show previews in Icons view
+
+### Changed
+- **README**: The GitHub page leads with a short speed section: the phone's USB-C rating (often 5 or 10 Gb/s, 20 Gb/s when the phone says so) is a ceiling, everyday copies are in MB/s, and a charger cable is often the slow part. Getting the app is a short install note, because the setup screen and the empty phone pane already walk through ADB and USB debugging. Features, Using DroidDock, and the shortcut table keep the earlier capabilities that are still in the app, with the names and keys they use now, including copy either way, the queue, and Delete going up a folder. The pictures are still the previous single-window layout
+- **Icons zoom with thumbnails**: With Show Thumbnails on, Icons view can zoom past the usual largest size. Those larger steps stay within the preview image and still fit the pane. Turning thumbnails off returns Icons to that usual largest size, and turning them on again restores the larger size. The toggle and that size are remembered the next time DroidDock opens
+- **Phone delete**: Cmd+Delete no longer deletes files on the phone. Delete stays on the file menu and the selection strip
+- **Top bar**: The phone picker, Look for phones, Sync, and Settings stay in the top bar. Place marks and List, Icons, and Columns sit on each pane
+- **List sorting**: The Name, Size, and Date column headers set the sort
+- **Status bar**: Separate storage meters for the phone and This Mac. The selection size adds up files and notes when folders are left out of that total
+
+### Fixed
+- **Phone search previews**: Searching the phone in Icons no longer treats a folder as the photo being previewed (that failed with “Is a directory”). Clearing the search no longer leaves a folder, such as Android, showing that photo until Refresh
+- **Rename in Columns and Icons**: Right-click Rename and Cmd+Return now work in Columns and Icons (they did nothing there). Both ask for the new name in a small dialog; List still edits in the row. In Columns the right-clicked column is the one renamed
+- **Emulated crumb**: Clicking `emulated` in the phone path opens `/storage/emulated/0` instead of an adb permission error, and Back skips the unlistable folder
+- **Breadcrumb clears selection**: Clicking any path crumb on Phone or This Mac clears the selection and hides the action strip; the folder you left stays highlighted but is not selected
+- **Columns keep Open in view**: Arrow keys and select-only clicks no longer leave the Open column scrolled off the edge, and a drill-in scroll is no longer cancelled partway on Phone and This Mac
+- **Columns after copy or delete**: Copy, delete, rename, sync, and New folder refresh Columns as well as List and Icons, so the open folder’s names stay current in every view
+- **Escape in shortcut help**: Escape closes the Keyboard Shortcuts dialog without leaving fullscreen; a later Escape can still leave fullscreen when nothing is open
+- **Mac privacy prompts**: Desktop, Documents, Downloads, and removable-volume explanations are part of the Mac app. A normal build includes them
+- **Empty start folder**: A missing or empty start folder opens Internal storage
+- **Phone disconnect**: Unplugging the phone clears the phone list. If Android Debug Bridge (ADB) is no longer available after setup, the setup screen returns
+- **Folder reload**: Reloading a phone folder keeps your place in Columns view
+- **Mac folder access**: When macOS blocks a folder, This Mac shows Allow access
+- **Multi-select menu**: Right-clicking a selected item keeps the rest of the selection
+- **Columns copy target**: Copies and drops use the open column. An empty storage folder continues into internal storage so the open folder stays usable
+- **Second copy**: Starting another copy while a conflict question or scan is still open is refused, so the first copy stays in place
+- **Replace and cancel**: A replace keeps the existing file until the new copy finishes, so cancel or failure leaves the original in place. Cancel also works while a transfer is still preparing
+
 ## [0.6.0] - 2026-10-02
 
 ### Added
@@ -264,7 +315,10 @@ npm run release:prepare 0.2.0
 
 ---
 
-[Unreleased]: https://github.com/rajivm1991/DroidDock/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/rajivm1991/DroidDock/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/rajivm1991/DroidDock/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/rajivm1991/DroidDock/compare/v0.4.1...v0.5.0
+[0.4.1]: https://github.com/rajivm1991/DroidDock/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/rajivm1991/DroidDock/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/rajivm1991/DroidDock/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/rajivm1991/DroidDock/compare/v0.2.1...v0.2.2

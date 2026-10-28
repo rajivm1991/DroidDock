@@ -619,9 +619,10 @@
       <div class="eyebrow">For macOS · Free &amp; Open Source</div>
       <h1>Your Android's files,<br /><em>right on your Mac.</em></h1>
       <p class="dek">
-        DroidDock is a native file manager for your Android phone — browse,
-        preview, sync, and download over a USB cable. No cloud account, no
-        cables-and-folders dance.
+        Transfer files between an Android phone and a Mac over USB. The phone
+        and This Mac stay open together, and a copy uses Android Debug Bridge
+        (ADB) so a USB 3 phone and cable can move a large file faster than
+        MTP, Wi-Fi, or Bluetooth.
       </p>
       <div class="cta">
         <a id="download-btn" class="btn primary" href="#download"
@@ -648,12 +649,12 @@
       <div class="window">
         <img
           src="screenshots/folder-download-options.png"
-          alt="DroidDock showing download options for an Android folder"
+          alt="An earlier DroidDock window, before the phone and This Mac sat side by side"
         />
       </div>
       <p class="caption">
-        Real DroidDock window — recursive folder download with conflict
-        handling, mid‑transfer.
+        An earlier DroidDock window. The app now shows the phone and This Mac
+        together. A new picture is still to be taken.
       </p>
     </div>
 
@@ -661,18 +662,19 @@
       <div class="features" id="features">
         <div class="feature">
           <div class="icon">⇄</div>
-          <h3>Folder Sync</h3>
+          <h3>Phone and This Mac</h3>
           <p>
-            Mirror whole folders between Mac and Android with pattern filters
-            and timestamp preservation.
+            Both sides stay open. Copy either way, with a queue you can pause
+            or cancel and a question before an existing file is replaced.
           </p>
         </div>
         <div class="feature">
           <div class="icon">⌘</div>
-          <h3>Keyboard-First</h3>
+          <h3>USB speed, via ADB</h3>
           <p>
-            Table, grid, and column views, all fully navigable without touching
-            the trackpad.
+            ADB rides the USB cable. A USB 3 phone and a USB 3 cable can move
+            a large file faster than MTP, Wi-Fi, or Bluetooth. The Mac's
+            Thunderbolt port is not the limit.
           </p>
         </div>
         <div class="feature">
@@ -713,9 +715,10 @@
           <div>
             <h3>Install ADB</h3>
             <p>
-              DroidDock talks to your phone through ADB, Google's own official
-              tool for connecting a computer to an Android device. Open Terminal
-              and run:
+              DroidDock talks to your phone through ADB (Android Debug Bridge),
+              Google's tool for a computer to reach an Android phone over USB.
+              That is what lets a copy use the phone's USB data rate instead of
+              MTP, Wi-Fi, or Bluetooth. Open Terminal and run:
             </p>
             <code class="cmd">brew install android-platform-tools</code>
             <p>
@@ -790,10 +793,17 @@
         <div class="faq-item">
           <h3>What is ADB?</h3>
           <p>
-            ADB (Android Debug Bridge) is a command-line tool made by Google
-            that lets a computer talk to an Android device — list files, install
-            apps, view logs, etc. DroidDock uses it under the hood so you get a
-            normal file-browser window instead of typing commands.
+            ADB (Android Debug Bridge) is Google's tool for a computer to talk
+            to an Android phone over USB. DroidDock uses it so a copy can run
+            at the phone's USB-C speed. That rating is often 5 or 10 Gb/s, and
+            20 Gb/s when the phone says so. Those numbers are a ceiling, not
+            the speed you see. A large video on a 5 Gb/s phone is often about
+            100–300 MB/s. A 10 or 20 Gb/s phone can go higher, and still stays
+            under about 1,200 or 2,400 MB/s, because USB keeps some of the
+            connection for itself, each file takes a moment to start, and the
+            phone's storage cannot always keep up. A charger cable is often
+            built for charging, so a copy can sit around 20–40 MB/s. Your Mac's
+            port is not the slow part.
           </p>
         </div>
 

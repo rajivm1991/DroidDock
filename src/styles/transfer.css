@@ -1,0 +1,641 @@
+/* Transfer queue above the status bar, including its dark-theme status colors. */
+
+
+/* Transfer queue
+   Sits above the status bar so a copy stays visible while the file list
+   scrolls. It is not a modal: the browser behind it keeps working.
+   Dismiss is hidden while the job is running (see TransferPanel). */
+/*
+ * “Uploading to phone” and other panel copy could vanish in dark mode when a
+ * child inherited a light-theme gray or only set background. Every label and
+ * control sets foreground from tokens; hover keeps the same text color.
+ */
+.transfer-panel {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: 40px;
+  z-index: 120;
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px 8px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 10px 28px color-mix(in srgb, #000 14%, transparent);
+}
+
+/* Keep chrome sized to content so only the file list scrolls + fades. */
+.transfer-panel-header,
+.transfer-panel > .transfer-bar,
+.transfer-stats,
+.transfer-slow,
+.transfer-current,
+.transfer-sole-error {
+  flex-shrink: 0;
+}
+
+.transfer-panel-success {
+  border-color: color-mix(in srgb, #2e7d32 55%, var(--panel-border));
+  border-left: 4px solid #2e7d32;
+  animation: transfer-finish-in 0.35s ease;
+}
+
+.transfer-panel-failed {
+  border-color: color-mix(in srgb, #c62828 55%, var(--panel-border));
+  border-left: 4px solid #c62828;
+  animation: transfer-finish-in 0.35s ease;
+}
+
+.transfer-panel-cancelled {
+  border-left: 4px solid var(--muted);
+}
+
+@keyframes transfer-finish-in {
+  from {
+    transform: translateY(8px);
+    opacity: 0.65;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.transfer-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.transfer-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/*
+ * Live status text ("Copying…" → "Finished") used to resize the pill and shove
+ * the title. The pill keeps a fixed width; the label may ellipsize rather than
+ * sizing to content.
+ */
+.transfer-status-pill {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: 5.75rem;
+  padding: 2px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--track);
+  color: var(--text);
+}
+
+.transfer-status-pill.is-running {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.transfer-status-pill.is-cancelled {
+  background: var(--track);
+  color: var(--muted);
+}
+
+.transfer-status-pill.is-success {
+  background: color-mix(in srgb, #2e7d32 18%, var(--panel));
+  color: #1b5e20;
+}
+
+.transfer-status-pill.is-failed {
+  background: color-mix(in srgb, #c62828 16%, var(--panel));
+  color: #b71c1c;
+}
+
+.transfer-dismiss-btn {
+  border-color: var(--accent) !important;
+  background: var(--accent) !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+
+.transfer-dismiss-btn:hover {
+  filter: brightness(1.08);
+  color: #fff !important;
+}
+
+[data-theme="dark"] .transfer-status-pill.is-running {
+  color: #9ec9f5;
+}
+
+[data-theme="dark"] .transfer-status-pill.is-success {
+  background: color-mix(in srgb, #81c784 22%, var(--panel));
+  color: #c8e6c9;
+}
+
+[data-theme="dark"] .transfer-status-pill.is-failed {
+  background: color-mix(in srgb, #ef9a9a 18%, var(--panel));
+  color: #ffcdd2;
+}
+
+[data-theme="dark"] .transfer-history-status {
+  color: #ef9a9a;
+}
+
+/*
+ * Expand used to hide on the left icon stack. Marks stay decorative; Show/Hide
+ * files is a labeled button on the right (see .transfer-files-toggle).
+ */
+.transfer-marks-wrap {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+}
+
+/*
+ * HTML5 setDragImage needs a live DOM node; the default was the List/Icons/
+ * Columns row. This off-screen host holds the same transfer-marks stack for
+ * every view. Multi is larger than the panel header so rotated md glyphs are
+ * not clipped. It does not replace the floating drop-destination chip or enlarge
+ * the panel stack.
+ */
+.transfer-drag-ghost {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  pointer-events: none;
+  z-index: 99999;
+  overflow: visible;
+}
+
+.transfer-drag-ghost-inner {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.22);
+  color: var(--text);
+  overflow: visible;
+}
+
+.transfer-drag-ghost-inner.is-multi {
+  width: 5.75rem;
+  height: 5.75rem;
+  padding: 12px;
+  border-radius: 14px;
+}
+
+.transfer-marks--drag.transfer-marks--1 {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.transfer-marks--drag:not(.transfer-marks--1) {
+  width: 5rem;
+  height: 5rem;
+}
+
+.transfer-panel-single {
+  max-height: none;
+  padding-bottom: 12px;
+}
+
+.transfer-files-toggle {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 7.5rem;
+  padding: 4px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.transfer-files-toggle:hover {
+  filter: brightness(1.06);
+  color: var(--accent);
+}
+
+.transfer-files-toggle.is-open {
+  border-color: var(--panel-border);
+  background: transparent;
+  color: var(--text);
+}
+
+.transfer-files-toggle.is-open:hover {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  color: var(--text);
+  filter: none;
+}
+
+.transfer-files-toggle-chevron {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+}
+
+.transfer-files-toggle.is-open .transfer-files-toggle-chevron {
+  border-top: none;
+  border-bottom: 5px solid currentColor;
+}
+
+[data-theme="dark"] .transfer-files-toggle:not(.is-open) {
+  color: #9ec9f5;
+}
+
+.transfer-marks {
+  position: relative;
+  display: block;
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.transfer-marks--1 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.transfer-marks--1 .transfer-mark-slot {
+  position: static;
+}
+
+.transfer-mark-slot {
+  position: absolute;
+  display: flex;
+  line-height: 0;
+  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--panel) 80%, transparent));
+}
+
+.transfer-marks--2 .transfer-mark-slot--0 {
+  left: 0;
+  top: 1px;
+  z-index: 2;
+  transform: rotate(-12deg);
+}
+
+.transfer-marks--2 .transfer-mark-slot--1 {
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  transform: rotate(14deg);
+}
+
+.transfer-marks--3 .transfer-mark-slot--0 {
+  left: 0;
+  top: 0;
+  z-index: 3;
+  transform: rotate(-14deg);
+}
+
+.transfer-marks--3 .transfer-mark-slot--1 {
+  right: 1px;
+  top: 2px;
+  z-index: 2;
+  transform: rotate(10deg);
+}
+
+.transfer-marks--3 .transfer-mark-slot--2 {
+  left: 6px;
+  bottom: 0;
+  z-index: 1;
+  transform: rotate(-4deg);
+}
+
+.transfer-marks--4 .transfer-mark-slot--0 {
+  left: 0;
+  top: 0;
+  z-index: 4;
+  transform: rotate(-16deg);
+}
+
+.transfer-marks--4 .transfer-mark-slot--1 {
+  right: 0;
+  top: 1px;
+  z-index: 3;
+  transform: rotate(12deg);
+}
+
+.transfer-marks--4 .transfer-mark-slot--2 {
+  left: 2px;
+  bottom: 0;
+  z-index: 2;
+  transform: rotate(-6deg);
+}
+
+.transfer-marks--4 .transfer-mark-slot--3 {
+  right: 2px;
+  bottom: 1px;
+  z-index: 1;
+  transform: rotate(18deg);
+}
+
+.transfer-heading {
+  min-width: 0;
+  flex: 1;
+}
+
+.transfer-title {
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+.transfer-destination {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transfer-destination-sole {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.transfer-sole-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.transfer-sole-sep {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.transfer-sole-dest {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.transfer-sole-error {
+  font-size: 11px;
+  color: #b71c1c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-theme="dark"] .transfer-sole-error {
+  color: #ffcdd2;
+}
+
+/*
+ * Pause/Resume label swap and Cancel beside them shifted the header. Reserve a
+ * stable actions strip with shared min widths on buttons. Show/Hide files sits
+ * at the far right so the list control is obvious.
+ */
+.transfer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex-shrink: 0;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.transfer-actions button {
+  box-sizing: border-box;
+  min-width: 4.25rem;
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.transfer-actions button:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.transfer-bar {
+  height: 6px;
+  background: var(--track);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.transfer-bar-fill {
+  height: 100%;
+  width: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+  /* Compositor-friendly; motion comes from rAF smoothing, not CSS steps. */
+  transform-origin: left center;
+  transform: scaleX(0);
+  will-change: transform;
+}
+
+/*
+ * Percent, bytes, speed, and ETA strings change every tick and used to reflow
+ * the row. Each metric keeps a fixed width and tabular nums; the row may wrap
+ * by whole cells on a narrow window, but neighbors do not shove mid-transfer.
+ */
+.transfer-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.transfer-stat {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transfer-stat-pct {
+  width: 5.5rem;
+}
+
+.transfer-stat-bytes {
+  width: 11.5rem;
+}
+
+.transfer-stat-files {
+  width: 6.25rem;
+}
+
+.transfer-stat-speed {
+  width: 5.5rem;
+}
+
+.transfer-stat-elapsed,
+.transfer-stat-eta {
+  width: 7.25rem;
+}
+
+.transfer-current-name,
+.transfer-file-name {
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.transfer-current {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7.5rem 11rem;
+  gap: 8px;
+  align-items: center;
+}
+
+.transfer-current-meta {
+  box-sizing: border-box;
+  width: 11rem;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
+
+/*
+ * border-top on the scrolling ul rode away with the content; flex-grow also
+ * stretched the list shell to fill leftover panel height and left a large empty
+ * band under the last row. The divider pins on this shell; the shell sizes to
+ * the rows (flex-grow 0) and only shrinks when the panel max-height requires
+ * scrolling. Ideal bottom inset is the panel’s 8px padding, with no extra list
+ * padding or negative-margin hacks.
+ */
+.transfer-files-fade {
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-top: 1px solid var(--panel-border);
+}
+
+.transfer-files {
+  list-style: none;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.transfer-file {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 5.5rem 5rem 6.5rem;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 12px;
+}
+
+.transfer-file-size,
+.transfer-file-status {
+  box-sizing: border-box;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transfer-file-size {
+  width: 5.5rem;
+  text-align: right;
+}
+
+.transfer-file-status {
+  width: 6.5rem;
+}
+
+.transfer-file.is-failed .transfer-file-status {
+  color: #b42318;
+}
+
+[data-theme="dark"] .transfer-file.is-failed .transfer-file-status {
+  color: #ffcdd2;
+}
+
+.transfer-file.is-awaiting_conflict .transfer-file-status,
+.transfer-file.is-preparing .transfer-file-status {
+  color: var(--accent);
+}
+
+[data-theme="dark"] .transfer-file.is-awaiting_conflict .transfer-file-status,
+[data-theme="dark"] .transfer-file.is-preparing .transfer-file-status {
+  color: #9ec9f5;
+}
+
+.transfer-file-bar {
+  box-sizing: border-box;
+  width: 5rem;
+  height: 4px;
+  background: var(--track);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.transfer-file-bar span {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(0);
+}

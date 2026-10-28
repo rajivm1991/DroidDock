@@ -1,0 +1,230 @@
+/* Settings dialog layout. The view-mode button tweak stays in explorer-files.css because it followed this block. */
+
+
+/*
+ * Settings grew presets and start folder and felt like one undifferentiated
+ * stack. Sections with titles, hints, and spacing separate each job.
+ */
+.settings-dialog {
+  min-width: min(440px, 92vw);
+  max-width: 480px;
+  max-height: min(80vh, 720px);
+  overflow-y: auto;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.settings-dialog h3 {
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.settings-dialog-intro {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.settings-section {
+  padding: 18px 0;
+  border-top: 1px solid var(--panel-border);
+}
+
+.settings-section:first-of-type {
+  border-top: none;
+  padding-top: 8px;
+}
+
+.settings-section-title {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.settings-section-hint {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.45;
+  margin-bottom: 14px;
+}
+
+.settings-item-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+  max-width: 36rem;
+}
+
+/*
+ * Phone start folder is one control; label and hint beside the picker read
+ * denser than a full vertical stack in Settings.
+ */
+.settings-section-inline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px 20px;
+  flex-wrap: wrap;
+}
+
+.settings-section-inline .settings-section-copy {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.settings-section-inline .settings-section-hint {
+  margin-bottom: 0;
+}
+
+.settings-section-inline .settings-default-picker {
+  flex: 0 1 200px;
+  width: 200px;
+  max-width: 100%;
+  margin-top: 2px;
+}
+
+.settings-item {
+  padding: 0;
+  margin: 0;
+}
+
+.settings-item + .settings-item {
+  margin-top: 14px;
+}
+
+.settings-preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-preset-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--track);
+}
+
+.settings-preset-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-preset-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings-preset-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.settings-preset-remove {
+  flex-shrink: 0;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-preset-remove:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.settings-preset-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.settings-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  background: var(--track);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.settings-action-btn + .settings-action-btn {
+  margin-top: 8px;
+}
+
+.settings-action-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.settings-action-btn-chevron {
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.settings-action-btn:hover .settings-action-btn-chevron {
+  color: var(--accent);
+}
+
+.new-folder-dialog .new-folder-input {
+  width: 100%;
+  margin: 8px 0 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: var(--track);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.settings-default-picker {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+}
+
+.settings-default-picker .phone-picker-trigger {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  height: auto;
+  min-height: 34px;
+}
+
+.settings-default-picker .phone-picker-menu {
+  width: 100%;
+  max-width: none;
+  z-index: 60;
+}

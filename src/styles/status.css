@@ -1,0 +1,212 @@
+/* Status bar storage meters and the selection action strip above each file list. */
+
+
+/* Status bar */
+.status-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  background-color: var(--panel);
+  color: var(--text);
+  border-top: 1px solid var(--panel-border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 24px;
+  font-size: 12px;
+  z-index: 100;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+}
+
+.status-label {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/*
+ * A fixed 300px “Storage” slot left a dead gap when no phone was connected.
+ * Phone and This Mac meters size to content and omit when null.
+ */
+.storage-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.storage-text {
+  color: var(--text);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.storage-bar {
+  flex: 0 0 72px;
+  width: 72px;
+  height: 6px;
+  background-color: var(--track);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.storage-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease, background-color 0.3s ease;
+  border-radius: 4px;
+}
+
+/*
+ * Selection actions live above each pane’s list; solid green and red fought the
+ * blue accent chrome. Each pane always keeps a fixed-height slot (empty when
+ * idle) so the file list never jumps when selection changes. Copy uses
+ * --accent as primary; Delete is outline plus muted danger text, not a filled
+ * red pill. This strip does not reserve bottom window padding.
+ */
+.selection-action-strip {
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  min-height: 2.75rem;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--panel-border);
+  background: color-mix(in srgb, var(--accent-soft) 40%, var(--panel));
+}
+
+.selection-action-strip.is-empty {
+  background: var(--panel);
+  pointer-events: none;
+}
+
+.selection-action-btn {
+  box-sizing: border-box;
+  padding: 5px 11px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  white-space: nowrap;
+}
+
+/*
+ * Clear on --track read as disabled next to accent Copy. Match Preview (panel,
+ * border, and live text) so it looks clickable at rest.
+ */
+.selection-action-btn.clear-btn {
+  background-color: var(--panel);
+  border-color: var(--panel-border);
+  color: var(--text);
+}
+
+.selection-action-btn.clear-btn:hover {
+  background-color: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/*
+ * Preview and Delete sit as one group after Copy so icons are not split around
+ * the primary action. Tooltips and aria-label carry the name.
+ */
+.selection-action-icon-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 2px;
+  padding-left: 8px;
+  border-left: 1px solid var(--panel-border);
+}
+
+.selection-action-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.selection-action-icon {
+  display: block;
+}
+
+.selection-action-btn.preview-btn {
+  background-color: var(--panel);
+  color: var(--text);
+  border-color: var(--panel-border);
+}
+
+.selection-action-btn.preview-btn:hover:not(:disabled) {
+  background-color: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.selection-action-btn.preview-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.selection-action-btn.copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(100%, 28rem);
+  background-color: var(--accent);
+  color: #fff;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.25;
+}
+
+.selection-action-btn.copy-btn:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.selection-action-btn.copy-btn:disabled {
+  background-color: var(--track);
+  color: var(--muted);
+  cursor: not-allowed;
+  filter: none;
+}
+
+.selection-copy-dir {
+  flex-shrink: 0;
+  font-weight: 700;
+  opacity: 0.95;
+}
+
+.selection-copy-label {
+  min-width: 0;
+}
+
+.selection-action-btn.delete-btn {
+  background-color: transparent;
+  border-color: var(--panel-border);
+  color: var(--muted);
+}
+
+.selection-action-btn.delete-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, #c62828 45%, var(--panel-border));
+  background-color: color-mix(in srgb, #c62828 10%, var(--panel));
+  color: #b71c1c;
+}
+
+.selection-action-btn.delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
