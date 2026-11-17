@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-17
+
 Thanks to [PROSKEY](https://github.com/PROSKEY) for the phone-and-Mac window, copy either way, the transfer queue, and the setup and USB debugging screens (#63).
 
 ### Added
