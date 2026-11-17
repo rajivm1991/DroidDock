@@ -8,6 +8,7 @@ import { type ConflictMode, type ReplaceFolderPlan, type ConflictPromptState } f
 import { type TransferFile, type TransferJob } from "../../components/transfer/TransferPanel";
 import { type MismatchAction, type TransferConflictPolicy, type DestKind } from "../../lib/transferConflicts";
 import { invoke } from "@tauri-apps/api/core";
+import { isCancelledError, isTypeMismatchError } from "../../lib/transferErrors";
 import { type PerItemConflict } from "../../components/transfer/TransferConflictDialog";
 
 export interface UseTransferQueueArgs {
@@ -254,12 +255,12 @@ export function useTransferQueue({
         await transferOne(file, conflictModeArg);
       } catch (err) {
         const message = String(err);
-        if (message.includes("Cancelled") || transferControl.current.cancel) {
+        if (isCancelledError(message) || transferControl.current.cancel) {
           updateTransferFile(file.id, { status: "cancelled" });
           cancelRemainingRows();
           break;
         }
-        if (message.includes("Type mismatch")) {
+        if (isTypeMismatchError(message)) {
           let action: MismatchAction | null = surpriseApplyRest;
           if (!action) {
             updateTransferFile(file.id, { status: "awaiting_conflict" });
@@ -293,7 +294,7 @@ export function useTransferQueue({
             continue;
           } catch (retryErr) {
             const retryMessage = String(retryErr);
-            if (retryMessage.includes("Cancelled") || transferControl.current.cancel) {
+            if (isCancelledError(retryMessage) || transferControl.current.cancel) {
               updateTransferFile(file.id, { status: "cancelled" });
               cancelRemainingRows();
               break;
