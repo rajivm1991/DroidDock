@@ -76,7 +76,7 @@ pub(crate) fn local_path_kind(path: &std::path::Path) -> &'static str {
 
 
 /// Check Mac destination paths for name conflicts (cheap; no ADB).
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn check_local_destinations(paths: Vec<String>) -> Vec<DestConflict> {
     paths
         .into_iter()
@@ -91,7 +91,7 @@ pub(crate) fn check_local_destinations(paths: Vec<String>) -> Vec<DestConflict> 
 /// Replace-folder on This Mac must clear the existing folder before copy. Delete a file
 /// or directory tree on the Mac. Does not touch the phone or move to Trash (permanent
 /// remove, like overwrite).
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn remove_local_path(path: String) -> Result<(), String> {
     let p = std::path::Path::new(&path);
     if !p.exists() {
@@ -198,6 +198,57 @@ pub(crate) fn emit_transfer_progress(app: &tauri::AppHandle, transfer_id: &str, 
                 bytes,
                 total,
             },
+        );
+    }
+}
+
+
+/// Turns how an adb pull or push ended into Ok or a short error. `exit_code` is `None`
+/// when adb was killed by a signal or its event stream closed before it reported an exit,
+/// so the copy cannot be trusted.
+fn adb_exit_result(exit_code: Option<i32>, stderr: &str) -> Result<(), String> {
+    if exit_code != Some(0) {
+        if stderr.contains("does not exist") {
+            return Err("File not found".to_string());
+        } else if stderr.contains("Permission denied") {
+            return Err("Permission denied".to_string());
+        } else if stderr.contains("Read-only file system") {
+            return Err("Read-only file system".to_string());
+        }
+        let trimmed = stderr.trim();
+        if trimmed.is_empty() {
+            return Err("Transfer failed".to_string());
+        }
+        return Err(format!("Transfer failed: {}", trimmed));
+    }
+    Ok(())
+}
+
+
+#[cfg(test)]
+mod adb_exit_tests {
+    use super::adb_exit_result;
+
+    #[test]
+    fn exit_code_zero_is_success() {
+        assert_eq!(adb_exit_result(Some(0), ""), Ok(()));
+    }
+
+    #[test]
+    fn missing_exit_code_is_a_failure() {
+        let err = adb_exit_result(None, "").unwrap_err();
+        assert!(err.starts_with("Transfer failed"), "got: {err}");
+    }
+
+    #[test]
+    fn nonzero_exit_code_keeps_known_messages() {
+        assert_eq!(
+            adb_exit_result(Some(1), "adb: error: remote object '/x' does not exist"),
+            Err("File not found".to_string())
+        );
+        assert_eq!(
+            adb_exit_result(Some(1), "Permission denied"),
+            Err("Permission denied".to_string())
         );
     }
 }
@@ -317,21 +368,7 @@ pub(crate) async fn run_adb_with_progress(
         return Err("Cancelled".to_string());
     }
 
-    if exit_code.unwrap_or(0) != 0 {
-        let text = String::from_utf8_lossy(&stderr);
-        if text.contains("does not exist") {
-            return Err("File not found".to_string());
-        } else if text.contains("Permission denied") {
-            return Err("Permission denied".to_string());
-        } else if text.contains("Read-only file system") {
-            return Err("Read-only file system".to_string());
-        }
-        let trimmed = text.trim();
-        if trimmed.is_empty() {
-            return Err("Transfer failed".to_string());
-        }
-        return Err(format!("Transfer failed: {}", trimmed));
-    }
+    adb_exit_result(exit_code, &String::from_utf8_lossy(&stderr))?;
 
     let final_bytes = local_file
         .and_then(|path| fs::metadata(path).ok())

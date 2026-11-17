@@ -29,10 +29,95 @@ pub(crate) fn compute_local_md5(path: &std::path::Path) -> Option<String> {
 }
 
 
+/// Last line every phone listing command prints, so we can tell a finished scan from one
+/// cut short when the phone is unplugged or adb dies. `find` exits non-zero on harmless
+/// permission errors, so the exit status cannot be used for this.
+pub(crate) const SCAN_DONE_MARKER: &str = "__DROIDDOCK_SCAN_DONE__";
+
+
+/// Returns the listing with the marker line removed, or an error when the marker is
+/// missing and the listing may be partial. A partial list would make sync plan deletes
+/// for files that are still on the phone.
+pub(crate) fn require_scan_complete(stdout: &str) -> Result<&str, String> {
+    let trimmed = stdout.trim_end_matches(['\n', '\r']);
+    let (body, last_line) = match trimmed.rfind('\n') {
+        Some(i) => (&trimmed[..=i], &trimmed[i + 1..]),
+        None => ("", trimmed),
+    };
+    if last_line.trim_end_matches('\r') == SCAN_DONE_MARKER {
+        Ok(body)
+    } else {
+        Err("Listing the phone's files was interrupted before it finished (the phone may have been unplugged). Nothing was changed.".to_string())
+    }
+}
+
+
+#[cfg(test)]
+mod scan_completion_tests {
+    use super::{require_scan_complete, SCAN_DONE_MARKER};
+
+    #[test]
+    fn complete_listing_returns_lines_without_the_marker() {
+        let out = format!("10|1|regular file|/a\n20|2|directory|/b\n{}\n", SCAN_DONE_MARKER);
+        assert_eq!(
+            require_scan_complete(&out),
+            Ok("10|1|regular file|/a\n20|2|directory|/b\n")
+        );
+    }
+
+    #[test]
+    fn empty_folder_with_marker_is_a_complete_empty_listing() {
+        let out = format!("{}\n", SCAN_DONE_MARKER);
+        assert_eq!(require_scan_complete(&out), Ok(""));
+    }
+
+    #[test]
+    fn listing_cut_short_is_an_error() {
+        let err = require_scan_complete("10|1|regular file|/a\n20|2|dire").unwrap_err();
+        assert!(err.contains("interrupted"), "got: {err}");
+    }
+
+    #[test]
+    fn no_output_at_all_is_an_error() {
+        assert!(require_scan_complete("").is_err());
+    }
+
+    #[test]
+    fn marker_must_be_the_last_line() {
+        let out = format!("{}\n10|1|regular file|/a\n", SCAN_DONE_MARKER);
+        assert!(require_scan_complete(&out).is_err());
+    }
+}
+
+
+#[cfg(test)]
+mod sync_exclusion_tests {
+    use super::is_sync_excluded;
+
+    #[test]
+    fn in_progress_transfer_temp_files_are_excluded() {
+        assert!(is_sync_excluded(".photo.jpg.droiddock-1730000000000000000.part"));
+        assert!(is_sync_excluded(".IMG 001 (1).mp4.droiddock-42.part"));
+    }
+
+    #[test]
+    fn ordinary_files_and_similar_names_are_not_excluded() {
+        assert!(!is_sync_excluded("photo.jpg"));
+        assert!(!is_sync_excluded(".hidden-notes"));
+        assert!(!is_sync_excluded("movie.part"));
+        assert!(!is_sync_excluded("backup.droiddock-1.part"));
+    }
+}
+
+
 /// Returns true if a file/directory should be excluded from sync operations.
 pub(crate) fn is_sync_excluded(name: &str) -> bool {
     // macOS AppleDouble resource fork files (e.g. "._IMG001.jpg")
     if name.starts_with("._") {
+        return true;
+    }
+    // In-progress transfer temp file, `.name.droiddock-<nanos>.part` (see temp_sibling_name).
+    if name.starts_with('.') && name.ends_with(".part") && name.contains(".droiddock-") {
         return true;
     }
     matches!(
@@ -95,7 +180,7 @@ pub(crate) fn matches_any_pattern(rel_path: &str, patterns: &[String]) -> bool {
 
 
 // List files on the local Mac filesystem for sync
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn list_local_files(path: String, recursive: bool, match_mode: String, file_patterns: Vec<String>) -> Result<Vec<FileMetadata>, String> {
     scan_local_files(path, recursive, match_mode, file_patterns, &mut ScanReporter::none())
 }
@@ -331,8 +416,8 @@ pub(crate) async fn scan_device_files(
         for scan_dir in &scan_dirs {
             let escaped_scan_dir = scan_dir.replace("'", "'\\''");
             let find_stat_command = format!(
-                "find '{}' -mindepth 1 \\( -type f -o -type d \\) -exec stat -c '%s|%Y|%F|%n' {{}} + 2>/dev/null",
-                escaped_scan_dir
+                "find '{}' -mindepth 1 \\( -type f -o -type d \\) -exec stat -c '%s|%Y|%F|%n' {{}} + 2>/dev/null; echo {}",
+                escaped_scan_dir, SCAN_DONE_MARKER
             );
 
             let (mut rx, _child) = shell
@@ -356,10 +441,12 @@ pub(crate) async fn scan_device_files(
                     _ => {}
                 }
             }
-            listed_before += dir_lines;
+            // The marker line is not a file. If it is missing, the check below stops the scan.
+            listed_before += dir_lines.saturating_sub(1);
             reporter.report_final("phone", "listing", listed_before, None);
 
-            let stdout = String::from_utf8_lossy(&stdout_bytes);
+            let stdout_text = String::from_utf8_lossy(&stdout_bytes);
+            let stdout = require_scan_complete(&stdout_text)?;
 
             #[cfg(debug_assertions)]
             eprintln!("[sync] find+stat returned {} lines for {}", stdout.lines().count(), scan_dir);
@@ -420,7 +507,7 @@ pub(crate) async fn scan_device_files(
         result.dedup_by(|a, b| a.relative_path == b.relative_path);
     } else {
         // Flat listing: use ls -la and stat for mtime
-        let ls_command = format!("ls -la '{}'", escaped_path);
+        let ls_command = format!("ls -la '{}'; echo {}", escaped_path, SCAN_DONE_MARKER);
 
         let output = shell
             .command(&adb_cmd)
@@ -429,7 +516,8 @@ pub(crate) async fn scan_device_files(
             .await
             .map_err(|e| format!("Failed to list device files: {}", e))?;
 
-        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stdout_text = String::from_utf8_lossy(&output.stdout);
+        let stdout = require_scan_complete(&stdout_text)?;
         let entries: Vec<FileEntry> = stdout
             .lines()
             .filter(|line| !line.trim().is_empty())
