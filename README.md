@@ -204,3 +204,5 @@ MIT — see [LICENSE](LICENSE).
 
 Built with [Tauri](https://tauri.app/). Talks to the phone through `adb` from Google's [Android SDK Platform-Tools](https://developer.android.com/tools/releases/platform-tools),
 which DroidDock downloads but does not bundle.
+
+Thanks to [PROSKEY](https://github.com/PROSKEY) for the phone-and-Mac window, copy either way, the transfer queue, and the setup and USB debugging screens.

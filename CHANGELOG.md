@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Thanks to [PROSKEY](https://github.com/PROSKEY) for the phone-and-Mac window, copy either way, the transfer queue, and the setup and USB debugging screens (#63).
+
 ### Added
+
 - **Rename from the selection strip**: A pencil button beside Preview and Delete renames the one selected phone item. List edits the name in the row; Icons and Columns ask in a small dialog
 - **USB debugging by brand**: When no phone is connected, the phone pane shows Brand and Software dropdowns with steps for that pair
 - **Phone and This Mac together**: Both panes stay open so you can browse the phone and your Mac in one window
@@ -33,14 +36,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Icons on This Mac**: Photo and video files can show previews in Icons view
 
 ### Changed
+
 - **README**: Shorter, with screenshots of the setup screen, the phone side with no phone connected, a connected phone, and a drag between the two sides. Getting the app is a short install note, because the setup screen and the empty phone pane already walk through ADB and USB debugging. Features are one-line bullets, and the shortcut table lists the main keys (Cmd+/ shows the full list in the app)
 - **Icons zoom with thumbnails**: With Show Thumbnails on, Icons view can zoom past the usual largest size. Those larger steps stay within the preview image and still fit the pane. Turning thumbnails off returns Icons to that usual largest size, and turning them on again restores the larger size. The toggle and that size are remembered the next time DroidDock opens
 - **Phone delete**: Cmd+Delete no longer deletes files on the phone. Delete stays on the file menu and the selection strip
 - **Top bar**: The phone picker, Look for phones, Sync, and Settings stay in the top bar. Place marks and List, Icons, and Columns sit on each pane
 - **List sorting**: The Name, Size, and Date column headers set the sort
 - **Status bar**: Separate storage meters for the phone and This Mac. The selection size adds up files and notes when folders are left out of that total
+- **Update plugin**: Removed the unused update plugin. Nothing in the app called it, and removing it drops about 47 crates from the build
 
 ### Fixed
+
 - **Phone search previews**: Searching the phone in Icons no longer treats a folder as the photo being previewed (that failed with “Is a directory”). Clearing the search no longer leaves a folder, such as Android, showing that photo until Refresh
 - **Rename in Columns and Icons**: Right-click Rename and Cmd+Return now work in Columns and Icons (they did nothing there). Both ask for the new name in a small dialog; List still edits in the row. In Columns the right-clicked column is the one renamed
 - **Emulated crumb**: Clicking `emulated` in the phone path opens `/storage/emulated/0` instead of an adb permission error, and Back skips the unlistable folder
@@ -57,28 +63,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Columns copy target**: Copies and drops use the open column. An empty storage folder continues into internal storage so the open folder stays usable
 - **Second copy**: Starting another copy while a conflict question or scan is still open is refused, so the first copy stays in place
 - **Replace and cancel**: A replace keeps the existing file until the new copy finishes, so cancel or failure leaves the original in place. Cancel also works while a transfer is still preparing
+- **Interrupted copies**: A copy that is cut short, for example when adb is killed, no longer counts as finished, so a partial file is never renamed over the original
+- **Interrupted sync scans**: If the phone is unplugged or adb stops while a sync scans a folder, sync stops with a message instead of planning deletes from a half-finished list
+- **Sync temp files**: Folder sync ignores DroidDock’s own in-progress `.part` temp files
+- **Cancel detection**: A file name that contains “Cancelled” or “Type mismatch” no longer stops the whole queue or opens the wrong dialog. Only the real cancel and mismatch messages count
+- **Symlinked folders**: A symlink to a folder on This Mac opens like a folder instead of showing as a file
+- **Large folders**: Listing, searching, and walking a big Mac folder, and removing one during a replace, no longer freeze the window
 
 ## [0.6.0] - 2026-10-02
 
 ### Added
+
 - **Per-action sync toggles**: Choose which actions a folder sync performs — copy, update, and rename — independently. Rename is available when matching by content; a disabled rename falls back to a copy under the new name. Existing saved syncs load unchanged
 - **Live sync scan progress**: Sync preview and the scan before a sync now show a scanning panel with items scanned per side, hashing progress in content mode, and elapsed time
 - **Sync result breakdown**: The sync result shows per-type counts for copied, updated, renamed, and deleted items
 
 ### Changed
+
 - **Sync dialog options**: Reworded compare-by options with hints, moved match-by out of advanced, and stacked sync direction and options at full width
 
 ### Fixed
+
 - **Sync dialog on short windows**: The dialog now scrolls on short windows, with a sticky bordered header and footer
 
 ## [0.5.0] - 2026-07-20
 
 ### Added
+
 - **Recursive Folder Download**: Download entire folders (not just individual files), including subfolders, with per-download conflict handling — skip duplicates, replace, or keep both
 - **Folder Selection in All View Modes**: Folders can now be selected alongside files in Table, Grid, and Column view for batch operations
 - **Settings Modal with Appearance Control**: Settings moved from a dropdown to a modal dialog (Cmd+, to open), with dark mode replaced by a Light / Dark / Sync with System three-way control that follows the OS theme live
 
 ### Fixed
+
 - **Recursive listing permission errors**: Recursive folder listing now tolerates permission-denied subdirectories instead of failing the whole operation
 - **Dark-mode toolbar styling**: Neutralized dark-mode toolbar colors to match native Finder grays
 - **Dark-mode text contrast**: Fixed a CSS nesting bug where the global dark-mode text/background fallback silently never applied, leaving black text on several elements (settings shortcuts button, sync pattern chip buttons, download options dialog)
@@ -87,10 +104,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.4.1] - 2026-02-23
 
 ### Added
+
 - **Saved Sync Configurations**: Name and save sync setups for quick reuse — pick a saved sync from a dropdown to instantly reload its source folder, destination, direction, and filter settings without reconfiguring from scratch
 - **Root `/` button in breadcrumb**: List and grid views now show a `/` button at the start of the breadcrumb for one-click access to filesystem root, matching the existing column view behavior
 
 ### Fixed
+
 - **Internal storage button**: Breadcrumb "Internal storage" button now navigates to the device's actual detected storage root instead of always hardcoding `/storage/emulated/0`
 - **Storage detection for MIUI/Android 12**: Added `/mnt/user/0/primary` as a fallback candidate path, improving detection on Xiaomi/Redmi devices
 - **Inaccessible storage feedback**: When the detected internal storage path is empty or inaccessible (e.g. wrong USB mode or ADB permissions), a clear error message is now shown instead of a silent empty file list
@@ -98,11 +117,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Intel Mac compatibility**: Improved Intel Mac compatibility with build verification
 
 ### Changed
+
 - **Release Checklist**: Added explicit step to review and update `CHANGELOG.md` before each release
 
 ## [0.4.0] - 2026-02-18
 
 ### Added
+
 - **Folder Sync**: Sync entire folders between Mac and Android device
   - Configure include/exclude patterns and preview changes before committing
   - Excludes system and metadata files automatically (`.DS_Store`, `Thumbs.db`, etc.)
@@ -117,6 +138,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - File browser shortcuts are disabled when a modal is open
 
 ### Changed
+
 - **UI Improvements**: Improved dark mode breadcrumb colors
 - **Custom Tooltips**: Better visibility in light and dark mode
 - **Consistent Filename Styling**: Unified across table, grid, and column views
@@ -125,6 +147,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0] - 2026-02-13
 
 ### Added
+
 - **Skip Duplicate Downloads**: New settings toggle to skip downloading files that already exist locally
   - Enabled by default and saved in localStorage
   - Prevents unnecessary duplicate file transfers
@@ -134,21 +157,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added to GitHub Pages website download sections
 
 ### Changed
+
 - **Download Result Messaging**: Success and error messages now distinguish downloaded files from skipped duplicates
 
 ## [0.2.2] - 2026-01-29
 
 ### Added
+
 - **Manual Dark Mode Toggle**: New settings option to manually switch dark mode independent of system preference
 - **Homebrew Cask Support**: Initial Homebrew Cask release for easy installation via `brew install --cask droiddock`
 
 ### Fixed
+
 - Download/upload progress and success message display
 - App icon padding for macOS Cmd+Tab consistency
 
 ## [0.2.1] - 2026-01-01
 
 ### Added
+
 - **Clickable Column Headers**: Click table column headers (Name, Size, Date) to sort
   - Click same header again to toggle sort direction (ascending ↔ descending)
   - Visual indicators show active column with arrows (↑/↓)
@@ -164,6 +191,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 4 zoom levels: small → medium → large → xlarge
 
 ### Changed
+
 - **Minimalist UI**: Complete visual redesign with 95% grayscale aesthetic
   - Clean white backgrounds with medium gray accents (#b0b0b0)
   - Removed all blue/gold colors (except functional: red delete, green download)
@@ -186,11 +214,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Consistent button sizing (32px height)
 
 ### Fixed
+
 - TypeScript error: Unused 'searching' variable marked with underscore prefix
 - Date truncation in table view (now fully visible)
 - Icon size button confusion (simplified to zoom metaphor)
 
 ### Technical
+
 - Icon file sizes reduced (icon.icns: 195 KB → 117 KB, icon.ico: 83 KB)
 - Cleaner CSS with consistent design tokens
 - Better control component reusability
@@ -198,6 +228,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2026-01-01
 
 ### Added
+
 - **File Preview System**: View files without downloading
   - Image preview with base64 display and high-quality rendering
   - Text file preview with syntax highlighting
@@ -215,6 +246,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Scrollbar in Keyboard Shortcuts Dialog**: Better usability for long shortcut lists
 
 ### Changed
+
 - **Simplified View Modes**: Reduced from 4 to 3 view modes (Table, Grid, Column)
   - Removed List view (redundant with Table view)
   - Updated keyboard shortcuts: Cmd+1 (Table), Cmd+2 (Grid), Cmd+3 (Column)
@@ -225,16 +257,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Gear Icon Style**: Changed from emoji (⚙️) to line drawing (⚙) for consistency
 
 ### Removed
+
 - List view mode (streamlined to 3 essential view modes)
 - Cmd+4 keyboard shortcut
 
 ### Fixed
+
 - Focus management when navigating between directories
 - Text selection in preview modal and input fields
 - Preview navigation edge cases
 - Arrow key navigation consistency across view modes
 
 ### Technical
+
 - Bundle size reduction: CSS from 25.59 KB to 24.50 KB, JS from 242.92 KB to 241.41 KB
 - Better TypeScript type safety for view modes
 - Cleaner component architecture with removed redundant code
@@ -243,6 +278,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2025-10-19
 
 ### Added
+
 - Initial release of DroidDock
 - Device detection and management
 - File browsing with multiple view modes (Table, Grid, List, Column)
@@ -260,6 +296,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Breadcrumb navigation
 
 ### Technical
+
 - Built with Tauri 2, Rust, React, and TypeScript
 - Supports macOS 10.15+ (Catalina)
 - Universal binary (Apple Silicon + Intel)
@@ -269,16 +306,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Release Types
 
 ### Major (X.0.0)
+
 - Breaking changes
 - Major feature overhauls
 - Significant architecture changes
 
 ### Minor (0.X.0)
+
 - New features
 - Enhancements to existing features
 - Non-breaking changes
 
 ### Patch (0.0.X)
+
 - Bug fixes
 - Performance improvements
 - Documentation updates
@@ -304,6 +344,7 @@ When preparing a new release, update the `[Unreleased]` section with your change
    - Keep the `[Unreleased]` section for future changes
 
 Example workflow:
+
 ```bash
 # Add your changes to [Unreleased] section
 # Then prepare the release
