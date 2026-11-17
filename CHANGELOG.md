@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Phone start folder**: Settings can open Camera, Screenshots, Downloads, or Internal storage when a phone connects
 - **How folders open**: Choose single-click or double-click. Double-click stays the default
 - **New folder**: Create a folder in the open phone or Mac directory
-- **Phone connection setup**: If Android Debug Bridge (ADB), the tool DroidDock uses to talk to the phone, is missing, setup can install it and show each step, or you can choose the `adb` program or the folder that contains it
+- **Phone connection setup**: If Android Debug Bridge (ADB), the tool DroidDock uses to talk to the phone, is missing, setup can download Google's platform-tools for you in one click (checked against the file Google published, no Homebrew or password needed) and show each step, or you can choose the `adb` program or the folder that contains it
 - **As-is notice**: The first launch asks you to agree that DroidDock, and any install it runs, is provided as is. That screen comes before the library and before phone-tool setup, including when those tools are already installed. Later launches skip it. The install screen keeps the same agreement and starts with it checked
 - **Icons on This Mac**: Photo and video files can show previews in Icons view
 

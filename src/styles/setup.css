@@ -448,8 +448,7 @@
 }
 
 /*
- * Fixed-height console per step so Homebrew and platform-tools each keep their
- * own scroll. overscroll-behavior and the wheel trap keep the main column still.
+ * Fixed-height console per step so each install step keeps its own scroll. overscroll-behavior and the wheel trap keep the main column still.
  */
 .adb-step-output {
   margin-top: 8px;

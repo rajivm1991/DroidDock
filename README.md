@@ -294,6 +294,7 @@ DroidDock automatically checks these common ADB locations:
 - `/usr/local/bin/adb` (Intel Mac Homebrew)
 - `/opt/local/bin/adb` (MacPorts)
 - `~/Library/Android/sdk/platform-tools/adb` (Android Studio)
+- `~/Library/Application Support/DroidDock/platform-tools/adb` (the copy DroidDock's setup screen downloads from Google, used only when none of the above exist)
 
 **Node.js**: Version 20.19+ or 22.12+ — [nodejs.org](https://nodejs.org/)
 

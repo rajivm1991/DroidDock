@@ -1,15 +1,16 @@
-//! First-run ADB setup on this Mac: probe what is missing, then install
-//! platform-tools via Homebrew with one macOS administrator prompt.
-//! The temporary sudoers drop-in is removed when install finishes.
+//! First-run ADB setup on this Mac: probe what is missing, then install Google's
+//! platform-tools with one click. DroidDock downloads the pinned official zip itself,
+//! checks its SHA-256, and unpacks it into its own folder in the user's home. It needs no
+//! Homebrew, no administrator password, and changes nothing outside that folder.
 
-use crate::adb::{adb_version_ok, find_adb_path, set_adb_path, ADB_PATH};
+use crate::adb::{
+    adb_version_ok, downloaded_platform_tools_dir, find_adb_path, set_adb_path, ADB_PATH,
+};
 use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
-use std::time::UNIX_EPOCH;
 use tauri::Emitter;
 use tauri::Manager;
-use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
 
 
@@ -18,40 +19,22 @@ pub(crate) struct SetupRequirement {
     id: String,
     title: String,
     detail: String,
-    status: String, // "ready" | "missing" | "for_install"
+    status: String, // "ready" | "missing"
 }
 
 
 #[derive(Clone, Serialize)]
 pub(crate) struct AdbSetupProbe {
     locations_checked: Vec<String>,
-    brew_path: Option<String>,
-    brew_ready: bool,
     adb_ready: bool,
     adb_path: Option<String>,
     requirements: Vec<SetupRequirement>,
 }
 
 
-pub(crate) fn find_brew_path() -> Option<String> {
-    for candidate in [
-        "/opt/homebrew/bin/brew",
-        "/usr/local/bin/brew",
-        "/home/linuxbrew/.linuxbrew/bin/brew",
-    ] {
-        if PathBuf::from(candidate).is_file() {
-            return Some(candidate.to_string());
-        }
-    }
-    None
-}
-
-
-/// The setup screen must show what is already present and what still needs installing,
-/// in the order those pieces are required. Report Homebrew, ADB, and the locations
-/// already searched. Homebrew missing is `for_install` — required for Install for me,
-/// not for path/Google. Missing platform-tools / adb is `missing` (blocks the app).
-/// Ready items stay `ready`. Does not install anything or require network.
+/// The setup screen must show what is already present and what still needs installing.
+/// Report whether adb works and the locations already searched. Missing platform-tools /
+/// adb is `missing` (blocks the app). Does not install anything or require network.
 #[tauri::command]
 pub(crate) async fn probe_adb_setup(app: tauri::AppHandle) -> Result<AdbSetupProbe, String> {
     let mut locations = Vec::new();
@@ -65,10 +48,13 @@ pub(crate) async fn probe_adb_setup(app: tauri::AppHandle) -> Result<AdbSetupPro
     if let Ok(home) = std::env::var("HOME") {
         locations.push(format!("{}/Library/Android/sdk/platform-tools/adb", home));
         locations.push(format!("{}/Android/Sdk/platform-tools/adb", home));
+        locations.push(
+            downloaded_platform_tools_dir(&home)
+                .join("adb")
+                .to_string_lossy()
+                .to_string(),
+        );
     }
-
-    let brew_path = find_brew_path();
-    let brew_ready = brew_path.is_some();
 
     let mut adb_path = find_adb_path();
     let mut adb_ready = false;
@@ -86,38 +72,19 @@ pub(crate) async fn probe_adb_setup(app: tauri::AppHandle) -> Result<AdbSetupPro
         }
     }
 
-    let requirements = vec![
-        SetupRequirement {
-            id: "homebrew".to_string(),
-            title: "Homebrew (Mac package helper)".to_string(),
-            detail: if brew_ready {
-                format!("Found at {}", brew_path.clone().unwrap_or_default())
-            } else {
-                // Homebrew is required for automatic Install; path/Google do not use it.
-                "Needed to install adb automatically (Install for me). Not used if you choose an existing adb path or download from Google.".to_string()
-            },
-            status: if brew_ready {
-                "ready".into()
-            } else {
-                "for_install".into()
-            },
+    let requirements = vec![SetupRequirement {
+        id: "platform-tools".to_string(),
+        title: "Android platform tools (includes adb)".to_string(),
+        detail: if adb_ready {
+            format!("Found at {}", adb_path.clone().unwrap_or_default())
+        } else {
+            "Required — this is the Google helper DroidDock uses over USB. Use any option below to get it.".to_string()
         },
-        SetupRequirement {
-            id: "platform-tools".to_string(),
-            title: "Android platform tools (includes adb)".to_string(),
-            detail: if adb_ready {
-                format!("Found at {}", adb_path.clone().unwrap_or_default())
-            } else {
-                "Required — this is the Google helper DroidDock uses over USB. Use any option below to get it.".to_string()
-            },
-            status: if adb_ready { "ready".into() } else { "missing".into() },
-        },
-    ];
+        status: if adb_ready { "ready".into() } else { "missing".into() },
+    }];
 
     Ok(AdbSetupProbe {
         locations_checked: locations,
-        brew_path,
-        brew_ready,
         adb_ready,
         adb_path,
         requirements,
@@ -142,322 +109,328 @@ pub(crate) fn emit_setup(app: &tauri::AppHandle, event: SetupInstallEvent) {
 }
 
 
-/// Homebrew’s installer enables color when stdout is a TTY (`script` below). Those CSI
-/// codes clutter the setup log without helping a consumer. Strip common ANSI
-/// color/style sequences from one log line. Does not interpret all terminal control
-/// sequences.
-pub(crate) fn strip_ansi_codes(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
-    let mut chars = input.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c == '\u{1b}' {
-            if chars.peek() == Some(&'[') {
-                chars.next();
-                while let Some(n) = chars.next() {
-                    if n.is_ascii_alphabetic() {
-                        break;
-                    }
-                }
-            }
-            continue;
-        }
-        out.push(c);
-    }
-    out
-}
+/// Google's official platform-tools for macOS, pinned to one release so the download can
+/// be checked against `PLATFORM_TOOLS_SHA256`. The binary inside is a universal
+/// (Intel and Apple silicon) build signed by Google. Matches the SHA-1 in Google's own
+/// SDK manifest (repository2-3.xml) for platform-tools r37.0.1.
+pub(crate) const PLATFORM_TOOLS_URL: &str =
+    "https://dl.google.com/android/repository/platform-tools_r37.0.1-darwin.zip";
+pub(crate) const PLATFORM_TOOLS_SHA256: &str =
+    "ee39ad5967e95c2a07f04dbcbde96b1a0c916ba376096db5d2f498b7727a5d1d";
 
 
-pub(crate) async fn run_shell_logged(
-    app: &tauri::AppHandle,
-    program: &str,
-    args: Vec<&str>,
-    step_id: &str,
-    step_title: &str,
-    env: Vec<(&str, &str)>,
-) -> Result<(), String> {
-    emit_setup(
-        app,
-        SetupInstallEvent {
-            step_id: step_id.to_string(),
-            step_title: step_title.to_string(),
-            status: "running".to_string(),
-            detail: format!("Starting: {} {}", program, args.join(" ")),
-            log_line: None,
-        },
-    );
+/// Downloads the platform-tools zip, checks its SHA-256, unpacks it next to `dest_dir`,
+/// then swaps it in so a failed install never damages one that already works. Returns
+/// the path of the installed `adb`. `proto` is curl's `--proto` value (`=https` for the
+/// real download). `on_step(step_id, status, detail)` reports progress. Does not choose
+/// where `dest_dir` is, run adb, or remember the path.
+pub(crate) fn install_platform_tools_blocking(
+    url: &str,
+    proto: &str,
+    expected_sha256: &str,
+    dest_dir: &std::path::Path,
+    work_dir: &std::path::Path,
+    on_step: &dyn Fn(&str, &str, &str),
+) -> Result<PathBuf, String> {
+    use std::process::Command;
 
-    let mut command = app.shell().command(program);
-    for (key, value) in env {
-        command = command.env(key, value);
-    }
-    let (mut rx, _child) = command
-        .args(args)
-        .spawn()
-        .map_err(|e| format!("Could not start {}: {}", program, e))?;
+    let fail = |step: &str, message: String| -> String {
+        on_step(step, "failed", &message);
+        message
+    };
 
-    let mut failed_message = String::new();
-    // Keep recent lines so failure detail is useful (exit code alone is opaque).
-    let mut recent_lines: Vec<String> = Vec::new();
-    let mut exit_ok = false;
-    while let Some(event) = rx.recv().await {
-        match event {
-            CommandEvent::Stdout(chunk) | CommandEvent::Stderr(chunk) => {
-                let text = String::from_utf8_lossy(&chunk);
-                for line in text.lines() {
-                    let trimmed = strip_ansi_codes(line).trim().to_string();
-                    if trimmed.is_empty() {
-                        continue;
-                    }
-                    recent_lines.push(trimmed.clone());
-                    if recent_lines.len() > 12 {
-                        recent_lines.remove(0);
-                    }
-                    emit_setup(
-                        app,
-                        SetupInstallEvent {
-                            step_id: step_id.to_string(),
-                            step_title: step_title.to_string(),
-                            status: "running".to_string(),
-                            detail: "Working…".to_string(),
-                            log_line: Some(trimmed),
-                        },
-                    );
-                }
-            }
-            CommandEvent::Error(err) => {
-                failed_message = err;
-            }
-            CommandEvent::Terminated(payload) => {
-                exit_ok = payload.code.unwrap_or(1) == 0;
-                if !exit_ok && failed_message.is_empty() {
-                    failed_message = format!("{} exited with code {:?}", program, payload.code);
-                }
-                break;
-            }
-            _ => {}
-        }
-    }
-
-    if exit_ok {
-        emit_setup(
-            app,
-            SetupInstallEvent {
-                step_id: step_id.to_string(),
-                step_title: step_title.to_string(),
-                status: "success".to_string(),
-                detail: "Finished successfully.".to_string(),
-                log_line: None,
-            },
-        );
-        Ok(())
-    } else {
-        let mut detail = if failed_message.is_empty() {
-            "This step failed.".to_string()
-        } else {
-            failed_message
-        };
-        if !recent_lines.is_empty() {
-            detail = format!("{}\n{}", detail, recent_lines.join("\n"));
-        }
-        emit_setup(
-            app,
-            SetupInstallEvent {
-                step_id: step_id.to_string(),
-                step_title: step_title.to_string(),
-                status: "failed".to_string(),
-                detail: detail.clone(),
-                log_line: None,
-            },
-        );
-        Err(detail)
-    }
-}
-
-
-/// Temporary sudoers drop-in so Homebrew’s many `sudo` calls work after one
-/// native admin approval (like a Terminal sudo session). Always removed after.
-pub(crate) const HOMEBREW_TEMP_SUDOERS: &str = "/etc/sudoers.d/droiddock-brew-install";
-
-
-pub(crate) fn homebrew_prefix_path() -> &'static str {
-    if cfg!(target_arch = "aarch64") {
-        "/opt/homebrew"
-    } else {
-        "/usr/local"
-    }
-}
-
-
-/// Usernames/groups are embedded in a root shell script and a sudoers line. Allow only
-/// the usual macOS account character set.
-pub(crate) fn assert_safe_account_token(label: &str, value: &str) -> Result<(), String> {
-    if value.is_empty()
-        || value.chars().any(|c| c.is_whitespace())
-        || !value
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.')
-    {
-        return Err(format!("Could not use this Mac account {} for install.", label));
-    }
-    Ok(())
-}
-
-
-pub(crate) fn current_mac_user_and_group() -> Result<(String, String), String> {
-    let user_out = std::process::Command::new("/usr/bin/id")
-        .args(["-un"])
+    // 1. Download. Only the pinned https address is ever used by the app; `proto` lets
+    // tests point at a local file instead.
+    let zip_path = work_dir.join("platform-tools.zip");
+    on_step("download", "running", "Downloading Google's Android platform tools (about 16 MB)…");
+    let download = Command::new("/usr/bin/curl")
+        .args(["--silent", "--show-error", "--fail", "--location"])
+        .args(["--proto", proto, "--proto-redir", proto])
+        .args(["--connect-timeout", "30", "--max-time", "900"])
+        .arg("--output")
+        .arg(&zip_path)
+        .arg(url)
         .output()
-        .map_err(|e| format!("Could not read Mac user: {}", e))?;
-    if !user_out.status.success() {
-        return Err("Could not read Mac user name.".to_string());
+        .map_err(|e| fail("download", format!("Could not start the download: {}", e)))?;
+    if !download.status.success() {
+        let reason = String::from_utf8_lossy(&download.stderr).trim().to_string();
+        return Err(fail(
+            "download",
+            format!(
+                "The download did not finish. Check your internet connection and try again. ({})",
+                if reason.is_empty() { "no details" } else { reason.as_str() }
+            ),
+        ));
     }
-    let group_out = std::process::Command::new("/usr/bin/id")
-        .args(["-gn"])
+    on_step("download", "success", "Downloaded.");
+
+    // 2. Verify it is the exact file we pinned before anything is unpacked or run.
+    on_step("verify", "running", "Checking the download is the genuine Google file…");
+    let hash_out = Command::new("/usr/bin/shasum")
+        .args(["-a", "256"])
+        .arg(&zip_path)
         .output()
-        .map_err(|e| format!("Could not read Mac group: {}", e))?;
-    if !group_out.status.success() {
-        return Err("Could not read Mac group name.".to_string());
+        .map_err(|e| fail("verify", format!("Could not check the download: {}", e)))?;
+    let actual = String::from_utf8_lossy(&hash_out.stdout)
+        .split_whitespace()
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    if !hash_out.status.success() || actual != expected_sha256.to_ascii_lowercase() {
+        return Err(fail(
+            "verify",
+            "The downloaded file did not match what Google published, so it was not installed."
+                .to_string(),
+        ));
     }
-    let user = String::from_utf8_lossy(&user_out.stdout).trim().to_string();
-    let group = String::from_utf8_lossy(&group_out.stdout).trim().to_string();
-    assert_safe_account_token("name", &user)?;
-    assert_safe_account_token("group", &group)?;
-    Ok((user, group))
+    on_step("verify", "success", "The download matches Google's published file.");
+
+    // 3. Unpack beside the destination (same volume, so the final rename is atomic).
+    on_step("extract", "running", "Unpacking…");
+    let parent = dest_dir
+        .parent()
+        .ok_or_else(|| fail("extract", "Could not choose where to install.".to_string()))?;
+    fs::create_dir_all(parent)
+        .map_err(|e| fail("extract", format!("Could not create the install folder: {}", e)))?;
+    let staging = parent.join(format!(".platform-tools-staging-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&staging);
+    fs::create_dir_all(&staging)
+        .map_err(|e| fail("extract", format!("Could not prepare the install folder: {}", e)))?;
+    let cleanup_staging = || {
+        let _ = fs::remove_dir_all(&staging);
+    };
+    let unzip = Command::new("/usr/bin/unzip")
+        .args(["-q", "-o"])
+        .arg(&zip_path)
+        .arg("-d")
+        .arg(&staging)
+        .output()
+        .map_err(|e| {
+            cleanup_staging();
+            fail("extract", format!("Could not unpack the download: {}", e))
+        })?;
+    let unpacked = staging.join("platform-tools");
+    if !unzip.status.success() || !unpacked.join("adb").is_file() {
+        cleanup_staging();
+        return Err(fail(
+            "extract",
+            "The download did not contain the adb program, so nothing was installed.".to_string(),
+        ));
+    }
+
+    // 4. Swap it in. The old copy moves aside first and comes back if anything fails.
+    let backup = parent.join(format!(".platform-tools-previous-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&backup);
+    let had_previous = dest_dir.exists();
+    if had_previous {
+        fs::rename(dest_dir, &backup).map_err(|e| {
+            cleanup_staging();
+            fail("extract", format!("Could not replace the existing copy: {}", e))
+        })?;
+    }
+    if let Err(e) = fs::rename(&unpacked, dest_dir) {
+        if had_previous {
+            let _ = fs::rename(&backup, dest_dir);
+        }
+        cleanup_staging();
+        return Err(fail("extract", format!("Could not finish installing: {}", e)));
+    }
+    cleanup_staging();
+    if had_previous {
+        let _ = fs::remove_dir_all(&backup);
+    }
+    on_step("extract", "success", "Installed.");
+    Ok(dest_dir.join("adb"))
 }
 
 
-pub(crate) fn new_homebrew_work_dir() -> Result<PathBuf, String> {
-    let dir = std::env::temp_dir().join(format!(
-        "droiddock-brew-{}-{}",
-        std::process::id(),
-        std::time::SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_millis())
-            .unwrap_or(0)
-    ));
-    fs::create_dir(&dir).map_err(|e| format!("Could not prepare install folder: {}", e))?;
-    Ok(dir)
-}
-
-
-/// AppleScript `display dialog` (old askpass) is not the real macOS admin sheet, and
-/// Homebrew calls sudo many times so askpass re-prompted. The system Authorization
-/// dialog (`with administrator privileges`) is the native one. One native password
-/// prompt that creates the Homebrew prefix and a temporary passwordless-sudo drop-in
-/// for this install only. Show the lock-style macOS dialog once; create prefix owned by
-/// the user; write `/etc/sudoers.d/droiddock-brew-install` so later `sudo -n` succeeds.
-/// This does not collect the password in the DroidDock UI, leave the passwordless
-/// sudo drop-in in place (the caller removes it), or run the long Homebrew install
-/// as root. Always call `remove_homebrew_temp_sudoers` on a finally path.
-pub(crate) fn provision_homebrew_admin_session(work_dir: &PathBuf) -> Result<(), String> {
+#[cfg(test)]
+mod install_platform_tools_tests {
+    use super::install_platform_tools_blocking;
+    use std::cell::RefCell;
+    use std::fs;
     use std::os::unix::fs::PermissionsExt;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
 
-    let (user, group) = current_mac_user_and_group()?;
-    let prefix = homebrew_prefix_path();
-    let provision_path = work_dir.join("provision-homebrew.sh");
-    // Args are validated tokens; script is root-only execution via osascript.
-    let script = format!(
-        r#"#!/bin/bash
-set -euo pipefail
-USER_NAME='{user}'
-GROUP_NAME='{group}'
-PREFIX='{prefix}'
-DROP_IN='{drop_in}'
-/usr/bin/install -d -o "$USER_NAME" -g "$GROUP_NAME" -m 0755 "$PREFIX"
-if [[ "$PREFIX" == "/usr/local" ]]; then
-  /usr/bin/install -d -o "$USER_NAME" -g "$GROUP_NAME" -m 0755 \
-    /usr/local/Homebrew /usr/local/bin /usr/local/etc /usr/local/include \
-    /usr/local/lib /usr/local/opt /usr/local/sbin /usr/local/share \
-    /usr/local/var /usr/local/Frameworks
-fi
-umask 077
-/usr/bin/printf '%s ALL=(ALL) NOPASSWD: ALL\n' "$USER_NAME" > "$DROP_IN"
-/bin/chmod 440 "$DROP_IN"
-/usr/sbin/visudo -cf "$DROP_IN"
-"#,
-        user = user.replace('\'', "'\\''"),
-        group = group.replace('\'', "'\\''"),
-        prefix = prefix,
-        drop_in = HOMEBREW_TEMP_SUDOERS,
-    );
-    fs::write(&provision_path, script)
-        .map_err(|e| format!("Could not write admin setup script: {}", e))?;
-    fs::set_permissions(&provision_path, fs::Permissions::from_mode(0o700))
-        .map_err(|e| format!("Could not secure admin setup script: {}", e))?;
-
-    let provision_str = provision_path.to_string_lossy().to_string();
-    // quoted form of path avoids AppleScript injection from the temp path.
-    let apple_script = format!(
-        r#"with timeout of 600 seconds
-  do shell script "/bin/bash " & quoted form of "{path}" with prompt "DroidDock needs administrator access once to set up Homebrew (used for phone tools). macOS will not ask again for this install." with administrator privileges
-end timeout"#,
-        path = provision_str.replace('\\', "\\\\").replace('"', "\\\"")
-    );
-
-    let output = std::process::Command::new("/usr/bin/osascript")
-        .args(["-e", &apple_script])
-        .output()
-        .map_err(|e| format!("Could not open the macOS password dialog: {}", e))?;
-    if output.status.success() {
-        return Ok(());
+    struct Fixture {
+        _tmp: tempfile::TempDir,
+        zip: PathBuf,
+        sha256: String,
+        dest: PathBuf,
+        work: PathBuf,
     }
-    let err = format!(
-        "{}{}",
-        String::from_utf8_lossy(&output.stderr),
-        String::from_utf8_lossy(&output.stdout)
-    );
-    Err(friendly_homebrew_install_error(&err))
-}
 
-
-/// The temporary NOPASSWD drop-in must not remain after Install finishes. `sudo -n rm`
-/// the drop-in (works while the drop-in still exists). Does not show another password
-/// dialog; if removal fails, returns an error string.
-pub(crate) fn remove_homebrew_temp_sudoers() -> Result<(), String> {
-    if !PathBuf::from(HOMEBREW_TEMP_SUDOERS).exists() {
-        return Ok(());
-    }
-    let output = std::process::Command::new("/usr/bin/sudo")
-        .args(["-n", "/bin/rm", "-f", HOMEBREW_TEMP_SUDOERS])
-        .output()
-        .map_err(|e| format!("Could not clear temporary admin access: {}", e))?;
-    if output.status.success() {
-        return Ok(());
-    }
-    Err(format!(
-        "Could not clear temporary admin access at {}. Ask an admin to remove that file.",
-        HOMEBREW_TEMP_SUDOERS
-    ))
-}
-
-
-/// Map Homebrew / admin-dialog failures to short next-step copy for the setup screen.
-pub(crate) fn friendly_homebrew_install_error(raw: &str) -> String {
-    let lower = raw.to_lowercase();
-    if lower.contains("-128")
-        || lower.contains("user canceled")
-        || lower.contains("user cancelled")
-        || lower.contains("(-128)")
-    {
-        return "Password window was canceled. Try Install again, or use Download from Google below."
+    /// Builds a real zip with `platform-tools/<file>` entries so curl, shasum and unzip
+    /// run for real, with a `file://` URL standing in for Google.
+    fn fixture(files: &[(&str, &str)]) -> Fixture {
+        let tmp = tempfile::tempdir().expect("temp dir");
+        let src = tmp.path().join("src");
+        let tools = src.join("platform-tools");
+        fs::create_dir_all(&tools).expect("src dir");
+        for (name, body) in files {
+            let file = tools.join(name);
+            fs::write(&file, body).expect("write file");
+            fs::set_permissions(&file, fs::Permissions::from_mode(0o755)).expect("chmod");
+        }
+        let zip = tmp.path().join("platform-tools.zip");
+        let status = Command::new("/usr/bin/zip")
+            .args(["-q", "-r"])
+            .arg(&zip)
+            .arg("platform-tools")
+            .current_dir(&src)
+            .status()
+            .expect("run zip");
+        assert!(status.success(), "zip failed");
+        let out = Command::new("/usr/bin/shasum")
+            .args(["-a", "256"])
+            .arg(&zip)
+            .output()
+            .expect("run shasum");
+        let sha256 = String::from_utf8_lossy(&out.stdout)
+            .split_whitespace()
+            .next()
+            .expect("hash")
             .to_string();
+        let work = tmp.path().join("work");
+        fs::create_dir_all(&work).expect("work dir");
+        let dest = tmp.path().join("dest").join("platform-tools");
+        Fixture { _tmp: tmp, zip, sha256, dest, work }
     }
-    if lower.contains("insufficient permissions") {
-        return "This Mac account could not install Homebrew (an administrator password is required). Try Install again and enter an admin password, or use Download from Google below.".to_string();
+
+    fn file_url(path: &Path) -> String {
+        format!("file://{}", path.display())
     }
-    raw.to_string()
+
+    fn run(f: &Fixture, sha: &str, steps: &RefCell<Vec<String>>) -> Result<PathBuf, String> {
+        install_platform_tools_blocking(
+            &file_url(&f.zip),
+            "=file",
+            sha,
+            &f.dest,
+            &f.work,
+            &|id, status, _detail| steps.borrow_mut().push(format!("{id}:{status}")),
+        )
+    }
+
+    #[test]
+    fn installs_adb_from_a_zip_with_the_expected_hash() {
+        let f = fixture(&[("adb", "#!/bin/sh\necho fake adb\n")]);
+        let steps = RefCell::new(Vec::new());
+        let adb = run(&f, &f.sha256, &steps).expect("install should succeed");
+        assert_eq!(adb, f.dest.join("adb"));
+        let mode = fs::metadata(&adb).expect("adb exists").permissions().mode();
+        assert!(mode & 0o111 != 0, "adb should stay executable, mode {mode:o}");
+        let steps = steps.borrow();
+        for expected in ["download:success", "verify:success", "extract:success"] {
+            assert!(steps.contains(&expected.to_string()), "missing {expected} in {steps:?}");
+        }
+    }
+
+    #[test]
+    fn rejects_a_download_whose_hash_does_not_match() {
+        let f = fixture(&[("adb", "#!/bin/sh\n")]);
+        let steps = RefCell::new(Vec::new());
+        let wrong = "0".repeat(64);
+        let err = run(&f, &wrong, &steps).unwrap_err();
+        assert!(err.contains("did not match"), "got: {err}");
+        assert!(!f.dest.exists(), "nothing should be installed");
+        assert!(steps.borrow().contains(&"verify:failed".to_string()));
+    }
+
+    #[test]
+    fn a_rejected_download_leaves_the_existing_install_alone() {
+        let f = fixture(&[("adb", "#!/bin/sh\n")]);
+        fs::create_dir_all(&f.dest).expect("existing install");
+        fs::write(f.dest.join("old-adb"), "keep me").expect("old file");
+        let steps = RefCell::new(Vec::new());
+        run(&f, &"0".repeat(64), &steps).unwrap_err();
+        assert_eq!(fs::read_to_string(f.dest.join("old-adb")).unwrap(), "keep me");
+    }
+
+    #[test]
+    fn a_good_download_replaces_the_existing_install() {
+        let f = fixture(&[("adb", "#!/bin/sh\necho new\n")]);
+        fs::create_dir_all(&f.dest).expect("existing install");
+        fs::write(f.dest.join("old-adb"), "old").expect("old file");
+        let steps = RefCell::new(Vec::new());
+        run(&f, &f.sha256, &steps).expect("install should succeed");
+        assert!(!f.dest.join("old-adb").exists(), "old files should be gone");
+        assert!(f.dest.join("adb").is_file());
+        let leftovers: Vec<_> = fs::read_dir(f.dest.parent().unwrap())
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
+            .collect();
+        assert_eq!(leftovers, vec!["platform-tools".to_string()], "no staging or backup left behind");
+    }
+
+    #[test]
+    fn a_zip_without_adb_is_not_installed() {
+        let f = fixture(&[("fastboot", "#!/bin/sh\n")]);
+        let steps = RefCell::new(Vec::new());
+        let err = run(&f, &f.sha256, &steps).unwrap_err();
+        assert!(err.contains("adb"), "got: {err}");
+        assert!(!f.dest.exists());
+    }
+
+    /// Talks to Google, so it is skipped by default. Run it with
+    /// `cargo test -- --ignored` after changing the pinned URL or hash.
+    #[test]
+    #[ignore = "downloads about 16 MB from dl.google.com"]
+    fn the_pinned_google_download_still_matches_its_hash() {
+        let f = fixture(&[("adb", "#!/bin/sh\n")]);
+        let steps = RefCell::new(Vec::new());
+        let adb = install_platform_tools_blocking(
+            super::PLATFORM_TOOLS_URL,
+            "=https",
+            super::PLATFORM_TOOLS_SHA256,
+            &f.dest,
+            &f.work,
+            &|id, status, _| steps.borrow_mut().push(format!("{id}:{status}")),
+        )
+        .expect("the pinned download should install");
+        assert!(adb.is_file());
+        assert!(fs::metadata(&adb).unwrap().permissions().mode() & 0o111 != 0);
+    }
+
+    #[test]
+    fn a_failed_download_is_reported_as_one() {
+        let f = fixture(&[("adb", "#!/bin/sh\n")]);
+        let steps = RefCell::new(Vec::new());
+        let err = install_platform_tools_blocking(
+            "file:///definitely/not/here.zip",
+            "=file",
+            &f.sha256,
+            &f.dest,
+            &f.work,
+            &|id, status, _| steps.borrow_mut().push(format!("{id}:{status}")),
+        )
+        .unwrap_err();
+        assert!(err.contains("download"), "got: {err}");
+        assert!(steps.borrow().contains(&"download:failed".to_string()));
+        assert!(!f.dest.exists());
+    }
 }
 
 
-/// People should not have to paste brew commands. Install must show each required step,
-/// keep finished step output, and stop on the first failure. `install_adb_tools` with
-/// `setup-install-progress` events. When Homebrew is missing, show the real macOS admin
-/// dialog once, keep a temporary sudo session for the installer, run the official
-/// non-interactive Homebrew script (download then `script` for live logs), then `brew
-/// install android-platform-tools`, then verify adb and store its path. Does not enable
-/// USB debugging on the phone, collect the password in the web UI, use AppleScript
-/// `display dialog` askpass, or claim install always succeeds (network / non-admin
-/// accounts can fail). The setup screen must collect an as-is agreement before calling this.
+/// Title shown on the setup screen for each step the installer reports.
+fn step_title(step_id: &str) -> &'static str {
+    match step_id {
+        "download" => "Download from Google",
+        "verify" => "Check the download",
+        "extract" => "Install",
+        _ => "Check adb runs",
+    }
+}
+
+
+/// One click installs Google's platform-tools into DroidDock's own folder
+/// (`~/Library/Application Support/DroidDock/platform-tools`): download the pinned
+/// official zip, check its SHA-256, unpack it, then run `adb version` and remember the
+/// path. Reports each step through `setup-install-progress` and stops at the first
+/// failure. Needs the internet but no Homebrew and no administrator password, and does
+/// not touch anything outside that folder. Does not enable USB debugging on the phone.
+/// The setup screen must collect an as-is agreement before calling this.
 #[tauri::command]
 pub(crate) async fn install_adb_tools(app: tauri::AppHandle) -> Result<String, String> {
     let probe = probe_adb_setup(app.clone()).await?;
@@ -474,172 +447,60 @@ pub(crate) async fn install_adb_tools(app: tauri::AppHandle) -> Result<String, S
         }
     }
 
-    let mut brew = probe.brew_path.clone();
-    if !probe.brew_ready {
-        // One native Authorization dialog + temporary sudoers drop-in so Homebrew’s
-        // repeated sudo calls do not re-prompt (Terminal-like session).
-        let work_dir = new_homebrew_work_dir()?;
-        let script_path = work_dir.join("install-homebrew.sh");
-        let script_path_str = script_path.to_string_lossy().to_string();
+    let home = std::env::var("HOME")
+        .map_err(|_| "Could not find your home folder to install into.".to_string())?;
+    let dest_dir = downloaded_platform_tools_dir(&home);
+    let work = tempfile::tempdir()
+        .map_err(|e| format!("Could not prepare a temporary folder: {}", e))?;
 
-        emit_setup(
-            &app,
-            SetupInstallEvent {
-                step_id: "homebrew".to_string(),
-                step_title: "Install Homebrew".to_string(),
-                status: "running".to_string(),
-                detail: "macOS will ask for your password once…".to_string(),
-                log_line: Some(
-                    "Enter your Mac login password in the system dialog (lock icon). You should only need to do this once for Homebrew."
-                        .to_string(),
-                ),
-            },
-        );
-        if let Err(err) = provision_homebrew_admin_session(&work_dir) {
-            let _ = fs::remove_dir_all(&work_dir);
-            let _ = remove_homebrew_temp_sudoers();
-            return Err(err);
-        }
-
-        emit_setup(
-            &app,
-            SetupInstallEvent {
-                step_id: "homebrew".to_string(),
-                step_title: "Install Homebrew".to_string(),
-                status: "running".to_string(),
-                detail: "Downloading Homebrew installer…".to_string(),
-                log_line: Some(
-                    "Downloading the official installer from GitHub (needs network)."
-                        .to_string(),
-                ),
-            },
-        );
-        let download_result = run_shell_logged(
-            &app,
-            "/usr/bin/curl",
-            vec![
-                "-fsSL",
-                "-o",
-                script_path_str.as_str(),
-                "https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh",
-            ],
-            "homebrew",
-            "Install Homebrew",
-            vec![],
-        )
-        .await;
-        if let Err(err) = download_result {
-            let _ = remove_homebrew_temp_sudoers();
-            let _ = fs::remove_dir_all(&work_dir);
-            return Err(format!(
-                "Could not download the Homebrew installer. Check the network and try again. ({})",
-                err
-            ));
-        }
-
-        emit_setup(
-            &app,
-            SetupInstallEvent {
-                step_id: "homebrew".to_string(),
-                step_title: "Install Homebrew".to_string(),
-                status: "running".to_string(),
-                detail: "Running Homebrew installer…".to_string(),
-                log_line: Some(
-                    "Installing Homebrew. Further password prompts should not appear."
-                        .to_string(),
-                ),
-            },
-        );
-        let run_via_script = format!(
-            "/usr/bin/script -q /dev/null /bin/bash '{}'",
-            script_path_str.replace('\'', "'\\''")
-        );
-        let brew_result = run_shell_logged(
-            &app,
-            "/bin/bash",
-            vec!["-c", run_via_script.as_str()],
-            "homebrew",
-            "Install Homebrew",
-            vec![("NONINTERACTIVE", "1")],
-        )
-        .await;
-        if let Err(cleanup_err) = remove_homebrew_temp_sudoers() {
+    let step_app = app.clone();
+    let installed = tauri::async_runtime::spawn_blocking(move || {
+        let on_step = |step_id: &str, status: &str, detail: &str| {
             emit_setup(
-                &app,
+                &step_app,
                 SetupInstallEvent {
-                    step_id: "homebrew".to_string(),
-                    step_title: "Install Homebrew".to_string(),
-                    status: "running".to_string(),
-                    detail: "Cleaning up…".to_string(),
-                    log_line: Some(cleanup_err),
+                    step_id: step_id.to_string(),
+                    step_title: step_title(step_id).to_string(),
+                    status: status.to_string(),
+                    detail: detail.to_string(),
+                    log_line: None,
                 },
             );
-        }
-        let _ = fs::remove_dir_all(&work_dir);
-        if let Err(err) = brew_result {
-            return Err(friendly_homebrew_install_error(&err));
-        }
-        brew = find_brew_path();
-        if brew.is_none() {
-            let candidate = format!("{}/bin/brew", homebrew_prefix_path());
-            if PathBuf::from(&candidate).is_file() {
-                brew = Some(candidate);
-            }
-        }
-        if brew.is_none() {
-            return Err(
-                "Homebrew finished, but brew was not found. Open Terminal, run brew, then return here."
-                    .to_string(),
-            );
-        }
-    } else {
-        emit_setup(
-            &app,
-            SetupInstallEvent {
-                step_id: "homebrew".to_string(),
-                step_title: "Install Homebrew".to_string(),
-                status: "skipped".to_string(),
-                detail: format!("Already installed at {}", brew.clone().unwrap_or_default()),
-                log_line: None,
-            },
-        );
-    }
+        };
+        // `work` lives until this closure ends, then its folder is deleted.
+        install_platform_tools_blocking(
+            PLATFORM_TOOLS_URL,
+            "=https",
+            PLATFORM_TOOLS_SHA256,
+            &dest_dir,
+            work.path(),
+            &on_step,
+        )
+    })
+    .await
+    .map_err(|e| format!("The install stopped unexpectedly: {}", e))??;
 
-    let brew_bin = brew.ok_or_else(|| "Homebrew is required for this install.".to_string())?;
-    run_shell_logged(
-        &app,
-        &brew_bin,
-        vec!["install", "android-platform-tools"],
-        "platform-tools",
-        "Install Android platform tools",
-        vec![],
-    )
-    .await?;
-
-    // Clear cached path so find_adb_path can pick up the new binary.
-    if let Ok(mut guard) = ADB_PATH.lock() {
-        *guard = None;
-    }
-    let adb = find_adb_path().ok_or_else(|| {
-        "Platform tools installed, but adb was not found in the usual places.".to_string()
-    })?;
     emit_setup(
         &app,
         SetupInstallEvent {
-            step_id: "verify".to_string(),
-            step_title: "Verify adb".to_string(),
+            step_id: "adb-check".to_string(),
+            step_title: step_title("adb-check").to_string(),
             status: "running".to_string(),
-            detail: format!("Checking {}", adb),
+            detail: format!("Checking {}", installed.display()),
             log_line: None,
         },
     );
-    match set_adb_path(app.clone(), adb.clone()).await {
+    // A fresh install must not be shadowed by an earlier cached path.
+    if let Ok(mut guard) = ADB_PATH.lock() {
+        *guard = None;
+    }
+    match set_adb_path(app.clone(), installed.to_string_lossy().to_string()).await {
         Ok(resolved) => {
             emit_setup(
                 &app,
                 SetupInstallEvent {
-                    step_id: "verify".to_string(),
-                    step_title: "Verify adb".to_string(),
+                    step_id: "adb-check".to_string(),
+                    step_title: step_title("adb-check").to_string(),
                     status: "success".to_string(),
                     detail: format!("Ready at {}", resolved),
                     log_line: None,
@@ -651,8 +512,8 @@ pub(crate) async fn install_adb_tools(app: tauri::AppHandle) -> Result<String, S
             emit_setup(
                 &app,
                 SetupInstallEvent {
-                    step_id: "verify".to_string(),
-                    step_title: "Verify adb".to_string(),
+                    step_id: "adb-check".to_string(),
+                    step_title: step_title("adb-check").to_string(),
                     status: "failed".to_string(),
                     detail: err.clone(),
                     log_line: None,
@@ -662,4 +523,3 @@ pub(crate) async fn install_adb_tools(app: tauri::AppHandle) -> Result<String, S
         }
     }
 }
-

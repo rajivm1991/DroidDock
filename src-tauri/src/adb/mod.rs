@@ -19,34 +19,108 @@ pub(crate) static DEVICE_MODEL_CACHE: LazyLock<Mutex<HashMap<String, String>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 
+/// Where DroidDock puts the platform-tools it downloads itself during setup.
+pub(crate) fn downloaded_platform_tools_dir(home: &str) -> PathBuf {
+    PathBuf::from(home).join("Library/Application Support/DroidDock/platform-tools")
+}
+
+
 // Try to find ADB in common locations
 pub(crate) fn find_adb_path() -> Option<String> {
-    let common_paths = vec![
-        "/opt/homebrew/bin/adb",           // Homebrew on Apple Silicon
-        "/usr/local/bin/adb",              // Homebrew on Intel
-        "/opt/local/bin/adb",              // MacPorts
-        "~/Library/Android/sdk/platform-tools/adb",  // Android Studio
-        "~/Android/Sdk/platform-tools/adb",          // Alternative Android Studio
-    ];
+    find_adb_path_in(
+        &[
+            "/opt/homebrew/bin/adb",           // Homebrew on Apple Silicon
+            "/usr/local/bin/adb",              // Homebrew on Intel
+            "/opt/local/bin/adb",              // MacPorts
+        ],
+        std::env::var("HOME").ok().as_deref(),
+    )
+}
 
-    for path_str in common_paths {
-        let expanded_path = if path_str.starts_with("~/") {
-            if let Some(home) = std::env::var("HOME").ok() {
-                path_str.replacen("~", &home, 1)
-            } else {
-                continue;
-            }
-        } else {
-            path_str.to_string()
-        };
 
-        let path = PathBuf::from(&expanded_path);
-        if path.exists() {
-            return Some(expanded_path);
+/// `system_paths` are checked first, then the usual spots under `home`. The copy DroidDock
+/// downloads comes last, so an adb the person already has always wins.
+pub(crate) fn find_adb_path_in(system_paths: &[&str], home: Option<&str>) -> Option<String> {
+    for path_str in system_paths {
+        if PathBuf::from(path_str).exists() {
+            return Some(path_str.to_string());
         }
     }
-
+    let home = home?;
+    for relative in [
+        "Library/Android/sdk/platform-tools/adb",  // Android Studio
+        "Android/Sdk/platform-tools/adb",          // Alternative Android Studio
+    ] {
+        let path = PathBuf::from(home).join(relative);
+        if path.exists() {
+            return Some(path.to_string_lossy().to_string());
+        }
+    }
+    let downloaded = downloaded_platform_tools_dir(home).join("adb");
+    if downloaded.exists() {
+        return Some(downloaded.to_string_lossy().to_string());
+    }
     None
+}
+
+
+#[cfg(test)]
+mod find_adb_tests {
+    use super::{downloaded_platform_tools_dir, find_adb_path_in};
+    use std::fs;
+
+    fn touch(path: &std::path::Path) {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, "").unwrap();
+    }
+
+    #[test]
+    fn finds_the_adb_that_droiddock_downloaded() {
+        let home = tempfile::tempdir().unwrap();
+        let home_str = home.path().to_str().unwrap();
+        touch(&downloaded_platform_tools_dir(home_str).join("adb"));
+        assert_eq!(
+            find_adb_path_in(&[], Some(home_str)),
+            Some(
+                downloaded_platform_tools_dir(home_str)
+                    .join("adb")
+                    .to_string_lossy()
+                    .to_string()
+            )
+        );
+    }
+
+    #[test]
+    fn an_adb_the_person_already_has_wins_over_the_downloaded_one() {
+        let home = tempfile::tempdir().unwrap();
+        let home_str = home.path().to_str().unwrap();
+        touch(&downloaded_platform_tools_dir(home_str).join("adb"));
+        let system = home.path().join("system-adb");
+        touch(&system);
+        let system_str = system.to_str().unwrap();
+        assert_eq!(
+            find_adb_path_in(&[system_str], Some(home_str)),
+            Some(system_str.to_string())
+        );
+    }
+
+    #[test]
+    fn still_finds_the_android_studio_adb() {
+        let home = tempfile::tempdir().unwrap();
+        let home_str = home.path().to_str().unwrap();
+        let studio = home.path().join("Library/Android/sdk/platform-tools/adb");
+        touch(&studio);
+        assert_eq!(
+            find_adb_path_in(&[], Some(home_str)),
+            Some(studio.to_string_lossy().to_string())
+        );
+    }
+
+    #[test]
+    fn finds_nothing_when_nothing_is_installed() {
+        let home = tempfile::tempdir().unwrap();
+        assert_eq!(find_adb_path_in(&[], home.path().to_str()), None);
+    }
 }
 
 

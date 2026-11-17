@@ -11,12 +11,12 @@ import { isAsIsAccepted, setAsIsAccepted } from "../../lib/asIsAgreement";
  * the main app. The agreement is also collected by AsIsNotice before this
  * screen or the library. The checkbox here starts checked after that, and
  * unchecking it still blocks Install. Checking it stores the same acceptance.
- * Checklist labels distinguish Already installed, Install required (blocks phone
- * access), and Needed for Install (Homebrew only for “Install for me”). During
- * install, “Please wait” stays fixed; only each step’s console scrolls, traps
- * wheel so the main page does not move, and auto-scrolls new lines. Auto-install
- * runs Homebrew then platform-tools and stops on the first failure with remaining
- * manual steps. macOS may show its admin password sheet once — not collected here.
+ * Checklist labels distinguish Already installed and Install required (blocks phone
+ * access). During install, “Please wait” stays fixed; only each step’s console
+ * scrolls, traps wheel so the main page does not move, and auto-scrolls new lines.
+ * Auto-install downloads Google’s platform-tools into DroidDock’s own folder, checks
+ * the download, and stops on the first failure with the remaining manual steps. It
+ * needs no password and no Homebrew.
  * USB debugging on the phone is still the user’s step elsewhere.
  */
 
@@ -29,8 +29,6 @@ interface SetupRequirement {
 
 interface AdbSetupProbe {
   locations_checked: string[];
-  brew_path: string | null;
-  brew_ready: boolean;
   adb_ready: boolean;
   adb_path: string | null;
   requirements: SetupRequirement[];
@@ -63,12 +61,10 @@ const PLATFORM_TOOLS_URL =
 /** Plain-language pill for each requirement row. */
 function requirementStatusLabel(status: string): string {
   if (status === "ready") return "Already installed";
-  // Homebrew when missing — required for Install for me, not for path/Google.
-  if (status === "for_install") return "Needed for Install";
   return "Install required";
 }
 
-/** Badge for the checklist header — counts only phone blockers, not Homebrew. */
+/** Badge for the checklist header — counts the items that block phone access. */
 function checklistSummaryLabel(
   probe: AdbSetupProbe | null,
   installRequiredCount: number,
@@ -282,17 +278,13 @@ export function AdbSetupScreen({ triedPath, onReady }: AdbSetupScreenProps) {
   const remainingManual = !probe
     ? []
     : [
-        !probe.brew_ready && {
-          title: "Install Homebrew",
-          body: "Open the Terminal app. Paste the install command from https://brew.sh and press Return. When it finishes, return here and use Install again — or continue with the Google download steps below.",
-        },
         !probe.adb_ready && {
           title: "Install Android platform tools",
-          body: "If Homebrew is ready, use Install above. Or download the Mac zip from Google (steps under “Download from Google”).",
+          body: "Use Install again once your internet connection is working. Or download the Mac zip from Google yourself (steps under “Download from Google instead”).",
         },
       ].filter(Boolean) as { title: string; body: string }[];
 
-  // Header badge counts only adb blockers (missing platform-tools), not Homebrew — Homebrew is optional for path/Google install paths.
+  // Header badge counts the adb blockers (missing platform-tools).
   const installRequiredCount =
     probe?.requirements.filter((r) => r.status === "missing").length ?? 0;
 
@@ -360,14 +352,11 @@ export function AdbSetupScreen({ triedPath, onReady }: AdbSetupScreenProps) {
           </div>
           <p className="adb-setup-plain adb-setup-checklist-lead">
             A quick scan of helpers already on this Mac — not the install steps.{" "}
-            <strong>Install required</strong> blocks phone access.{" "}
-            <strong>Needed for Install</strong> means Homebrew is required if you
-            use Install for me (not if you pick an existing adb or use Google).
+            <strong>Install required</strong> blocks phone access.
           </p>
           {probeError && <p className="adb-setup-error">{probeError}</p>}
           <ul className="adb-req-list">
             {(probe?.requirements ?? [
-              { id: "homebrew", title: "Homebrew", detail: "Checking…", status: "missing" },
               { id: "platform-tools", title: "Android platform tools", detail: "Checking…", status: "missing" },
             ]).map((req) => (
               <li key={req.id} className={`adb-req is-${req.status}`}>
@@ -399,10 +388,10 @@ export function AdbSetupScreen({ triedPath, onReady }: AdbSetupScreenProps) {
             </div>
           </div>
           <p className="adb-setup-plain">
-            Installs missing pieces in order: Homebrew if needed, then Android platform tools.
-            Nothing runs until you agree and start. If Homebrew is missing, macOS shows its
-            usual administrator password dialog once (not a DroidDock form). DroidDock does
-            not see or save that password.
+            DroidDock downloads Google’s official Android platform tools (about 16 MB),
+            checks that the file is exactly the one Google published, and keeps it in its
+            own folder in your Library. It needs an internet connection, but no password
+            and nothing else installed on your Mac. Nothing runs until you agree and start.
           </p>
           <label className="adb-agree">
             <input
@@ -436,10 +425,8 @@ export function AdbSetupScreen({ triedPath, onReady }: AdbSetupScreenProps) {
                     <span className="adb-indeterminate-bar" />
                   </div>
                   <p>
-                    <strong>Please wait</strong> — still installing. macOS may show
-                    its administrator password dialog once at the start. Quiet
-                    stretches of up to a minute are normal while the installer
-                    downloads or runs. Do not quit.
+                    <strong>Please wait</strong> — still installing. The download can
+                    take a minute on a slow connection. Do not quit.
                   </p>
                 </div>
               )}
@@ -521,7 +508,7 @@ export function AdbSetupScreen({ triedPath, onReady }: AdbSetupScreenProps) {
             <p className={`adb-path-msg is-${pathStatus}`}>{pathMessage}</p>
           )}
           <p className="adb-setup-hint">
-            After Homebrew: <code>/opt/homebrew/bin/adb</code> (Apple silicon) or{" "}
+            With Homebrew: <code>/opt/homebrew/bin/adb</code> (Apple silicon) or{" "}
             <code>/usr/local/bin/adb</code> (Intel). Hidden files follow Finder —
             press Cmd+Shift+. in the picker to toggle.
           </p>
@@ -535,7 +522,7 @@ export function AdbSetupScreen({ triedPath, onReady }: AdbSetupScreenProps) {
             </div>
           </div>
           <p className="adb-setup-plain">
-            Use this if you prefer not to use Homebrew. Only these steps are required.
+            Use this if you would rather download it yourself. Only these steps are required.
           </p>
           <ol className="adb-manual-steps">
             <li>
