@@ -111,6 +111,38 @@ mod tests {
         assert!(listed.iter().any(|e| e.name == "nested" && e.is_directory));
     }
 
+    /// A symlink to a folder must open like a folder; a symlink to a file, or one whose
+    /// target is gone, must stay a plain row.
+    #[cfg(unix)]
+    #[test]
+    fn list_local_directory_follows_symlinks_to_folders() {
+        use std::os::unix::fs::symlink;
+        let root = std::env::temp_dir().join(format!(
+            "droiddock-list-symlink-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("real-folder")).expect("real folder");
+        fs::write(root.join("real-file.txt"), b"x").expect("real file");
+        symlink(root.join("real-folder"), root.join("link-to-folder")).expect("folder link");
+        symlink(root.join("real-file.txt"), root.join("link-to-file")).expect("file link");
+        symlink(root.join("missing"), root.join("dangling-link")).expect("dangling link");
+        let listed =
+            list_local_directory(root.to_string_lossy().to_string(), false).expect("list");
+        let _ = fs::remove_dir_all(&root);
+        let is_dir = |name: &str| {
+            listed
+                .iter()
+                .find(|e| e.name == name)
+                .unwrap_or_else(|| panic!("{name} missing from listing"))
+                .is_directory
+        };
+        assert!(is_dir("real-folder"));
+        assert!(is_dir("link-to-folder"), "symlink to a folder should be a folder");
+        assert!(!is_dir("link-to-file"));
+        assert!(!is_dir("dangling-link"));
+    }
+
     #[test]
     fn open_local_dir_rejects_a_file_as_not_a_folder() {
         let file = std::env::temp_dir().join(format!(

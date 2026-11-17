@@ -305,7 +305,7 @@ pub(crate) fn pick_mac_folder_macos(starting_path: Option<&str>) -> Result<Optio
 /// Finder had files (e.g. tutorial `images` with spaced PNG names). Prefer `read_dir` +
 /// `file_type()`; keep rows when size/date stat fails. Permission errors use the
 /// `PERMISSION_DENIED:` prefix for the Mac pane UI.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn list_local_directory(path: String, show_hidden: bool) -> Result<Vec<FileEntry>, String> {
     let mut entries = Vec::new();
     for entry in open_local_dir(&path)? {
@@ -318,7 +318,8 @@ pub(crate) fn list_local_directory(path: String, show_hidden: bool) -> Result<Ve
         let metadata = entry.metadata().ok();
         let is_directory = match file_type {
             Some(ft) if ft.is_dir() => true,
-            Some(ft) if ft.is_symlink() => metadata.as_ref().map(|m| m.is_dir()).unwrap_or(false),
+            // `DirEntry::metadata` describes the link itself, so follow it to see the target.
+            Some(ft) if ft.is_symlink() => fs::metadata(entry.path()).map(|m| m.is_dir()).unwrap_or(false),
             Some(ft) if ft.is_file() => false,
             Some(_) => metadata.as_ref().map(|m| m.is_dir()).unwrap_or(false),
             None => metadata.as_ref().map(|m| m.is_dir()).unwrap_or(false),
@@ -369,7 +370,7 @@ pub(crate) struct LocalListedFile {
 /// match names containing `pattern` (case-insensitive), return FileEntry rows (name =
 /// path relative to the search root). Does not follow symlinks, or search outside
 /// `path`.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn search_local_files(
     path: String,
     pattern: String,
@@ -449,7 +450,7 @@ pub(crate) fn search_local_files(
 /// directories, and does not cap the walk. A huge folder blocks until the walk
 /// finishes; the UI waits before it opens the queue. relative paths use `/` even if a
 /// name contained a backslash, which is enough for the phone path we join later.
-#[tauri::command]
+#[tauri::command(async)]
 pub(crate) fn list_local_files_under(path: String, show_hidden: bool) -> Result<Vec<LocalListedFile>, String> {
     let root = PathBuf::from(&path);
     // Same TCC pitfall as list_local_directory — do not use Path::is_dir().
