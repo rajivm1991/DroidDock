@@ -8,10 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "tauri:build-app": "npm run tauri -- build --bundles app && bash scripts/mac-adhoc-sign.sh",
-    "build:guest-dmg": "bash scripts/build-guest-dmg.sh",
-    "release:prepare": "node scripts/release-prepare.cjs",
-    "mac:privacy-app": "bash scripts/mac-privacy-retest.sh"
+    "release:prepare": "node scripts/release-prepare.cjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
