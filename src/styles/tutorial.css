@@ -1,0 +1,181 @@
+/* First-run guided tour overlay. */
+
+/*
+ * The first dual-pane visit needs a short guided tour without everyday blurbs.
+ * TutorialOverlay uses a dim layer, cutout spotlight, and card for each beat,
+ * with shared --panel, --accent, and --text tokens for light and dark. Card
+ * width and position come from JS per step (fit content, no inner scroll). The
+ * tour avoids emoji-only affordances and permanent coachmark chrome.
+ */
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3200;
+  pointer-events: auto;
+}
+
+.tutorial-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.tutorial-spotlight {
+  position: absolute;
+  border-radius: 10px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+  background: transparent;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.tutorial-card {
+  position: absolute;
+  z-index: 2;
+  box-sizing: border-box;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 18px 20px 16px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+  /* Width/height from layout JS; never clip body into a scroll region. */
+  overflow: visible;
+  max-width: none;
+  max-height: none;
+}
+
+.tutorial-progress {
+  margin: 0 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+.tutorial-card h3 {
+  margin: 0 0 12px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: normal;
+  line-height: 1.25;
+}
+
+/*
+ * A single paragraph wall overwhelms; short blocks with space and tip contrast
+ * make each beat scannable. The body uses paragraphs, bullet lists, and muted
+ * tip lines under the title. The card grows or shrinks per step instead of
+ * scrolling.
+ */
+.tutorial-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 18px;
+  overflow: visible;
+  max-height: none;
+}
+
+.tutorial-body-p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.tutorial-body-list {
+  margin: 0;
+  padding: 8px 10px 8px 26px;
+  list-style: disc;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--panel-border));
+}
+
+.tutorial-body-list li {
+  margin: 0;
+  padding: 3px 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.tutorial-body-list li + li {
+  margin-top: 2px;
+}
+
+.tutorial-body-tip {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--muted) 10%, var(--panel));
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.tutorial-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tutorial-actions-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tutorial-btn {
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.tutorial-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tutorial-btn-muted:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.tutorial-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.tutorial-btn-primary:hover {
+  filter: brightness(1.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  .tutorial-dim {
+    background: rgba(0, 0, 0, 0.55);
+  }
+
+  .tutorial-spotlight {
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+  }
+}
+
+:root[data-theme="dark"] .tutorial-dim,
+[data-theme="dark"] .tutorial-dim {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+:root[data-theme="dark"] .tutorial-spotlight,
+[data-theme="dark"] .tutorial-spotlight {
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+}

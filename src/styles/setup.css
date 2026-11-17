@@ -1,0 +1,670 @@
+/* First-run ADB setup screen, including its narrow-window and dark-theme rules. */
+
+
+/* ADB / first-run setup
+   More expressive than the file browser: brand rail + action column.
+   Same accent tokens as the rest of the app. Atmosphere is a soft slate
+   wash and a quiet grid — not purple, not glow-heavy. */
+.adb-setup-shell {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(240px, 34%) 1fr;
+  color: var(--text);
+  background:
+    radial-gradient(1200px 600px at 12% 18%, rgba(74, 144, 217, 0.16), transparent 55%),
+    radial-gradient(900px 500px at 88% 8%, rgba(74, 144, 217, 0.08), transparent 50%),
+    linear-gradient(180deg, #f3f6fa 0%, #eef2f7 100%);
+}
+
+.adb-setup-brand {
+  position: relative;
+  padding: 40px 32px;
+  border-right: 1px solid rgba(29, 29, 31, 0.08);
+  background:
+    linear-gradient(165deg, #1b2a3d 0%, #24384f 48%, #2a4660 100%);
+  color: #f5f7fa;
+  overflow: hidden;
+}
+
+.adb-setup-brand::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.55), transparent 85%);
+  pointer-events: none;
+}
+
+.adb-setup-brand-inner {
+  position: relative;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: adb-rise 0.55s ease-out;
+}
+
+.adb-setup-brand-mark {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.adb-setup-brand h1 {
+  font-size: 34px;
+  line-height: 1.12;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+
+.adb-setup-brand p {
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(245, 247, 250, 0.78);
+}
+
+.adb-setup-brand-points {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.adb-setup-brand-points li {
+  font-size: 13px;
+  color: rgba(245, 247, 250, 0.88);
+  padding-left: 18px;
+  position: relative;
+}
+
+.adb-setup-brand-points li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.adb-setup-main {
+  overflow: auto;
+  padding: 36px 40px 48px;
+  animation: adb-rise 0.55s ease-out 0.05s both;
+}
+
+/*
+ * The intro used a narrower width and no radius while Install, path, and Google
+ * cards were 640px with 14px corners. Sharing .adb-setup-card keeps one column.
+ * The brand rail and hero status checklist are unchanged.
+ */
+.adb-setup-hero {
+  margin-top: 0;
+}
+
+.adb-setup-hero .adb-setup-kicker {
+  margin-bottom: 6px;
+}
+
+.adb-setup-kicker,
+.adb-setup-option-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.adb-setup-option-label {
+  color: var(--accent);
+}
+
+.adb-setup-hero h2 {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+.adb-setup-lead,
+.adb-setup-plain,
+.adb-setup-hint {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.adb-setup-lead code,
+.adb-setup-plain code,
+.adb-setup-hint code,
+.adb-manual-steps code {
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.adb-setup-card {
+  margin-top: 16px;
+  padding: 18px 20px 18px;
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  background: var(--panel);
+  max-width: 640px;
+}
+
+.adb-setup-card-primary {
+  border-color: rgba(74, 144, 217, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(74, 144, 217, 0.08);
+}
+
+.adb-setup-card-muted {
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.adb-setup-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.adb-setup-card h3 {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.adb-setup-count {
+  font-size: 12px;
+  font-weight: 650;
+  color: #1b7a34;
+  background: rgba(52, 199, 89, 0.18);
+  padding: 4px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.adb-setup-count.is-attention {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.adb-setup-checklist-lead {
+  margin: 0 0 4px;
+}
+
+.adb-setup-next-cue {
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.adb-req-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.adb-req {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--row-hover);
+}
+
+.adb-req-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.adb-req.is-ready .adb-req-dot {
+  background: #34c759;
+}
+
+.adb-req.is-for_install .adb-req-dot {
+  background: var(--muted);
+}
+
+.adb-req-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.adb-req-status {
+  font-size: 11px;
+  font-weight: 650;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--track);
+  color: var(--muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.adb-req.is-ready .adb-req-status {
+  background: rgba(52, 199, 89, 0.18);
+  color: #1b7a34;
+}
+
+.adb-req.is-missing .adb-req-status {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.adb-req.is-for_install .adb-req-status {
+  background: var(--track);
+  color: var(--muted);
+}
+
+.adb-req-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.adb-req-detail {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.adb-agree {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 14px 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--row-hover);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.adb-agree input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+
+.adb-primary,
+.adb-secondary {
+  border: none;
+  border-radius: 10px;
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.adb-primary {
+  background: var(--accent);
+  color: #fff;
+  min-width: 180px;
+}
+
+.adb-primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.adb-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.adb-primary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.adb-secondary {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.adb-secondary:hover {
+  background: rgba(74, 144, 217, 0.2);
+}
+
+/*
+ * Please wait and the step cards must not share one overflow box. Only each
+ * step’s console scrolls; the outer block grows with the page scroll instead.
+ */
+.adb-install-progress {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.adb-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/*
+ * Install output can pause with no new lines for a while and percent done is
+ * unknown, so an indefinite bar and wait copy stay fixed above the step cards.
+ * That block does not scroll with console output or show a percent complete.
+ */
+.adb-install-wait {
+  flex-shrink: 0;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(74, 144, 217, 0.28);
+  background: var(--accent-soft);
+}
+
+.adb-install-wait p {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.adb-indeterminate {
+  position: relative;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--track);
+  overflow: hidden;
+}
+
+.adb-indeterminate-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 38%;
+  border-radius: 999px;
+  background: var(--accent);
+  animation: adb-indeterminate 1.25s ease-in-out infinite;
+}
+
+@keyframes adb-indeterminate {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.adb-step {
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fff;
+}
+
+.adb-step-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.adb-step > p {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.adb-step-badge {
+  text-transform: capitalize;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+/*
+ * Fixed-height console per step so each install step keeps its own scroll. overscroll-behavior and the wheel trap keep the main column still.
+ */
+.adb-step-output {
+  margin-top: 8px;
+  height: 140px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  color: var(--muted);
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--row-hover);
+}
+
+.adb-step.is-failed {
+  border-color: rgba(180, 35, 24, 0.45);
+  background: rgba(180, 35, 24, 0.04);
+}
+
+.adb-step.is-success {
+  border-color: rgba(52, 199, 89, 0.45);
+}
+
+.adb-setup-fail,
+.adb-setup-error {
+  margin-top: 12px;
+  color: #b42318;
+  font-size: 13px;
+}
+
+.adb-setup-fail {
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(180, 35, 24, 0.06);
+}
+
+.adb-setup-fail ol {
+  margin: 8px 0 0 18px;
+  color: var(--text);
+}
+
+.adb-path-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.adb-path-row input {
+  flex: 1 1 220px;
+  min-width: 180px;
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  background: #fff;
+  color: var(--text);
+}
+
+.adb-path-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.adb-path-msg {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.adb-path-msg.is-ok {
+  color: #1b7a34;
+}
+
+.adb-path-msg.is-bad {
+  color: #b42318;
+}
+
+.adb-path-msg.is-checking {
+  color: var(--muted);
+}
+
+.adb-manual-steps {
+  margin: 12px 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.adb-manual-steps a {
+  color: var(--accent);
+}
+
+.adb-success {
+  grid-column: 1 / -1;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+  padding: 48px 24px;
+}
+
+.adb-success .adb-setup-brand-mark {
+  color: var(--muted);
+}
+
+.adb-success h1 {
+  font-size: 28px;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+
+.adb-success-ring {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: 3px solid rgba(52, 199, 89, 0.35);
+  background: rgba(52, 199, 89, 0.08);
+  display: grid;
+  place-items: center;
+  animation: adb-pop 0.45s ease-out;
+}
+
+.adb-success-check {
+  width: 30px;
+  height: 15px;
+  border-left: 3px solid #34c759;
+  border-bottom: 3px solid #34c759;
+  transform: rotate(-45deg) translate(2px, -2px);
+  animation: adb-check 0.35s ease-out 0.15s both;
+}
+
+@keyframes adb-pop {
+  from {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes adb-check {
+  from {
+    opacity: 0;
+    transform: rotate(-45deg) scale(0.6) translate(2px, -2px);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-45deg) scale(1) translate(2px, -2px);
+  }
+}
+
+@keyframes adb-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 860px) {
+  .adb-setup-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .adb-setup-brand {
+    padding: 28px 24px 22px;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .adb-setup-brand h1 {
+    font-size: 28px;
+  }
+
+  .adb-setup-main {
+    padding: 24px 20px 40px;
+  }
+}
+
+[data-theme="dark"] .adb-setup-shell {
+  background:
+    radial-gradient(1000px 500px at 10% 0%, rgba(74, 144, 217, 0.18), transparent 55%),
+    linear-gradient(180deg, #14161a 0%, #1a1a1a 100%);
+}
+
+[data-theme="dark"] .adb-setup-brand {
+  background: linear-gradient(165deg, #121820 0%, #1a2430 55%, #1e2c3c 100%);
+  border-right-color: #2a2a2a;
+}
+
+[data-theme="dark"] .adb-setup-card,
+[data-theme="dark"] .adb-step,
+[data-theme="dark"] .adb-path-row input {
+  background: var(--panel);
+}
+
+[data-theme="dark"] .adb-setup-card-muted {
+  background: rgba(43, 43, 45, 0.85);
+}
+
+[data-theme="dark"] .adb-req.is-ready .adb-req-status,
+[data-theme="dark"] .adb-setup-count:not(.is-attention),
+[data-theme="dark"] .adb-path-msg.is-ok,
+[data-theme="dark"] .adb-success h1 {
+  color: #6ee7a0;
+}

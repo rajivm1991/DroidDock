@@ -1,0 +1,297 @@
+/* Icons grid and Columns. List table rules stay in explorer-files.css, ahead of these. */
+
+
+/*
+ * Tile, gap, and icon box come from iconGridStyle so Phone and This Mac share
+ * one zoom ladder. The first four steps match the old glyph sizes. Larger
+ * steps are only selected while Show Thumbnails is on.
+ */
+.grid-view {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--grid-tile, 96px), 1fr));
+  gap: var(--grid-gap, 8px);
+  padding: 10px;
+  overflow-y: auto;
+}
+
+.grid-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.grid-item:hover {
+  background-color: var(--row-hover);
+}
+
+.grid-item.selected {
+  background-color: var(--accent-soft);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.grid-item.focused {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.grid-item-icon {
+  width: var(--grid-icon, 56px);
+  height: var(--grid-icon, 56px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.grid-item-icon .file-mark {
+  width: 100%;
+  height: 100%;
+}
+
+.grid-thumbnail {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.grid-item-name {
+  text-align: center;
+  font-size: var(--grid-name, 12px);
+  color: #333;
+  word-break: break-word;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  line-clamp: var(--grid-lines, 2);
+  -webkit-line-clamp: var(--grid-lines, 2);
+  -webkit-box-orient: vertical;
+}
+
+.grid-item.directory .grid-item-name {
+  font-weight: 400;
+}
+
+/* Column View */
+.column-view {
+  display: flex;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  gap: 1px;
+  background-color: #e0e0e0;
+  /* Selecting the first row (font-weight) was shifting this scroller and hiding Open. */
+  overflow-anchor: none;
+}
+
+.column-list {
+  position: relative;
+  flex: 0 0 auto;
+  width: 250px;
+  background-color: #fff;
+  /* overflow-y:auto alone promotes overflow-x to auto and the first selected
+     row was sliding the Open column sideways on This Mac and the phone. */
+  overflow-x: hidden;
+  overflow-y: auto;
+  overflow-anchor: none;
+  border-right: 1px solid #e0e0e0;
+}
+
+.column-list.active {
+  background-color: #ffffff;
+}
+
+/**
+ * Deep Columns hide the open folder; the open-folder column gets an inset
+ * highlight as the Copy/drop destination without a second chrome strip.
+ * Destination behavior rules are unchanged.
+ */
+.column-list.is-open-folder {
+  box-shadow: inset 0 0 0 2px var(--accent-soft);
+}
+
+/**
+ * During a drop hover the open folder may be off-screen; after scroll, ancestor
+ * columns dim so the Open destination reads as the only drop target. Phone and
+ * Mac Columns both use `.is-drop-targeting` from App/MacPane.
+ */
+.column-view.is-drop-targeting .column-list:not(.is-open-folder) {
+  opacity: 0.4;
+  filter: saturate(0.55) brightness(0.92);
+  pointer-events: none;
+}
+
+.column-view.is-drop-targeting .column-list.is-open-folder {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  opacity: 1;
+  filter: none;
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  z-index: 1;
+}
+
+/*
+ * Reinforce OS dropEffect: copy cursor only on the opposite open folder;
+ * not-allowed on the source pane, chrome, and non-Open Columns. No move or
+ * link cursors.
+ */
+body.drop-copy,
+body.drop-copy * {
+  cursor: copy !important;
+}
+
+body.drop-not-allowed,
+body.drop-not-allowed * {
+  cursor: not-allowed !important;
+}
+
+.column-open-cue {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--panel) 88%, var(--accent-soft));
+  border-bottom: 1px solid var(--panel-border);
+}
+
+/**
+ * A full-window veil hid Columns dimming. A floating chip names the destination
+ * for either direction while the panes stay visible underneath.
+ */
+.drag-overlay {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  max-width: min(440px, calc(100vw - 32px));
+}
+
+.drag-overlay-content {
+  padding: 12px 20px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 2px solid var(--accent);
+  box-shadow: 0 10px 32px rgba(15, 23, 42, 0.28);
+}
+
+.drag-overlay.is-blocked .drag-overlay-content {
+  border-color: #94a3b8;
+  opacity: 0.95;
+}
+
+.drag-overlay-text {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #1e293b;
+  text-align: center;
+}
+
+/**
+ * Cmd+C tip — same corner as the drag chip, quieter so it does not read as an
+ * error or a blocking overlay. Auto-dismisses; Escape also clears it.
+ */
+.copy-hint-overlay {
+  position: fixed;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  z-index: 3900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  max-width: min(480px, calc(100vw - 32px));
+}
+
+.copy-hint-content {
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+}
+
+.copy-hint-text {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--text);
+  text-align: center;
+}
+
+.column-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-bottom: 1px solid #f0f0f0;
+  gap: 8px;
+  color: #333;
+}
+
+.column-item:hover {
+  background-color: #ffffff;
+}
+
+.column-item.selected,
+.column-item.selected:hover {
+  background-color: var(--accent-soft);
+}
+
+.column-item.selected .column-item-name {
+  color: #333;
+  font-weight: 600;
+}
+
+.column-item-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.column-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.column-item.directory .column-item-name {
+  font-weight: 600;
+}
+
+.column-item-arrow {
+  font-size: 18px;
+  color: #999;
+  flex-shrink: 0;
+}
+
+.column-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: #999;
+  font-style: italic;
+  font-size: 14px;
+}

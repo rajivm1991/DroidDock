@@ -22,7 +22,6 @@ tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-shell = "2"
 tauri-plugin-dialog = "2"
-tauri-plugin-updater = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 image = "0.25"
@@ -33,4 +32,11 @@ walkdir = "2"
 glob = "0.3"
 libc = "0.2"
 tokio = { version = "1", features = ["time"] }
+
+# Setup picker: one NSOpenPanel that accepts a file or a folder (Tauri's
+# dialog plugin is file-xor-folder). Hidden files follow Finder preference.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSString", "NSURL"] }
+objc2-app-kit = { version = "0.3", features = ["NSOpenPanel", "NSSavePanel", "NSWindow", "NSApplication"] }
 

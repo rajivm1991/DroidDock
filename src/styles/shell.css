@@ -1,0 +1,373 @@
+/* Top bar: phone picker, Sync, Settings, and the segmented controls in that bar. */
+
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #ffffff;
+  padding-bottom: 28px; /* Make room for status bar */
+}
+
+header {
+  padding: 12px 16px;
+  background: #ffffff;
+  color: #333;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/*
+ * The top bar stays thin: phone name, refresh, Sync, and Settings are app-wide
+ * only. Places and view modes live in the phone pane; Mac is always open.
+ */
+.compact-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.compact-header .header-row-1 {
+  width: 100%;
+}
+
+.header-row-1 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Header Controls - Unified Row */
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.header-controls-bar {
+  width: 100%;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.header-bar-start,
+.header-bar-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-field-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.phone-picker {
+  position: relative;
+  min-width: 0;
+}
+
+.phone-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 180px;
+  max-width: 280px;
+  height: 28px;
+  padding: 4px 10px;
+  border-radius: 6px !important;
+  border: 1px solid var(--panel-border);
+  background: var(--track);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.phone-picker-trigger:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.phone-picker-trigger.is-open {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.phone-picker-trigger:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.phone-picker-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.phone-picker-chevron {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.phone-picker-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 40;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  min-width: 100%;
+  width: max-content;
+  max-width: min(360px, 70vw);
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.phone-picker-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.phone-picker-option:hover,
+.phone-picker-option.is-active {
+  background: var(--accent-soft);
+}
+
+.phone-picker-option-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.phone-picker-option-status {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/*
+ * View sits with List/Icons/Columns in labeled toolbar fields so the segment
+ * control is not an unlabeled island. Sort lives on List headers.
+ */
+.toolbar-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.phone-refresh-btn {
+  border-radius: 6px !important;
+  height: 28px;
+  min-height: 28px;
+  padding: 4px 10px;
+}
+
+.header-bar-end {
+  gap: 6px;
+}
+
+.header-bar-end .header-icon-btn {
+  border-radius: 6px;
+  font-size: 12px;
+  height: 28px;
+  min-height: 28px;
+  padding: 4px 10px;
+}
+
+/*
+ * The phone control is a custom menu, not a native select grouped with Refresh,
+ * so width rules that assumed a select matched no element. .phone-picker-trigger
+ * and .control-btn are unchanged.
+ */
+
+.control-btn {
+  padding: 6px 12px;
+  min-width: 36px;
+  height: 32px;
+  border: 1px solid #ddd;
+  border-radius: 0;
+  background-color: #ffffff;
+  color: #666;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+.control-btn:first-of-type {
+  border-radius: 6px 0 0 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.control-btn:last-of-type {
+  border-radius: 0 6px 6px 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.control-btn:only-of-type {
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Middle buttons in a group */
+.control-btn:not(:first-of-type):not(:last-of-type):not(:only-of-type) {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.control-btn + .control-btn {
+  border-left: none;
+  margin-left: -1px;
+}
+
+.control-btn:hover {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.control-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.control-btn:disabled:hover {
+  background-color: #ffffff;
+  color: #666;
+}
+
+/* The selected view used to turn black, which fought the blue accent and
+   made the toolbar look like a second theme. Active controls use the accent. */
+.control-btn.active {
+  background-color: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
+  border-color: var(--accent);
+  z-index: 1;
+}
+
+/* Settings Dropdown */
+.settings-dropdown {
+  position: relative;
+}
+
+/*
+ * Settings opens a dialog, not a dropdown panel. .settings-dropdown remains the
+ * trigger wrapper only; the settings dialog styles live elsewhere.
+ */
+
+.settings-item-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.theme-segmented {
+  display: flex;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.theme-segment {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 13px;
+  background-color: white;
+  border: none;
+  border-right: 1px solid #ddd;
+  cursor: pointer;
+  color: #333;
+}
+
+.theme-segment:last-child {
+  border-right: none;
+}
+
+.theme-segment:hover {
+  background-color: #f0f0f0;
+}
+
+.theme-segment.active {
+  background-color: #b0b0b0;
+  color: white;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  gap: 12px;
+}
+
+.toggle-label span:first-child {
+  font-size: 14px;
+  color: #333;
+}
+
+.toggle-checkbox {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.toggle-switch {
+  position: relative;
+  width: 40px;
+  height: 20px;
+  background-color: #ccc;
+  border-radius: 10px;
+  transition: background-color 0.2s;
+  flex-shrink: 0;
+}
+
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.toggle-checkbox:checked + .toggle-switch {
+  background-color: #b0b0b0;
+}
+
+.toggle-checkbox:checked + .toggle-switch::after {
+  transform: translateX(20px);
+}

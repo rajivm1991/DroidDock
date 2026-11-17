@@ -1,0 +1,711 @@
+/* Shared phone and Mac chrome: path row, place marks, and the side-by-side pane frame. */
+
+
+/* Path chrome shared by phone + Mac panes (Finder / Explorer style). */
+.pane-chrome {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--panel-border);
+  background: var(--panel);
+  flex-shrink: 0;
+}
+
+/*
+ * Scrollbar padding under place marks made center-align pull “Phone files” and
+ * View below the chip midlines. Top-align a shared 28px control band; the
+ * scrollbar lane hangs under chips only and does not shift labels or View.
+ */
+.pane-chrome-top {
+  --pane-chrome-control-h: 28px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 2px;
+}
+
+.pane-chrome-start {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  flex-wrap: nowrap;
+}
+
+.pane-chrome-kicker {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  height: var(--pane-chrome-control-h);
+  line-height: 1;
+}
+
+.pane-chrome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+  min-height: var(--pane-chrome-control-h);
+}
+
+.pane-chrome-actions button {
+  border: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--text);
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pane-chrome-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/*
+ * List / Icons / Columns and sort only change the phone explorer, so those
+ * controls live in pane chrome. Grouped control-btn segments keep the old look
+ * without sitting in the global header next to an unrelated Mac toggle. Mac
+ * pane actions still use mac-pane-primary, not these rules.
+ */
+.phone-view-toolbar {
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: var(--pane-chrome-control-h, 28px);
+}
+
+.phone-view-toolbar .toolbar-field {
+  min-height: var(--pane-chrome-control-h, 28px);
+}
+
+.phone-view-toolbar .header-field-label {
+  display: inline-flex;
+  align-items: center;
+  height: var(--pane-chrome-control-h, 28px);
+  line-height: 1;
+}
+
+.phone-view-toolbar .control-group {
+  display: inline-flex;
+  align-items: center;
+  height: var(--pane-chrome-control-h, 28px);
+}
+
+.phone-view-toolbar .control-btn {
+  height: var(--pane-chrome-control-h, 28px);
+  min-height: var(--pane-chrome-control-h, 28px);
+  box-sizing: border-box;
+  font-size: 12px;
+}
+
+/* Beat .pane-chrome-actions button so segmented active blue still wins. */
+.phone-view-toolbar button.control-btn {
+  padding: 0 10px;
+  min-width: 32px;
+  border-radius: 0;
+  font-weight: 500;
+  border: 1px solid #ddd;
+  background-color: #ffffff;
+  color: #666;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.phone-view-toolbar button.control-btn:hover:not(:disabled) {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.phone-view-toolbar button.control-btn.active {
+  background-color: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
+  border-color: var(--accent);
+  z-index: 1;
+}
+
+.phone-view-toolbar .control-group .control-btn:first-of-type {
+  border-radius: 6px 0 0 6px;
+}
+
+.phone-view-toolbar .control-group .control-btn:last-of-type {
+  border-radius: 0 6px 6px 0;
+}
+
+.phone-view-toolbar .control-group .control-btn:only-of-type {
+  border-radius: 6px;
+}
+
+.pane-search {
+  width: 100%;
+}
+
+/*
+ * Horizontal overflow on breadcrumbs and place marks is easy to miss; painted
+ * overlay fades left a thin seam beside kickers and history buttons. The scroller
+ * gets a mask so chips dissolve into --panel flush with the clip edge, with no
+ * overlay layer to misalign. Masks apply on the left, right, or both when that
+ * side overflows.
+ */
+.h-scroll-fade {
+  position: relative;
+  min-width: 0;
+  flex: 1;
+  max-width: 100%;
+}
+
+.h-scroll-fade > .breadcrumb,
+.h-scroll-fade > .place-marks-scroll {
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+
+.h-scroll-fade.can-scroll-left:not(.can-scroll-right) > .breadcrumb,
+.h-scroll-fade.can-scroll-left:not(.can-scroll-right) > .place-marks-scroll {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 36px, #000);
+  mask-image: linear-gradient(to right, transparent, #000 36px, #000);
+}
+
+.h-scroll-fade.can-scroll-right:not(.can-scroll-left) > .breadcrumb,
+.h-scroll-fade.can-scroll-right:not(.can-scroll-left) > .place-marks-scroll {
+  -webkit-mask-image: linear-gradient(to left, transparent, #000 36px, #000);
+  mask-image: linear-gradient(to left, transparent, #000 36px, #000);
+}
+
+.h-scroll-fade.can-scroll-left.can-scroll-right > .breadcrumb,
+.h-scroll-fade.can-scroll-left.can-scroll-right > .place-marks-scroll {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 36px,
+    #000 calc(100% - 36px),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 36px,
+    #000 calc(100% - 36px),
+    transparent
+  );
+}
+
+/*
+ * Transfer file lists scroll vertically inside a short panel; without a cue it
+ * is easy to miss rows above or below (same job as h-scroll-fade on the sides).
+ * The shell hosts a pinned divider; ::before/::after overlays fade rows at the
+ * scrollport edges from can-scroll-* flags, not a mask on the scroller, because
+ * masking the ul also washed out its border-top while scrolling. The divider
+ * line itself is not scrolled or faded.
+ */
+.v-scroll-fade {
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+}
+
+.transfer-files-fade.can-scroll-up::before,
+.transfer-files-fade.can-scroll-down::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/*
+ * With the ideal list bottom inset, a tall solid bottom wash looked heavy.
+ * Top and bottom use the same short soft cue. Top starts at 0 (not 1px) so
+ * scrolled rows cannot peek in a hairline under the pinned divider.
+ */
+.transfer-files-fade.can-scroll-up::before {
+  top: 0;
+  height: 36px;
+  background: linear-gradient(
+    to bottom,
+    var(--panel) 0%,
+    var(--panel) 12%,
+    color-mix(in srgb, var(--panel) 70%, transparent) 45%,
+    transparent 100%
+  );
+}
+
+.transfer-files-fade.can-scroll-down::after {
+  bottom: 0;
+  height: 36px;
+  background: linear-gradient(
+    to top,
+    var(--panel) 0%,
+    color-mix(in srgb, var(--panel) 70%, transparent) 40%,
+    transparent 100%
+  );
+}
+
+.place-marks-fade {
+  flex: 1;
+  min-width: 0;
+}
+
+/*
+ * Wrapping stole chrome height; scrollbars overlapping pills looked broken
+ * and the last crumb was clipped at the end. Nowrap plus horizontal scroll,
+ * padding below for the scrollbar, and an end spacer keep the last pill fully
+ * visible.
+ */
+.breadcrumb {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /*
+   * macOS overlay scrollbars grow when hovered or focused and used to paint
+   * over the crumb pills and the place-mark row above or below. A fixed lane
+   * under the pills is reserved; only thumb color changes (height stays 8px
+   * so focus never thickens into the content).
+   */
+  padding-bottom: 12px;
+  box-sizing: border-box;
+  /* Horizontal overscroll stays here; vertical chaining stays allowed. */
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted) 55%, transparent) transparent;
+}
+
+.breadcrumb::-webkit-scrollbar {
+  height: 8px;
+  background: transparent;
+}
+
+.breadcrumb::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.breadcrumb::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 55%, transparent);
+  border-radius: 4px;
+  /* Inset thumb so hover highlight stays inside the 8px lane. */
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.breadcrumb::-webkit-scrollbar-thumb:hover,
+.breadcrumb::-webkit-scrollbar-thumb:active {
+  background: color-mix(in srgb, var(--muted) 85%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.breadcrumb-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.breadcrumb-end-spacer {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 1px;
+}
+
+.breadcrumb .separator {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.breadcrumb-btn {
+  padding: 4px 8px;
+  border: 1px solid var(--panel-border);
+  background: var(--track);
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.breadcrumb-btn:hover:not(:disabled) {
+  background-color: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.breadcrumb-btn:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.separator {
+  color: #999;
+  padding: 0 2px;
+}
+
+/*
+ * There is no places sidebar: the dual-pane phone | Mac layout owns the width.
+ * Device/Sync live in the top bar; place marks live in phone chrome.
+ */
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * Phone used flex 1.2 and Mac max-width 46%, so Mac looked smaller and in some
+ * layouts failed to stretch to the full row height. Both panes now share width
+ * and fill the same vertical space.
+ */
+.app-main.with-mac {
+  flex-direction: row;
+  align-items: stretch;
+}
+
+.phone-pane,
+.mac-pane {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  background: var(--explorer-canvas);
+  color: var(--text);
+  box-shadow: inset 0 0 0 0 transparent;
+  transition: box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+/**
+ * Active pane: a light wash over the whole side (chrome + list), not a loud
+ * edge or header-only tint. Soft enough to live with all day; clear enough
+ * that Ctrl+Tab is obvious. Selection and Columns open cues still read on top.
+ */
+.phone-pane.is-active,
+.mac-pane.is-active {
+  background: color-mix(in srgb, var(--accent-soft) 65%, var(--explorer-canvas));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.phone-pane.is-active .pane-chrome,
+.mac-pane.is-active .pane-chrome {
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--panel));
+  border-bottom-color: color-mix(in srgb, var(--accent) 28%, var(--panel-border));
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.phone-pane.is-active .pane-chrome-kicker,
+.mac-pane.is-active .pane-chrome-kicker {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.phone-pane:not(.is-active),
+.mac-pane:not(.is-active) {
+  background: var(--explorer-canvas);
+}
+
+.phone-pane:not(.is-active) .pane-chrome,
+.mac-pane:not(.is-active) .pane-chrome {
+  background: var(--panel);
+}
+
+/*
+ * When the path wraps, centering history against the full block floated the
+ * back/forward buttons into the vertical middle; top-align keeps them on the
+ * first crumb row.
+ */
+.pane-path-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  margin-top: 4px;
+}
+
+.pane-path-row .h-scroll-fade {
+  flex: 1;
+  min-width: 0;
+}
+
+.pane-history-btns {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 0;
+}
+
+.pane-history-btn {
+  border: 1px solid var(--panel-border);
+  background: var(--track);
+  color: var(--text);
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pane-history-btn:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.pane-history-btn + .pane-history-btn {
+  margin-left: -1px;
+}
+
+.pane-history-btn:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.pane-history-btn:not(:first-child):not(:last-child) {
+  border-radius: 0;
+}
+
+.pane-history-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  z-index: 1;
+}
+
+.pane-history-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/*
+ * Full names on one scrollable row; a floating × clipped and sank behind
+ * pills. The compound chip keeps Remove inline and readable; padding below the
+ * chips reserves space for the scrollbar so it does not cover labels.
+ */
+.place-marks {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+  max-width: 100%;
+}
+
+.place-marks-scroll {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  /* Chip band matches chrome controls; scrollbar uses padding below only. */
+  height: calc(var(--pane-chrome-control-h, 28px) + 12px);
+  max-height: calc(var(--pane-chrome-control-h, 28px) + 12px);
+  padding-bottom: 12px;
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted) 55%, transparent) transparent;
+}
+
+.place-marks-scroll::-webkit-scrollbar {
+  height: 8px;
+  background: transparent;
+}
+
+.place-marks-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.place-marks-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 55%, transparent);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.place-marks-scroll::-webkit-scrollbar-thumb:hover,
+.place-marks-scroll::-webkit-scrollbar-thumb:active {
+  background: color-mix(in srgb, var(--muted) 85%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.place-marks-chip-wrap {
+  display: inline-flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  background: var(--track);
+  overflow: hidden;
+  box-sizing: border-box;
+  height: var(--pane-chrome-control-h, 28px);
+  min-height: var(--pane-chrome-control-h, 28px);
+}
+
+.place-marks-chip-wrap:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.place-marks-chip-wrap.is-active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.place-marks-chip-wrap.is-active:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  filter: brightness(1.08);
+}
+
+.place-marks-chip {
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.place-marks-chip-wrap.is-active .place-marks-chip {
+  color: #fff;
+}
+
+.place-marks-remove {
+  border: none;
+  border-left: 1px solid var(--panel-border);
+  background: transparent;
+  color: var(--muted);
+  padding: 0;
+  width: 28px;
+  min-width: 28px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  flex-shrink: 0;
+}
+
+.place-marks-remove-icon {
+  display: block;
+  flex-shrink: 0;
+}
+
+.place-marks-chip-wrap.is-active .place-marks-remove {
+  border-left-color: rgba(255, 255, 255, 0.35);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.place-marks-remove:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.place-marks-chip-wrap.is-active .place-marks-remove:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.place-marks-add {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  width: var(--pane-chrome-control-h, 28px);
+  min-width: var(--pane-chrome-control-h, 28px);
+  height: var(--pane-chrome-control-h, 28px);
+  min-height: var(--pane-chrome-control-h, 28px);
+  padding: 0;
+  font-weight: 700;
+  margin-top: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.place-marks-end-spacer {
+  flex: 0 0 12px;
+  width: 12px;
+  height: 1px;
+}
+
+.phone-place-btn {
+  border: 1px solid var(--panel-border);
+  background: var(--track);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.phone-place-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.phone-place-btn.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.phone-place-btn.active:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  filter: brightness(1.08);
+}
+
+.phone-place-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

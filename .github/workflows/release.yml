@@ -49,13 +49,30 @@ jobs:
               if (e.status !== 404) throw e
             }
 
+            // Use release-notes/<tag>.md as the release body when it exists,
+            // so the first published text is the real notes. Otherwise point at the changelog.
+            let body = `See [CHANGELOG.md](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/CHANGELOG.md) for details.`
+            try {
+              const fs = require('fs')
+              const path = require('path')
+              if (/^[A-Za-z0-9._-]+$/.test(tag)) {
+                const notesPath = path.join(process.env.GITHUB_WORKSPACE, 'release-notes', `${tag}.md`)
+                if (fs.existsSync(notesPath)) {
+                  const notes = fs.readFileSync(notesPath, 'utf8').trim()
+                  if (notes) body = notes
+                }
+              }
+            } catch (e) {
+              console.log(`Could not read release notes for ${tag}, using the default body: ${e.message}`)
+            }
+
             // Create new draft release
             const { data } = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
               tag_name: tag,
               name: `DroidDock ${tag}`,
-              body: `See [CHANGELOG.md](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/CHANGELOG.md) for details.`,
+              body,
               draft: true,
               prerelease: false
             })

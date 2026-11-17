@@ -1,0 +1,528 @@
+/* Folder sync dialog, before the dark-theme block that restyles it. */
+
+
+/* ======================== */
+/* Sync Dialog Styles       */
+/* ======================== */
+
+.sync-dialog {
+  min-width: 600px;
+  max-width: 700px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  /* Vertical padding moves onto the sticky header/footer so scrolled content never shows through it */
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.sync-dialog > h3 {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: 0;
+  padding: 24px 0 16px;
+  background: inherit;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.sync-dialog > .modal-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin-top: 0;
+  padding: 16px 0 24px;
+  background: inherit;
+  border-top: 1px solid var(--card-border);
+}
+
+/* Gap between the scrolling body and the bordered header/footer */
+.sync-dialog > h3 + * {
+  margin-top: 16px;
+}
+
+.sync-dialog > :has(+ .modal-actions) {
+  margin-bottom: 16px;
+}
+
+/* Steps without an actions row (progress) still need the bottom padding */
+.sync-dialog > :last-child:not(.modal-actions) {
+  margin-bottom: 24px;
+}
+
+.sync-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sync-form-hidden {
+  display: none;
+}
+
+.sync-scan-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.sync-scan-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sync-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sync-form-group label {
+  font-weight: 600;
+  font-size: 13px;
+  color: #666;
+}
+
+.sync-path-input {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.sync-path-input input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.sync-path-input button {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #f5f5f5;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.sync-path-input button:hover {
+  background: #e8e8e8;
+}
+
+.sync-pattern-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sync-pattern-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #e0e0e0;
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 13px;
+}
+
+.sync-pattern-chip button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: 15px;
+  color: #666;
+  line-height: 1;
+}
+
+.sync-pattern-chip button:hover {
+  color: #333;
+}
+
+.sync-pattern-hint {
+  font-size: 12px;
+  color: #999;
+}
+
+.sync-radio-group,
+.sync-options-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 16px;
+}
+
+.sync-advanced-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+}
+
+.sync-advanced-toggle:hover {
+  color: #333;
+}
+
+.sync-advanced-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sync-direction-options-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+.sync-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+}
+
+.sync-radio-label:has(input:checked) {
+  border-color: var(--accent);
+}
+
+.sync-radio-label input[type="radio"] {
+  margin: 0;
+}
+
+/* Radios with a hint line align to the top of the text, like the checkbox rows */
+.sync-radio-label:has(.sync-checkbox-text) {
+  align-items: flex-start;
+}
+
+.sync-radio-label:has(.sync-checkbox-text) input[type="radio"] {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.sync-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+}
+
+.sync-checkbox-label:has(input:checked) {
+  border-color: var(--accent);
+}
+
+.sync-checkbox-label input[type="checkbox"] {
+  margin: 0;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.sync-checkbox-label.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sync-checkbox-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sync-checkbox-hint {
+  font-size: 11px;
+  color: #999;
+  font-weight: normal;
+}
+
+.sync-preview-summary {
+  display: flex;
+  gap: 16px;
+  padding: 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.sync-preview-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sync-preview-table-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.sync-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.sync-preview-table th {
+  position: sticky;
+  top: 0;
+  background: #f5f5f5;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 1px solid #ddd;
+}
+
+.sync-preview-table td {
+  padding: 6px 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.sync-preview-table tr.action-copy { background-color: rgba(76, 175, 80, 0.08); }
+.sync-preview-table tr.action-update { background-color: rgba(255, 152, 0, 0.08); }
+.sync-preview-table tr.action-delete { background-color: rgba(244, 67, 54, 0.08); }
+.sync-preview-table tr.action-rename { background-color: rgba(33, 150, 243, 0.08); }
+
+.action-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.action-badge.copy { background: #e8f5e9; color: #2e7d32; }
+.action-badge.update { background: #fff3e0; color: #e65100; }
+.action-badge.delete { background: #ffebee; color: #c62828; }
+.action-badge.skip { background: #f5f5f5; color: #999; }
+.action-badge.rename { background: #e3f2fd; color: #1565c0; }
+
+.sync-progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 0;
+}
+
+.sync-progress-file {
+  font-size: 13px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sync-progress-bar {
+  width: 100%;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.sync-progress-bar-fill {
+  height: 100%;
+  background: #333;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.sync-progress-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #666;
+}
+
+.sync-result-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 0;
+}
+
+.sync-result-stat {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+/* Per-type breakdown rows sit under "Successful", indented and tighter */
+.sync-result-sub {
+  margin: -4px 0 0 16px;
+  align-items: center;
+}
+
+.sync-errors-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #ffcdd2;
+  border-radius: 6px;
+  padding: 12px;
+  background: #fff5f5;
+}
+
+.sync-errors-list p {
+  font-size: 13px;
+  color: #c62828;
+  margin: 4px 0;
+}
+
+.sync-in-sync-message {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+  font-size: 16px;
+}
+
+.sync-confirm-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  background-color: #333;
+  color: white;
+  transition: background-color 0.2s;
+}
+
+.sync-confirm-btn:hover:not(:disabled) {
+  background-color: #555;
+}
+
+.sync-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sync-saved-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.sync-saved-row select {
+  flex: 1;
+  padding: 8px 32px 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  appearance: none;
+  -webkit-appearance: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sync-delete-saved-btn {
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  background: #fff5f5;
+  color: #c0392b;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sync-delete-saved-btn:hover {
+  background: #ffe0e0;
+}
+
+.sync-save-btn {
+  padding: 10px 16px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #f5f5f5;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.sync-save-btn:hover:not(:disabled) {
+  background: #e8e8e8;
+}
+
+.sync-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sync-save-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+}
+
+.sync-save-input-row input {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.sync-save-confirm-btn {
+  padding: 7px 14px;
+  border: none;
+  border-radius: 6px;
+  background: #333;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.sync-save-confirm-btn:hover:not(:disabled) {
+  background: #555;
+}
+
+.sync-save-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sync-save-cancel-btn {
+  padding: 7px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  color: #666;
+}
+
+.sync-save-cancel-btn:hover {
+  background: #f0f0f0;
+}

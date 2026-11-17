@@ -186,27 +186,27 @@
         margin: 3rem auto 5rem;
         padding: 0 2rem;
       }
-      .window {
-        border-radius: 12px;
-        overflow: hidden;
-        background: #fff;
-        box-shadow:
-          0 1px 2px rgba(28, 26, 23, 0.06),
-          0 40px 80px -30px rgba(28, 26, 23, 0.35),
-          0 0 0 1px var(--line);
-      }
-      .window img {
+      .stage img,
+      .shots img {
         display: block;
         width: 100%;
+        max-width: 1000px;
         height: auto;
+        margin: 0 auto;
       }
-      .caption {
+      .shots figure {
+        margin: 0 0 3.5rem;
+      }
+      .shots figure:last-child {
+        margin-bottom: 0;
+      }
+      .shots figcaption {
         text-align: center;
         color: var(--dim);
-        font-size: 0.85rem;
-        margin-top: 1rem;
         font-family: var(--serif);
         font-style: italic;
+        font-size: 1rem;
+        margin-bottom: 1rem;
       }
 
       /* Features band */
@@ -327,6 +327,25 @@
       .step a {
         color: var(--accent);
       }
+      .step > div:last-child {
+        flex: 1;
+        min-width: 0;
+      }
+      .step figure {
+        margin: 0.8rem 0 0;
+      }
+      .step figcaption {
+        color: var(--dim);
+        font-family: var(--serif);
+        font-style: italic;
+        font-size: 0.9rem;
+        margin-bottom: 0.6rem;
+      }
+      .step img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
       .done-badge {
         text-align: center;
         margin-top: 0.5rem;
@@ -378,51 +397,6 @@
       }
 
       /* Gallery */
-      .g-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1.5rem;
-      }
-      .g-card {
-        border-radius: 10px;
-        overflow: hidden;
-        background: #fff;
-        box-shadow:
-          0 1px 2px rgba(28, 26, 23, 0.06),
-          0 0 0 1px var(--line);
-      }
-      .g-card img {
-        display: block;
-        width: 100%;
-        height: auto;
-      }
-      .g-card .lb {
-        padding: 0.9rem 1.1rem;
-      }
-      .g-card .lb b {
-        font-weight: 600;
-        font-size: 0.9rem;
-      }
-      .g-card .lb p {
-        color: var(--dim);
-        font-size: 0.8rem;
-        margin: 0.2rem 0 0;
-      }
-      .gallery-group {
-        margin-bottom: 3.5rem;
-      }
-      .gallery-group:last-child {
-        margin-bottom: 0;
-      }
-      .gallery-group h3 {
-        font-size: 0.78rem;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        color: var(--accent);
-        text-align: center;
-        margin: 0 0 1.5rem;
-        font-weight: 600;
-      }
 
       /* Release notes */
       .releases {
@@ -557,6 +531,41 @@
         font-size: 0.78rem;
       }
 
+      .contributors {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 3rem 2rem;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 0.9rem 1rem;
+        color: var(--dim);
+        font-size: 0.82rem;
+      }
+      .contributors span {
+        flex: 0 0 100%;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-size: 0.72rem;
+      }
+      .contributors a {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: var(--dim);
+        text-decoration: none;
+      }
+      .contributors a:hover {
+        color: var(--ink);
+      }
+      .contributors img {
+        display: block;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+      }
       footer {
         max-width: 1120px;
         margin: 0 auto;
@@ -584,9 +593,6 @@
           display: none;
         }
         .features {
-          grid-template-columns: 1fr;
-        }
-        .g-grid {
           grid-template-columns: 1fr;
         }
         .req-grid {
@@ -617,11 +623,10 @@
 
     <header class="hero">
       <div class="eyebrow">For macOS · Free &amp; Open Source</div>
-      <h1>Your Android's files,<br /><em>right on your Mac.</em></h1>
+      <h1>Your phone and your Mac,<br /><em>side by side.</em></h1>
       <p class="dek">
-        DroidDock is a native file manager for your Android phone — browse,
-        preview, sync, and download over a USB cable. No cloud account, no
-        cables-and-folders dance.
+        Copy files between an Android phone and a Mac over USB. A copy goes
+        either way, and nothing is uploaded to a cloud.
       </p>
       <div class="cta">
         <a id="download-btn" class="btn primary" href="#download"
@@ -640,39 +645,33 @@
         >
       </div>
       <div class="version-line">
-        Version 0.5.0 • macOS 10.15+ • Free &amp; Open Source
+        <span id="app-version"></span>macOS 10.15+ • Free &amp; Open Source
       </div>
     </header>
 
     <div class="stage">
-      <div class="window">
-        <img
-          src="screenshots/folder-download-options.png"
-          alt="DroidDock showing download options for an Android folder"
-        />
-      </div>
-      <p class="caption">
-        Real DroidDock window — recursive folder download with conflict
-        handling, mid‑transfer.
-      </p>
+      <img
+        src="screenshots/phone-connected.png"
+        alt="DroidDock with the phone and This Mac side by side"
+      />
     </div>
 
     <div class="band">
       <div class="features" id="features">
         <div class="feature">
           <div class="icon">⇄</div>
-          <h3>Folder Sync</h3>
+          <h3>Phone and This Mac</h3>
           <p>
-            Mirror whole folders between Mac and Android with pattern filters
-            and timestamp preservation.
+            Both sides stay open. Copy either way, with a queue you can pause
+            or cancel and a question before an existing file is replaced.
           </p>
         </div>
         <div class="feature">
-          <div class="icon">⌘</div>
-          <h3>Keyboard-First</h3>
+          <div class="icon">↓</div>
+          <h3>One-click setup</h3>
           <p>
-            Table, grid, and column views, all fully navigable without touching
-            the trackpad.
+            No Homebrew and no password. DroidDock downloads Google's adb tool
+            and checks it for you.
           </p>
         </div>
         <div class="feature">
@@ -711,17 +710,22 @@
         <div class="step">
           <div class="num">2</div>
           <div>
-            <h3>Install ADB</h3>
+            <h3>Let DroidDock set up ADB</h3>
             <p>
-              DroidDock talks to your phone through ADB, Google's own official
-              tool for connecting a computer to an Android device. Open Terminal
-              and run:
+              DroidDock needs ADB (Android Debug Bridge), Google's tool for
+              reaching an Android phone over USB. If your Mac has none, open
+              DroidDock and click <strong>Install missing tools</strong>.
             </p>
-            <code class="cmd">brew install android-platform-tools</code>
-            <p>
-              Don't have Homebrew? Install it first from
-              <a href="https://brew.sh">brew.sh</a>.
-            </p>
+            <figure>
+              <figcaption>
+                One click installs Google’s adb tool. No password, no Homebrew.
+              </figcaption>
+              <img
+                src="screenshots/setup-screen.png"
+                alt="First launch: one click installs Google's adb tool"
+                loading="lazy"
+              />
+            </figure>
           </div>
         </div>
 
@@ -731,8 +735,20 @@
             <h3>Enable USB Debugging on your phone</h3>
             <p>
               This is a hidden Android setting that tells your phone to trust
-              computer connections.
+              computer connections. Menu names differ by brand, so with no phone
+              connected DroidDock shows the steps for yours.
             </p>
+            <figure>
+              <figcaption>
+                No phone yet: pick your brand for the USB debugging steps.
+              </figcaption>
+              <img
+                src="screenshots/phone-not-connected.png"
+                alt="No phone connected: USB debugging steps for your brand"
+                loading="lazy"
+              />
+            </figure>
+            <p>On stock Android it goes like this:</p>
             <ol>
               <li>Open <strong>Settings → About phone</strong></li>
               <li>Tap <strong>Build number</strong> 7 times</li>
@@ -757,14 +773,14 @@
               Plug your phone into your Mac with a USB cable. On your phone, tap
               <strong>Allow</strong> on the "Allow USB debugging?" prompt (check
               "Always allow" to skip this next time). Open DroidDock — your
-              phone appears in the device dropdown within a few seconds.
+              phone opens next to This Mac within a few seconds.
             </p>
           </div>
         </div>
       </div>
 
       <div class="done-badge">
-        <span>🎉 Done — select your device and start browsing</span>
+        <span>🎉 Done — your phone and This Mac are side by side</span>
       </div>
     </section>
 
@@ -790,10 +806,9 @@
         <div class="faq-item">
           <h3>What is ADB?</h3>
           <p>
-            ADB (Android Debug Bridge) is a command-line tool made by Google
-            that lets a computer talk to an Android device — list files, install
-            apps, view logs, etc. DroidDock uses it under the hood so you get a
-            normal file-browser window instead of typing commands.
+            ADB (Android Debug Bridge) is Google's tool for a computer to talk
+            to an Android phone over USB. DroidDock uses it to browse and copy
+            your files, and its setup screen installs it for you.
           </p>
         </div>
 
@@ -819,128 +834,30 @@
         <div class="faq-item">
           <h3>Does DroidDock collect my data?</h3>
           <p>
-            No. DroidDock does not collect or transmit any personal data. All
-            communication stays between your Mac and your phone over the USB
-            cable.
+            No. DroidDock does not collect or transmit your files or personal
+            data. Copies stay on the USB cable between your Mac and your phone.
+            The only thing it downloads is Google's platform-tools, once, if you
+            click Install.
           </p>
         </div>
       </div>
     </section>
 
-    <!-- Gallery -->
+    <!-- Screenshots -->
     <section>
       <h2>See it in action</h2>
-      <p class="lede">A few of the screens you'll actually use</p>
 
-      <div class="gallery-group">
-        <h3>✨ New in v0.5.0</h3>
-        <div class="g-grid">
-          <div class="g-card">
-            <img
-              src="screenshots/folder-download-options.png"
-              alt="DroidDock Recursive Folder Download"
-            />
-            <div class="lb">
-              <b>Recursive Folder Download</b>
-              <p>Download entire folders with per-download conflict handling</p>
-            </div>
-          </div>
-          <div class="g-card">
-            <img
-              src="screenshots/settings.png"
-              alt="DroidDock Settings and Appearance"
-            />
-            <div class="lb">
-              <b>Settings &amp; Appearance</b>
-              <p>Settings modal with Light/Dark/Sync with System control</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="gallery-group">
-        <h3>Folder Sync</h3>
-        <div class="g-grid">
-          <div class="g-card">
-            <img
-              src="screenshots/folder-sync.png"
-              alt="DroidDock Folder Sync"
-            />
-            <div class="lb">
-              <b>Folder Sync</b>
-              <p>
-                Sync entire folders between Mac and Android with filtering
-                options
-              </p>
-            </div>
-          </div>
-          <div class="g-card">
-            <img
-              src="screenshots/folder-sync-preview.png"
-              alt="DroidDock Sync Preview Modal"
-            />
-            <div class="lb">
-              <b>Sync Preview</b>
-              <p>Preview what will change before running the sync</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="gallery-group">
-        <h3>Main Interface</h3>
-        <div class="g-grid">
-          <div class="g-card">
-            <img
-              src="screenshots/preview-model.png"
-              alt="DroidDock File Preview Modal"
-            />
-            <div class="lb">
-              <b>File Preview</b>
-              <p>Preview images and text without downloading</p>
-            </div>
-          </div>
-          <div class="g-card">
-            <img
-              src="screenshots/list-view.png"
-              alt="DroidDock List View - Compact Layout"
-            />
-            <div class="lb">
-              <b>List View</b>
-              <p>Browse files in a clean, space-efficient list format</p>
-            </div>
-          </div>
-          <div class="g-card">
-            <img
-              src="screenshots/folder-gird-view.png"
-              alt="DroidDock Grid View - Folders"
-            />
-            <div class="lb">
-              <b>Grid View</b>
-              <p>Browse folders visually in grid layout</p>
-            </div>
-          </div>
-          <div class="g-card">
-            <img
-              src="screenshots/image-grid-view.png"
-              alt="DroidDock Grid View - Thumbnail Gallery"
-            />
-            <div class="lb">
-              <b>Image Thumbnails</b>
-              <p>Visual browsing with image thumbnails</p>
-            </div>
-          </div>
-          <div class="g-card">
-            <img
-              src="screenshots/keyboard-shortcuts.png"
-              alt="DroidDock Keyboard Shortcuts"
-            />
-            <div class="lb">
-              <b>Keyboard Shortcuts Help</b>
-              <p>Full keyboard navigation with a helpful reference</p>
-            </div>
-          </div>
-        </div>
+      <div class="shots">
+        <figure>
+          <figcaption>
+            Drag between the two sides to copy either way.
+          </figcaption>
+          <img
+            src="screenshots/copy-drag-drop.png"
+            alt="Dragging a file from the phone to This Mac"
+            loading="lazy"
+          />
+        </figure>
       </div>
     </section>
 
@@ -950,6 +867,36 @@
       <p class="lede">View what's new in each version</p>
 
       <div class="releases">
+        <a href="releases/v0.7.0.html" class="release-item">
+          <div class="release-row">
+            <div>
+              <h3>v0.7.0</h3>
+              <div class="date">November 2026</div>
+              <p class="desc">
+                Phone and This Mac side by side with copy either way, a transfer
+                queue, one-click ADB setup with no Homebrew, USB debugging help
+                by phone brand, and safer copies and sync
+              </p>
+            </div>
+            <span class="arrow">→</span>
+          </div>
+        </a>
+
+        <a href="releases/v0.6.0.html" class="release-item">
+          <div class="release-row">
+            <div>
+              <h3>v0.6.0</h3>
+              <div class="date">October 2026</div>
+              <p class="desc">
+                Per-action sync toggles, live scan progress in the sync
+                preview, a per-type breakdown on the sync result, and a sync
+                dialog that scrolls on short windows
+              </p>
+            </div>
+            <span class="arrow">→</span>
+          </div>
+        </a>
+
         <a href="releases/v0.5.0.html" class="release-item">
           <div class="release-row">
             <div>
@@ -1087,8 +1034,8 @@
           <li>Open the DMG and drag DroidDock to your Applications folder</li>
           <li>Open DroidDock from Applications</li>
           <li>
-            Install ADB and enable USB debugging on your phone — see
-            <a href="#setup">First Time Setup</a> above
+            Follow the setup screen to install ADB, then enable USB debugging on
+            your phone — see <a href="#setup">First Time Setup</a> above
           </li>
         </ol>
         <div class="warn-box">
@@ -1096,8 +1043,7 @@
           unsigned, so macOS may say the app is "damaged and can't be opened" on
           first launch. This is normal — run
           <code>xattr -cr /Applications/DroidDock.app</code> in Terminal once,
-          then open the app normally. Code signing will be added in future
-          releases.
+          then open the app normally.
         </div>
       </div>
 
@@ -1113,13 +1059,29 @@
         <div class="req-block">
           <h4>Prerequisites</h4>
           <ul>
-            <li>✅ ADB (Android Debug Bridge) installed</li>
             <li>✅ USB cable for device connection</li>
+            <li>✅ Internet connection, once, to install ADB</li>
             <li>✅ Android device with USB debugging enabled</li>
           </ul>
         </div>
       </div>
     </section>
+
+    <div class="contributors">
+      <span>Contributors</span>
+      <a
+        href="https://github.com/rajivm1991"
+        title="rajivm1991"
+        aria-label="rajivm1991 on GitHub"
+        ><img src="https://github.com/rajivm1991.png?size=64" alt="" loading="lazy"
+      /></a>
+      <a
+        href="https://github.com/PROSKEY"
+        title="PROSKEY"
+        aria-label="PROSKEY on GitHub"
+        ><img src="https://github.com/PROSKEY.png?size=64" alt="" loading="lazy"
+      /></a>
+    </div>
 
     <footer>
       <span
@@ -1140,6 +1102,10 @@
       fetch("https://api.github.com/repos/rajivm1991/DroidDock/releases/latest")
         .then((response) => response.json())
         .then((data) => {
+          if (data.tag_name) {
+            document.getElementById("app-version").textContent =
+              "Version " + data.tag_name.replace(/^v/, "") + " • ";
+          }
           const dmgAsset = data.assets?.find((asset) =>
             asset.name.endsWith(".dmg"),
           );

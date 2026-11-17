@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DroidDock v0.7.0 Release Notes</title>
+    <meta name="description" content="DroidDock v0.7.0 - Phone and Mac side by side, copy either way, a transfer queue, and one-click adb setup with no Homebrew">
+    <link rel="icon" type="image/svg+xml" href="../design/icon-design.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #ffffff;
+            color: #333;
+        }
+        .hero-bg {
+            background: #b0b0b0;
+        }
+    </style>
+</head>
+<body class="bg-white">
+    <!-- Header -->
+    <header class="hero-bg text-white py-12 px-4">
+        <div class="max-w-4xl mx-auto">
+            <a href="../" class="text-white hover:underline mb-4 inline-block">← Back to DroidDock</a>
+            <h1 class="text-4xl md:text-5xl font-bold mb-4">DroidDock v0.7.0</h1>
+            <p class="text-xl" style="color: rgba(255, 255, 255, 0.9);">Phone and Mac, side by side • November 2026</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 py-12">
+
+        <!-- What's New -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">What's New in v0.7.0</h2>
+            <p class="text-gray-700 mb-2">DroidDock now opens your phone and your Mac in one window, and a copy goes either way.</p>
+            <p class="text-gray-600 mb-6 text-sm">
+                Thanks to <a href="https://github.com/PROSKEY" class="hover:underline" style="color: #b0b0b0;">PROSKEY</a>
+                for the phone-and-Mac window, copy either way, the transfer queue, and the setup and USB debugging screens.
+            </p>
+
+            <div class="space-y-6">
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Phone and This Mac, Side by Side</h3>
+                    <p class="text-gray-700">Drag between the two sides, use <code class="bg-white px-1 rounded">Cmd + C</code> then <code class="bg-white px-1 rounded">Cmd + V</code>, press <code class="bg-white px-1 rounded">Cmd + D</code>, or drop a file from Finder onto the phone side.</p>
+                </div>
+
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Transfer Queue</h3>
+                    <p class="text-gray-700">Per-file progress with pause, cancel, and retry. When a name already exists, choose skip, replace, keep both, or ask each time. Replacing a file keeps the original until the new copy finishes. Replacing a folder deletes it first, after a second confirmation.</p>
+                </div>
+
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">One-Click Setup</h3>
+                    <p class="text-gray-700">No adb on your Mac? DroidDock downloads Google's platform-tools, checks them against a pinned checksum, and keeps them in its own folder. No Homebrew, no password. An adb you already have is used first.</p>
+                </div>
+
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">USB Debugging Help and a Quick Tour</h3>
+                    <p class="text-gray-700">With no phone connected, pick your phone's brand and software version to see the steps. A one-time tour walks through the two sides, and you can reopen it from Settings.</p>
+                </div>
+
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Safer Copies and Sync</h3>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1 text-sm">
+                        <li>A copy cut short, for example if adb is killed, no longer replaces a good file with a partial one</li>
+                        <li>If the phone is unplugged during a sync scan, sync stops instead of planning deletes from a half-finished list</li>
+                        <li>Sync ignores DroidDock's in-progress temp files</li>
+                        <li>A file name containing "Cancelled" no longer stops the whole queue</li>
+                        <li>Symlinked folders open on This Mac, and big folders no longer freeze the window</li>
+                    </ul>
+                </div>
+
+                <div class="bg-gray-50 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-800">Heads-up</h3>
+                    <ul class="list-disc list-inside text-gray-600 space-y-1 text-sm">
+                        <li>Delete now goes up a folder. It never removes files, and <code class="bg-white px-1 rounded">Cmd + Delete</code> no longer deletes on the phone. Use Delete on the file menu or the selection bar.</li>
+                        <li>The layout and several shortcuts changed with the redesign. <code class="bg-white px-1 rounded">Cmd + /</code> lists them.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screenshots -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Screenshots</h2>
+            <div class="space-y-10">
+                <div>
+                    <p class="text-center mb-3 text-gray-600 italic">One click installs Google’s adb tool. No password, no Homebrew.</p>
+                    <img src="../screenshots/setup-screen.png" alt="First launch: one click installs Google's adb tool" class="w-full" loading="lazy">
+                </div>
+                <div>
+                    <p class="text-center mb-3 text-gray-600 italic">Phone and This Mac, side by side. The shaded side is the active one.</p>
+                    <img src="../screenshots/phone-connected.png" alt="Phone and This Mac side by side" class="w-full" loading="lazy">
+                </div>
+                <div>
+                    <p class="text-center mb-3 text-gray-600 italic">Drag between the two sides to copy either way.</p>
+                    <img src="../screenshots/copy-drag-drop.png" alt="Dragging a file from the phone to This Mac" class="w-full" loading="lazy">
+                </div>
+            </div>
+        </section>
+
+        <!-- Download -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Download</h2>
+            <div class="bg-gray-50 p-8 rounded-lg text-center">
+                <a href="https://github.com/rajivm1991/DroidDock/releases/tag/v0.7.0"
+                   class="inline-block px-8 py-4 rounded-lg text-lg font-semibold text-white transition shadow-lg"
+                   style="background-color: #b0b0b0;"
+                   onmouseover="this.style.backgroundColor='#666666'"
+                   onmouseout="this.style.backgroundColor='#b0b0b0'">
+                    Download DroidDock v0.7.0
+                </a>
+                <p class="mt-4 text-gray-600">macOS 10.15+ • Universal Binary (Apple Silicon + Intel)</p>
+                <p class="mt-2 text-gray-600">
+                    Or install via Homebrew:
+                    <code class="bg-white px-2 py-1 rounded text-sm">brew tap rajivm1991/droiddock &amp;&amp; brew install --cask droiddock</code>
+                </p>
+            </div>
+        </section>
+
+        <!-- Full Changelog -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Full Changelog</h2>
+            <div class="bg-gray-50 p-6 rounded-lg">
+                <h3 class="text-xl font-semibold mb-4 text-gray-800">v0.7.0 - November 2026</h3>
+
+                <h4 class="font-semibold text-gray-700 mb-2">Added</h4>
+                <ul class="list-disc list-inside mb-4 text-gray-600 space-y-1">
+                    <li>Phone and This Mac open together, with copy either way by drag, Cmd+C and Cmd+V, Cmd+D, or a Finder drop onto the phone side</li>
+                    <li>Transfer queue with pause, cancel, and retry, and skip, replace, keep both, or ask each time on a name clash</li>
+                    <li>One-click adb setup that downloads Google's platform-tools and checks them, with no Homebrew or password</li>
+                    <li>USB debugging steps by phone brand and software version, and a one-time tour</li>
+                    <li>Place marks, back and forward on each side, filter and search subfolders, and rename from the selection bar</li>
+                    <li>Thumbnails on This Mac, a larger Icons zoom, New folder on either side, and a choice of phone start folder</li>
+                    <li>Keyboard: Ctrl+Tab switches sides, Cmd+[ and Cmd+] go back and forward, and Columns keys work like Finder</li>
+                    <li>A one-time "provided as is" notice on first launch</li>
+                </ul>
+
+                <h4 class="font-semibold text-gray-700 mb-2">Changed</h4>
+                <ul class="list-disc list-inside mb-4 text-gray-600 space-y-1">
+                    <li>Delete goes to the parent folder, and Cmd+Delete no longer deletes on the phone</li>
+                    <li>The top bar has the phone picker, Look for phones, Sync, and Settings, and each side has its own view buttons</li>
+                    <li>List sorts from the Name, Size, and Date headers, and the status bar has separate phone and Mac meters</li>
+                    <li>Removed the unused update plugin</li>
+                </ul>
+
+                <h4 class="font-semibold text-gray-700 mb-2">Fixed</h4>
+                <ul class="list-disc list-inside mb-4 text-gray-600 space-y-1">
+                    <li>A killed adb transfer no longer replaces a good file with a partial one</li>
+                    <li>An interrupted sync scan stops instead of planning deletes from a half-finished list</li>
+                    <li>Sync ignores in-progress temp files</li>
+                    <li>File names containing "Cancelled" no longer stop the queue</li>
+                    <li>Symlinked folders open on This Mac, and big folders no longer freeze the window</li>
+                    <li>Plus fixes to phone search previews, rename in Columns and Icons, the emulated breadcrumb, Columns scrolling, the Allow access prompt, and more</li>
+                </ul>
+
+                <p class="mt-4">
+                    <a href="https://github.com/rajivm1991/DroidDock/blob/main/CHANGELOG.md"
+                       class="hover:underline"
+                       style="color: #b0b0b0;">
+                        View complete changelog →
+                    </a>
+                </p>
+            </div>
+        </section>
+
+        <!-- Support -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Support the Developer</h2>
+            <div class="bg-gray-50 p-8 rounded-lg text-center">
+                <p class="text-gray-700 mb-6">DroidDock is free and open-source, built by one developer in their spare time. If it saves you time, a coffee means a lot!</p>
+                <a href="https://www.buymeacoffee.com/rajivm1991"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   class="inline-block px-8 py-4 rounded-lg text-lg font-semibold transition shadow-md"
+                   style="background-color: #FFDD00; color: #000;">
+                    ☕ Buy me a coffee
+                </a>
+            </div>
+        </section>
+
+        <!-- Links -->
+        <section>
+            <h2 class="text-3xl font-bold mb-6 text-gray-800">Links</h2>
+            <div class="space-y-2 text-gray-700">
+                <p>
+                    <a href="https://github.com/rajivm1991/DroidDock" class="hover:underline" style="color: #b0b0b0;">
+                        GitHub Repository →
+                    </a>
+                </p>
+                <p>
+                    <a href="https://github.com/rajivm1991/DroidDock/releases/tag/v0.7.0" class="hover:underline" style="color: #b0b0b0;">
+                        Release on GitHub →
+                    </a>
+                </p>
+                <p>
+                    <a href="../" class="hover:underline" style="color: #b0b0b0;">
+                        DroidDock Website →
+                    </a>
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 px-4 mt-12">
+        <div class="max-w-4xl mx-auto text-center">
+            <p class="text-gray-400">Built with Tauri, Rust, React, and TypeScript</p>
+            <p class="text-gray-500 text-sm mt-2">
+                © 2025-2026 DroidDock •
+                <a href="https://github.com/rajivm1991/DroidDock/blob/main/LICENSE"
+                   style="color: #b0b0b0;"
+                   class="hover:underline">
+                    MIT License
+                </a>
+            </p>
+        </div>
+    </footer>
+</body>
+</html>
