@@ -62,7 +62,7 @@ Thanks to [PROSKEY](https://github.com/PROSKEY) for the phone-and-Mac window, co
 - **Multi-select menu**: Right-clicking a selected item keeps the rest of the selection
 - **Columns copy target**: Copies and drops use the open column. An empty storage folder continues into internal storage so the open folder stays usable
 - **Second copy**: Starting another copy while a conflict question or scan is still open is refused, so the first copy stays in place
-- **Replace and cancel**: A replace keeps the existing file until the new copy finishes, so cancel or failure leaves the original in place. Cancel also works while a transfer is still preparing
+- **Replace and cancel**: A replace keeps the existing file until the new copy finishes, so cancel or failure leaves the original in place. Replacing a folder is different: it is deleted first, after a second confirmation, so stopping part-way leaves it incomplete. Cancel also works while a transfer is still preparing
 - **Interrupted copies**: A copy that is cut short, for example when adb is killed, no longer counts as finished, so a partial file is never renamed over the original
 - **Interrupted sync scans**: If the phone is unplugged or adb stops while a sync scans a folder, sync stops with a message instead of planning deletes from a half-finished list
 - **Sync temp files**: Folder sync ignores DroidDock’s own in-progress `.part` temp files

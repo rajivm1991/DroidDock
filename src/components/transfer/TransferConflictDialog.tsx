@@ -417,6 +417,8 @@ export function ReplaceFoldersConfirmDialog({
         </p>
         <p className="download-options-summary conflict-warning">
           Anything in the old folder that is not part of this copy will be lost.
+          If the copy is stopped or fails part-way, the new folder is left
+          incomplete.
         </p>
         {warnings.map((line) => (
           <p key={line} className="download-options-summary conflict-warning">

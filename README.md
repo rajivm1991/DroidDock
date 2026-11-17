@@ -44,7 +44,7 @@ _Drag between the two sides to copy either way._
 
 - Phone and This Mac side by side. Copy with drag, Cmd+C / Cmd+V, Cmd+D, or by dropping a file from Finder onto the phone side
 - List, Icons, and Columns views, one per side
-- Transfer queue with progress, pause, cancel, and retry. A replace keeps the original until the new copy finishes
+- Transfer queue with progress, pause, cancel, and retry. Replacing a file keeps the original until the new copy finishes, while replacing a folder deletes it first, after a second confirmation
 - Skip, replace, keep both, or ask each time when names clash. Folders can merge
 - Folder sync with a preview. Compare by name and date or by content, filter by pattern, and save setups
 - Preview a phone file with Space. Thumbnails for photos and videos
