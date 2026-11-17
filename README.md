@@ -180,6 +180,9 @@ checksum in Google's SDK manifest (`https://dl.google.com/android/repository/rep
 
 ### Releases
 
+Before you tag, write the release text in `release-notes/v<version>.md`. The workflow uses it as the GitHub Release text, and falls back to a link to `CHANGELOG.md`
+when there is no file for that tag.
+
 ```bash
 npm run release:prepare <version>   # bumps versions, updates CHANGELOG.md, commits, and tags
 git push origin <branch-name>
