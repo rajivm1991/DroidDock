@@ -19,6 +19,7 @@ import {
 } from "../../lib/columnPathCollapse";
 import { invoke } from "@tauri-apps/api/core";
 import { isMultiSelectClick } from "../../lib/presets";
+import { createRequestGuard } from "../../lib/requestGuard";
 
 export interface UsePhoneColumnsArgs {
   selectedDevice: string;
@@ -63,6 +64,11 @@ export function usePhoneColumns({
   columnFilesRef.current = columnFiles;
   const columnSelectedRef = useRef(columnSelected);
   columnSelectedRef.current = columnSelected;
+  // initializeColumnView awaits one listing per ancestor. If the person switches phone or
+  // opens another folder meanwhile, the late result must not overwrite newer state.
+  const columnInitGuard = useRef(createRequestGuard());
+  const selectedDeviceRef = useRef(selectedDevice);
+  selectedDeviceRef.current = selectedDevice;
 
   /**
    * Deep Columns trees overflow; mouse drill-in and init left scroll on the leftmost
@@ -275,6 +281,12 @@ export function usePhoneColumns({
   async function initializeColumnView() {
     if (!selectedDevice || !currentPath) return;
 
+    const requestId = columnInitGuard.current.begin();
+    const deviceAtStart = selectedDevice;
+    const isStale = () =>
+      !columnInitGuard.current.isCurrent(requestId) ||
+      selectedDeviceRef.current !== deviceAtStart;
+
     const segments = currentPath.split("/").filter(Boolean);
     const paths: string[] = ["/"];
     for (let i = 0; i < segments.length; i++) {
@@ -294,6 +306,8 @@ export function usePhoneColumns({
         console.error(`Failed to load files for ${path}:`, err);
         newColumnFiles.set(path, []);
       }
+      // A newer request, or another phone, took over while this listing was loading.
+      if (isStale()) return;
     }
 
     for (let i = 0; i < paths.length - 1; i++) {
@@ -307,6 +321,7 @@ export function usePhoneColumns({
     const openListing = newColumnFiles.get(openPath) || [];
     if (visibleColumnEntries(openListing, showHiddenFiles).length === 0) {
       const expanded = await expandEmptyPhoneColumnOpen(openPath, openListing);
+      if (isStale()) return;
       for (const [path, files] of expanded.filesByPath) {
         newColumnFiles.set(path, files);
       }
