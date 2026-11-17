@@ -18,6 +18,7 @@ import { RefObject, SetStateAction, useEffect, useRef } from "react";
 import { visibleColumnEntries, joinColumnPath, collapseEmptyIntermediatePaths, basenameSegment } from "../../lib/columnPathCollapse";
 import { type FileEntry } from "../../lib/file-types";
 import { calculateGridColumns } from "../../lib/fileDisplay";
+import { anyModalOpen } from "../../lib/shortcutGuards";
 import { nextIconSize, prevIconSize, type IconSize } from "../../lib/iconSize";
 import { type FilePreview, type ConflictPromptState } from "../../types/transfer";
 import type { MacPaneHandle } from "../../components/explorer/mac/macPaneTypes";
@@ -355,18 +356,8 @@ export function useKeyboardShortcuts({
         document.activeElement?.tagName === "INPUT" ||
         document.activeElement?.tagName === "TEXTAREA";
 
-      const isModalOpen =
-        s.showDeleteConfirm ||
-        !!s.newFolderDialog ||
-        s.showPreview ||
-        s.showShortcutsHelp ||
-        s.settingsOpen ||
-        s.syncDialogOpen ||
-        s.downloadOptionsOpen ||
-        s.renamingIndex >= 0 ||
-        s.transferFlowBusy ||
-        !!s.conflictPrompt ||
-        !!s.fileMenu;
+      // Includes the first-run tour, which only handles a few keys itself.
+      const isModalOpen = anyModalOpen(s);
 
       if (s.transferFlowBusy || s.conflictPrompt) {
         if (e.key === "Escape") {
