@@ -43,6 +43,7 @@ pub(crate) async fn preview_sync(
         recursive,
         options.match_mode.clone(),
         patterns,
+        missing_phone_folder_is_ok(&options.direction),
         &mut reporter,
     ).await?;
 
@@ -132,6 +133,7 @@ pub(crate) async fn execute_sync(
         recursive,
         options.match_mode.clone(),
         patterns,
+        missing_phone_folder_is_ok(&options.direction),
         &mut reporter,
     ).await?;
 

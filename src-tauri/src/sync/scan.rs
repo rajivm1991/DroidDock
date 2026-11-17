@@ -90,6 +90,68 @@ mod scan_completion_tests {
 }
 
 
+/// What a phone listing prints instead of files when the scanned path is not a folder.
+/// Without it a missing folder looks like a complete, empty one.
+pub(crate) const SCAN_NOT_A_DIR_MARKER: &str = "__DROIDDOCK_NOT_A_DIR__";
+
+
+/// True when the phone reported the scanned path is not a folder.
+pub(crate) fn scan_folder_missing(stdout: &str) -> bool {
+    stdout
+        .trim_end_matches(['\n', '\r'])
+        .rsplit('\n')
+        .next()
+        .is_some_and(|last| last.trim_end_matches('\r') == SCAN_NOT_A_DIR_MARKER)
+}
+
+
+/// Phone to computer treats the phone as the truth and can delete Mac files, so a missing
+/// phone folder must stop it. Copying to the phone, or merging both ways, never deletes
+/// from a phone listing, and a missing phone folder is the normal first sync into a new one.
+pub(crate) fn missing_phone_folder_is_ok(direction: &SyncDirection) -> bool {
+    !matches!(direction, SyncDirection::PhoneToComputer)
+}
+
+
+#[cfg(test)]
+mod missing_folder_tests {
+    use super::{
+        missing_phone_folder_is_ok, scan_folder_missing, SyncDirection, SCAN_DONE_MARKER,
+        SCAN_NOT_A_DIR_MARKER,
+    };
+
+    #[test]
+    fn the_not_a_folder_marker_alone_means_the_folder_is_missing() {
+        assert!(scan_folder_missing(&format!("{}\n", SCAN_NOT_A_DIR_MARKER)));
+        assert!(scan_folder_missing(SCAN_NOT_A_DIR_MARKER));
+    }
+
+    #[test]
+    fn a_normal_listing_is_not_a_missing_folder() {
+        let out = format!("10|1|regular file|/a\n{}\n", SCAN_DONE_MARKER);
+        assert!(!scan_folder_missing(&out));
+        assert!(!scan_folder_missing(&format!("{}\n", SCAN_DONE_MARKER)));
+    }
+
+    #[test]
+    fn a_cut_short_or_empty_listing_is_not_reported_as_missing() {
+        assert!(!scan_folder_missing("10|1|regular file|/a\n20|2|dire"));
+        assert!(!scan_folder_missing(""));
+    }
+
+    #[test]
+    fn phone_to_computer_cannot_start_from_a_missing_phone_folder() {
+        assert!(!missing_phone_folder_is_ok(&SyncDirection::PhoneToComputer));
+    }
+
+    #[test]
+    fn copying_to_or_merging_with_a_new_phone_folder_is_allowed() {
+        assert!(missing_phone_folder_is_ok(&SyncDirection::ComputerToPhone));
+        assert!(missing_phone_folder_is_ok(&SyncDirection::BothWays));
+    }
+}
+
+
 #[cfg(test)]
 mod sync_exclusion_tests {
     use super::is_sync_excluded;
@@ -310,7 +372,15 @@ pub(crate) async fn list_device_files_for_sync(
     match_mode: String,
     file_patterns: Vec<String>,
 ) -> Result<Vec<FileMetadata>, String> {
-    scan_device_files(app, device_id, path, recursive, match_mode, file_patterns, &mut ScanReporter::none()).await
+    scan_device_files(app, device_id, path, recursive, match_mode, file_patterns, false, &mut ScanReporter::none()).await
+}
+
+
+fn missing_folder_error(folder: &str) -> String {
+    format!(
+        "The folder {} was not found on the phone, so nothing was synced. Check the phone folder in the sync settings, and that the phone's storage is still connected.",
+        folder
+    )
 }
 
 
@@ -357,6 +427,9 @@ pub(crate) async fn scan_device_files(
     recursive: bool,
     match_mode: String,
     file_patterns: Vec<String>,
+    // When false, a phone folder that does not exist stops the scan with an error instead of
+    // reading as an empty folder. See `missing_phone_folder_is_ok`.
+    allow_missing_folder: bool,
     reporter: &mut ScanReporter,
 ) -> Result<Vec<FileMetadata>, String> {
     let shell = app.shell();
@@ -415,9 +488,13 @@ pub(crate) async fn scan_device_files(
         let mut listed_before: u32 = 0;
         for scan_dir in &scan_dirs {
             let escaped_scan_dir = scan_dir.replace("'", "'\\''");
+            // A path that is not a folder prints the not-a-folder marker, so a missing folder
+            // is never mistaken for a complete, empty one.
             let find_stat_command = format!(
-                "find '{}' -mindepth 1 \\( -type f -o -type d \\) -exec stat -c '%s|%Y|%F|%n' {{}} + 2>/dev/null; echo {}",
-                escaped_scan_dir, SCAN_DONE_MARKER
+                "if [ -d '{dir}' ]; then find '{dir}' -mindepth 1 \\( -type f -o -type d \\) -exec stat -c '%s|%Y|%F|%n' {{}} + 2>/dev/null; echo {done}; else echo {nodir}; fi",
+                dir = escaped_scan_dir,
+                done = SCAN_DONE_MARKER,
+                nodir = SCAN_NOT_A_DIR_MARKER
             );
 
             let (mut rx, _child) = shell
@@ -446,6 +523,12 @@ pub(crate) async fn scan_device_files(
             reporter.report_final("phone", "listing", listed_before, None);
 
             let stdout_text = String::from_utf8_lossy(&stdout_bytes);
+            if scan_folder_missing(&stdout_text) {
+                if allow_missing_folder {
+                    continue;
+                }
+                return Err(missing_folder_error(scan_dir));
+            }
             let stdout = require_scan_complete(&stdout_text)?;
 
             #[cfg(debug_assertions)]
@@ -507,7 +590,12 @@ pub(crate) async fn scan_device_files(
         result.dedup_by(|a, b| a.relative_path == b.relative_path);
     } else {
         // Flat listing: use ls -la and stat for mtime
-        let ls_command = format!("ls -la '{}'; echo {}", escaped_path, SCAN_DONE_MARKER);
+        let ls_command = format!(
+            "if [ -d '{dir}' ]; then ls -la '{dir}'; echo {done}; else echo {nodir}; fi",
+            dir = escaped_path,
+            done = SCAN_DONE_MARKER,
+            nodir = SCAN_NOT_A_DIR_MARKER
+        );
 
         let output = shell
             .command(&adb_cmd)
@@ -517,7 +605,12 @@ pub(crate) async fn scan_device_files(
             .map_err(|e| format!("Failed to list device files: {}", e))?;
 
         let stdout_text = String::from_utf8_lossy(&output.stdout);
-        let stdout = require_scan_complete(&stdout_text)?;
+        let folder_missing = scan_folder_missing(&stdout_text);
+        if folder_missing && !allow_missing_folder {
+            return Err(missing_folder_error(&path));
+        }
+        // A missing folder that is allowed reads as an empty one.
+        let stdout = if folder_missing { "" } else { require_scan_complete(&stdout_text)? };
         let entries: Vec<FileEntry> = stdout
             .lines()
             .filter(|line| !line.trim().is_empty())
