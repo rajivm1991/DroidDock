@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from "react";
 import { type TransferJob, type TransferFile } from "../../components/transfer/TransferPanel";
 import { listen } from "@tauri-apps/api/event";
+import { readStoredBoolean } from "../../lib/storage";
 
 export function useTransferJob() {
   /** Finished jobs for this session only. Not written to disk. */
@@ -26,10 +27,9 @@ export function useTransferJob() {
   const transferControl = useRef({ pause: false, cancel: false });
   /** Row id currently inside download_file / upload_file (set before invoke). */
   const inFlightTransferIdRef = useRef<string | null>(null);
-  const [revealAfterDownload, setRevealAfterDownload] = useState<boolean>(() => {
-    const saved = localStorage.getItem("droiddock-reveal-after-download");
-    return saved !== null ? JSON.parse(saved) : false;
-  });
+  const [revealAfterDownload, setRevealAfterDownload] = useState<boolean>(
+    () => readStoredBoolean("droiddock-reveal-after-download") ?? false,
+  );
   const [downloadOptionsOpen, setDownloadOptionsOpen] = useState<boolean>(false);
 
   // Byte events from adb pull/push. The id was assigned when the file was

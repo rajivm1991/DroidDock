@@ -6,6 +6,7 @@
 import { RefObject, SetStateAction, useEffect, useRef, useState } from "react";
 import { type ConflictMode, type ConflictPromptState, type ConflictPromptResult, FINDER_DROP_ACK_KEY } from "../../types/transfer";
 import { type TransferConflictPolicy } from "../../lib/transferConflicts";
+import { readStoredBoolean } from "../../lib/storage";
 import { type PerItemConflict } from "../../components/transfer/TransferConflictDialog";
 import { type TransferJob } from "../../components/transfer/TransferPanel";
 
@@ -26,9 +27,9 @@ export function useTransferPrompts({
       return saved;
     }
     // Migrate the legacy skip-duplicates toggle.
-    const legacy = localStorage.getItem("droiddock-skip-duplicate-downloads");
+    const legacy = readStoredBoolean("droiddock-skip-duplicate-downloads");
     if (legacy !== null) {
-      return JSON.parse(legacy) ? "skip" : "replace";
+      return legacy ? "skip" : "replace";
     }
     return "skip";
   });

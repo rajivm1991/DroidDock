@@ -3,13 +3,14 @@
  * appearance and sets data-theme on the document. The color values live in CSS.
  */
 import { useEffect, useState } from "react";
+import { readStoredBoolean } from "../../lib/storage";
 
 export function useThemeMode() {
   const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>(() => {
     const saved = localStorage.getItem('themeMode');
     if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
-    const legacy = localStorage.getItem('darkMode');
-    if (legacy !== null) return JSON.parse(legacy) ? 'dark' : 'light';
+    const legacy = readStoredBoolean('darkMode');
+    if (legacy !== null) return legacy ? 'dark' : 'light';
     return 'system';
   });
   const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(
