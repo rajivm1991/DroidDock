@@ -56,6 +56,112 @@ fn thumb_scale_filter() -> String {
 }
 
 
+/// True when a file is too big to preview, or when its size is unknown. An unknown size
+/// used to skip the limit and pull the whole file, however large.
+pub(crate) fn exceeds_thumbnail_limit(size: Option<u64>) -> bool {
+    size.map_or(true, |bytes| bytes > THUMBNAIL_MAX_BYTES)
+}
+
+
+/// The slow part of an image thumbnail: decode, shrink, save to the cache, and encode as a
+/// data URL. It reads and writes files and burns CPU, so callers run it with `run_blocking`.
+fn render_image_thumbnail(
+    source: &std::path::Path,
+    cached_thumb_path: &std::path::Path,
+) -> Result<String, String> {
+    // with_guessed_format() reads the real format from the file content, so a .jpg that is
+    // really a PNG still works.
+    let img = image::ImageReader::open(source)
+        .map_err(|e| format!("Failed to open image: {}", e))?
+        .with_guessed_format()
+        .map_err(|e| format!("Failed to guess image format: {}", e))?
+        .decode()
+        .map_err(|e| {
+            format!("Failed to decode image: {}. File may be corrupted or incomplete.", e)
+        })?;
+    let thumbnail = img.thumbnail(THUMBNAIL_EDGE, THUMBNAIL_EDGE);
+    thumbnail
+        .save(cached_thumb_path)
+        .map_err(|e| format!("Failed to save thumbnail: {}", e))?;
+    data_url_from_png_file(cached_thumb_path)
+}
+
+
+/// Reads a cached PNG and returns it as a data URL.
+fn data_url_from_png_file(path: &std::path::Path) -> Result<String, String> {
+    let bytes = fs::read(path).map_err(|e| format!("Failed to read cached thumbnail: {}", e))?;
+    Ok(format!("data:image/png;base64,{}", general_purpose::STANDARD.encode(&bytes)))
+}
+
+
+/// Runs file and image work on a blocking thread, so it cannot hold up the async workers that
+/// carry adb progress events and the device poll.
+async fn run_blocking<T, F>(work: F) -> Result<T, String>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T, String> + Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(|e| format!("The preview task stopped unexpectedly: {}", e))?
+}
+
+
+#[cfg(test)]
+mod thumbnail_tests {
+    use super::*;
+
+    #[test]
+    fn a_size_over_the_limit_or_unknown_is_too_large() {
+        assert!(!exceeds_thumbnail_limit(Some(1)));
+        assert!(!exceeds_thumbnail_limit(Some(THUMBNAIL_MAX_BYTES)));
+        assert!(exceeds_thumbnail_limit(Some(THUMBNAIL_MAX_BYTES + 1)));
+        assert!(exceeds_thumbnail_limit(None));
+    }
+
+    #[test]
+    fn renders_a_large_image_as_a_small_png_data_url_and_caches_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("big.png");
+        image::RgbImage::from_pixel(1200, 800, image::Rgb([10, 20, 30]))
+            .save(&source)
+            .unwrap();
+        let cached = dir.path().join("cache.png");
+
+        let url = render_image_thumbnail(&source, &cached).expect("thumbnail");
+
+        let encoded = url.strip_prefix("data:image/png;base64,").expect("a PNG data URL");
+        let bytes = general_purpose::STANDARD.decode(encoded).unwrap();
+        let thumb = image::load_from_memory(&bytes).unwrap();
+        assert!(thumb.width().max(thumb.height()) <= THUMBNAIL_EDGE);
+        assert_eq!(thumb.width(), THUMBNAIL_EDGE, "the long edge fills the thumbnail");
+        assert!(cached.exists(), "the thumbnail is saved for next time");
+    }
+
+    #[test]
+    fn a_file_that_is_not_an_image_is_an_error_and_leaves_no_cache_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = dir.path().join("broken.png");
+        fs::write(&source, b"this is not an image at all, just some text bytes").unwrap();
+        let cached = dir.path().join("cache.png");
+
+        let err = render_image_thumbnail(&source, &cached).unwrap_err();
+
+        assert!(err.contains("image"), "got: {err}");
+        assert!(!cached.exists());
+    }
+
+    #[test]
+    fn a_cached_png_is_returned_as_a_data_url() {
+        let dir = tempfile::tempdir().unwrap();
+        let cached = dir.path().join("cache.png");
+        image::RgbImage::from_pixel(4, 4, image::Rgb([1, 2, 3])).save(&cached).unwrap();
+        let url = data_url_from_png_file(&cached).unwrap();
+        assert!(url.starts_with("data:image/png;base64,"));
+    }
+}
+
+
 // Get thumbnail for an image or video file on the phone (ADB pull).
 #[tauri::command]
 pub(crate) async fn get_thumbnail(
@@ -68,10 +174,14 @@ pub(crate) async fn get_thumbnail(
     let shell = app.shell();
     let adb_cmd = get_adb_command();
 
-    if let Ok(size) = file_size.parse::<u64>() {
-        if size > THUMBNAIL_MAX_BYTES {
-            return Ok("size-too-large".to_string());
-        }
+    // A size that does not parse is looked up on the phone. If that fails too, the size is
+    // unknown and the file is treated as too large, so a preview never pulls an unbounded file.
+    let known_size = match file_size.parse::<u64>() {
+        Ok(size) => Some(size),
+        Err(_) => crate::transfer::device_file_stat(&app, &device_id, &file_path).await.0,
+    };
+    if exceeds_thumbnail_limit(known_size) {
+        return Ok("size-too-large".to_string());
     }
 
     // Create temp directory for thumbnails
@@ -85,10 +195,8 @@ pub(crate) async fn get_thumbnail(
 
     // Check if thumbnail already exists in cache
     if cached_thumb_path.exists() {
-        let thumb_bytes = std::fs::read(&cached_thumb_path)
-            .map_err(|e| format!("Failed to read cached thumbnail: {}", e))?;
-        let base64_string = general_purpose::STANDARD.encode(&thumb_bytes);
-        return Ok(format!("data:image/png;base64,{}", base64_string));
+        let cached = cached_thumb_path.clone();
+        return run_blocking(move || data_url_from_png_file(&cached)).await;
     }
 
     // Generate unique filename for temporary file
@@ -151,41 +259,14 @@ pub(crate) async fn get_thumbnail(
 
     // Generate thumbnail based on file type
     if is_image_extension(&ext_lower) {
-        // Use with_guessed_format() to detect the actual format from file content
-        // This handles files with mismatched extensions (e.g., .jpg files that are actually PNG)
-        let img = image::ImageReader::open(&temp_file)
-            .map_err(|e| {
-                let _ = std::fs::remove_file(&temp_file);
-                format!("Failed to open image (pulled {} bytes): {}", file_metadata.len(), e)
-            })?
-            .with_guessed_format()
-            .map_err(|e| {
-                let _ = std::fs::remove_file(&temp_file);
-                format!("Failed to guess image format: {}", e)
-            })?
-            .decode()
-            .map_err(|e| {
-                let _ = std::fs::remove_file(&temp_file);
-                format!("Failed to decode image (pulled {} bytes, expected size {}): {}. File may be corrupted or incomplete.",
-                    file_metadata.len(), file_size, e)
-            })?;
-
-        let thumbnail = img.thumbnail(THUMBNAIL_EDGE, THUMBNAIL_EDGE);
-
-        // Save thumbnail to cache
-        thumbnail.save(&cached_thumb_path)
-            .map_err(|e| format!("Failed to save thumbnail: {}", e))?;
-
-        // Convert to base64 for easy transfer to frontend
-        let thumb_bytes = std::fs::read(&cached_thumb_path)
-            .map_err(|e| format!("Failed to read thumbnail: {}", e))?;
-        let base64_string = general_purpose::STANDARD.encode(&thumb_bytes);
-
-        // Clean up original file
+        let source = temp_file.clone();
+        let cached = cached_thumb_path.clone();
+        let result = run_blocking(move || render_image_thumbnail(&source, &cached)).await;
+        // The pulled original is not needed once the thumbnail exists, or has failed.
         let _ = std::fs::remove_file(&temp_file);
-
-        // Return data URL
-        Ok(format!("data:image/png;base64,{}", base64_string))
+        result.map_err(|e| {
+            format!("{} (pulled {} bytes, expected size {})", e, file_metadata.len(), file_size)
+        })
 
     } else if is_video_extension(&ext_lower) {
         // For videos, try to extract a frame using ffmpeg if available
@@ -269,28 +350,15 @@ pub(crate) async fn get_local_thumbnail(
     );
     let cached_thumb_path = thumb_cache_path(&temp_dir, &cache_key);
     if cached_thumb_path.exists() {
-        let thumb_bytes = fs::read(&cached_thumb_path)
-            .map_err(|e| format!("Failed to read cached thumbnail: {}", e))?;
-        let base64_string = general_purpose::STANDARD.encode(&thumb_bytes);
-        return Ok(format!("data:image/png;base64,{}", base64_string));
+        let cached = cached_thumb_path.clone();
+        return run_blocking(move || data_url_from_png_file(&cached)).await;
     }
 
     let ext_lower = extension.to_lowercase().trim_start_matches('.').to_string();
     if is_image_extension(&ext_lower) {
-        let img = image::ImageReader::open(path)
-            .map_err(|e| format!("Failed to open image: {}", e))?
-            .with_guessed_format()
-            .map_err(|e| format!("Failed to guess image format: {}", e))?
-            .decode()
-            .map_err(|e| format!("Failed to decode image: {}", e))?;
-        let thumbnail = img.thumbnail(THUMBNAIL_EDGE, THUMBNAIL_EDGE);
-        thumbnail
-            .save(&cached_thumb_path)
-            .map_err(|e| format!("Failed to save thumbnail: {}", e))?;
-        let thumb_bytes = fs::read(&cached_thumb_path)
-            .map_err(|e| format!("Failed to read thumbnail: {}", e))?;
-        let base64_string = general_purpose::STANDARD.encode(&thumb_bytes);
-        return Ok(format!("data:image/png;base64,{}", base64_string));
+        let source = path.to_path_buf();
+        let cached = cached_thumb_path.clone();
+        return run_blocking(move || render_image_thumbnail(&source, &cached)).await;
     }
 
     if is_video_extension(&ext_lower) {

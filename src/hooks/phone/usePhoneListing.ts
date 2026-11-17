@@ -16,6 +16,10 @@ import { type SortColumn, nextSortState } from "../../lib/sort";
 import { invoke } from "@tauri-apps/api/core";
 import { filterAndSortPhoneFiles } from "../../lib/phoneVisibleFiles";
 import { columnHighlightIndexForChild } from "../../lib/columnPathCollapse";
+import { createLimiter } from "../../lib/limiter";
+
+/** At most three previews are pulled from the phone at once, so a fast scroll cannot start dozens of adb pulls. */
+const phoneThumbnailLimiter = createLimiter(3);
 
 export interface UsePhoneListingArgs {
   selectedDevice: string;
@@ -47,6 +51,8 @@ export function usePhoneListing({
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [thumbnailCache, setThumbnailCache] = useState<Map<string, string>>(new Map());
+  /** Paths the phone cannot give a preview for (a video without ffmpeg, a file over the size limit). Asking again on every remount would pull the same file again. */
+  const noPreviewPaths = useRef<Set<string>>(new Set());
 
   // File selection and deletion state
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
@@ -382,8 +388,8 @@ export function usePhoneListing({
     // folder, and the image reader then fails because that path is a directory.
     if (!needsThumbnail(file)) return;
 
-    // Check cache first
-    if (thumbnailCache.has(filePath)) {
+    // Check cache first, including paths already known to have no preview
+    if (thumbnailCache.has(filePath) || noPreviewPaths.current.has(filePath)) {
       return;
     }
 
@@ -393,12 +399,14 @@ export function usePhoneListing({
     console.log(`Loading thumbnail - filePath: ${filePath}, extension: ${file.extension}, size: ${file.size}`);
 
     try {
-      const thumbnailData = await invoke<string>("get_thumbnail", {
-        deviceId: selectedDevice,
-        filePath: filePath,
-        extension: file.extension || "",
-        fileSize: file.size,
-      });
+      const thumbnailData = await phoneThumbnailLimiter(() =>
+        invoke<string>("get_thumbnail", {
+          deviceId: selectedDevice,
+          filePath: filePath,
+          extension: file.extension || "",
+          fileSize: file.size,
+        }),
+      );
 
       // Only update cache if we're still on the same device (user hasn't navigated away)
       if (selectedDevice !== deviceAtStart) {
@@ -412,6 +420,7 @@ export function usePhoneListing({
         setThumbnailCache(prev => new Map(prev).set(filePath, thumbnailData));
         console.log(`✓ Thumbnail cached for ${file.name}`);
       } else {
+        noPreviewPaths.current.add(filePath);
         console.warn(`✗ Thumbnail skipped for ${file.name}: ${thumbnailData}`);
       }
     } catch (err) {

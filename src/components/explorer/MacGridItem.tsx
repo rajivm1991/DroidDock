@@ -10,6 +10,10 @@ import { isMultiSelectClick, type FolderOpenClick } from "../../lib/presets";
 import { FileMark } from "./FileMark";
 import { joinMacPath } from "./mac/macPaneFormat";
 import type { MacSelectRangeContext } from "./mac/macPaneTypes";
+import { createLimiter } from "../../lib/limiter";
+
+/** Image decoding is heavy, so a fast scroll over a big photo folder runs only a few at a time. */
+const macThumbnailLimiter = createLimiter(4);
 
 export function MacGridItem({
   file,
@@ -68,10 +72,12 @@ export function MacGridItem({
 
     const requestLoad = () => {
       setHasLoaded(true);
-      void invoke<string>("get_local_thumbnail", {
-        filePath: absolutePath,
-        extension: file.extension || "",
-      })
+      void macThumbnailLimiter(() =>
+        invoke<string>("get_local_thumbnail", {
+          filePath: absolutePath,
+          extension: file.extension || "",
+        }),
+      )
         .then((data) => {
           if (
             data &&
